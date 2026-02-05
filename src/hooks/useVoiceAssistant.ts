@@ -50,7 +50,10 @@ export function useVoiceAssistant() {
       setTranscript("");
       setPhase("listening");
       sttRef.current = createBrowserSTT(
-        (r) => setTranscript(r.text),
+        (r) => {
+          transcriptRef.current = r.text;
+          setTranscript(r.text);
+        },
         () => setPhase("idle")
       );
       sttRef.current.start();
@@ -66,7 +69,7 @@ export function useVoiceAssistant() {
     setPhase("converting");
   }, []);
 
-  const getTranscript = useCallback(() => transcript, [transcript]);
+  const getTranscript = useCallback(() => transcriptRef.current, []);
   const setTranscriptManual = useCallback((t: string) => setTranscript(t), []);
 
   return {

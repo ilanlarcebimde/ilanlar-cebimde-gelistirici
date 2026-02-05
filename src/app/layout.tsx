@@ -3,6 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "İlanlar Cebimde — Usta Başvuru Paketi | 549 TL",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   description:
     "Yurtiçi ve yurtdışı iş başvuruları için profesyonel CV, kişisel başvuru mektubu ve ilan analizi tek pakette. Ustalar için.",
   keywords:

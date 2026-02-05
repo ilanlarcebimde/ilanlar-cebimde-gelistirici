@@ -22,7 +22,15 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
       }`}
     >
       <div className="mx-auto flex h-14 sm:h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center text-slate-900" aria-label="İlanlar Cebimde">
+        <Link href="/" className="flex items-center gap-2 text-slate-900" aria-label="İlanlar Cebimde - Ana Sayfa">
+          <Image
+            src="/logo.png"
+            alt="İlanlar Cebimde"
+            width={36}
+            height={36}
+            className="h-9 w-9 sm:h-10 sm:w-10 object-contain"
+            priority
+          />
           <span className="text-lg sm:text-xl font-bold tracking-tight">İlanlar Cebimde</span>
         </Link>
 
