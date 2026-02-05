@@ -50,6 +50,7 @@ export function VoiceWizard({
   const [transcript, setTranscript] = useState("");
   const [phase, setPhase] = useState<"idle" | "listening" | "converting" | "editing">("idle");
   const [phase2, setPhase2] = useState<"countryJob" | "photo">("countryJob");
+  const [questionsComplete, setQuestionsComplete] = useState(false);
 
   const question = QUESTIONS[currentQ];
   const savedValue = question ? getAnswerBySaveKey(answers, question.saveKey) : "";
