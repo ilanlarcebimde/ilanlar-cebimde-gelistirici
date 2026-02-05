@@ -11,6 +11,7 @@ import { WhatWeSolveSection } from "@/components/WhatWeSolveSection";
 import { FinalCtaSection } from "@/components/FinalCtaSection";
 import { Footer } from "@/components/Footer";
 import { AuthModal } from "@/components/AuthModal";
+import { StickyCta } from "@/components/StickyCta";
 import type { WizardMethod } from "@/components/wizard/WizardTypes";
 
 export default function Home() {
