@@ -67,6 +67,7 @@ export default function Home() {
         <FinalCtaSection onCtaClick={scrollToMethods} />
         <Footer />
       </main>
+      <StickyCta onCtaClick={scrollToMethods} />
 
       <AnimatePresence>
         <AuthModal

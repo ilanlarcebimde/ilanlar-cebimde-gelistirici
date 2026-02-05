@@ -8,7 +8,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type ProfileStatus =
   | "draft"
   | "completed"
+  | "checkout_started"
   | "paid"
+  | "failed"
   | "processing"
   | "delivered";
 export type ProfileMethod = "voice" | "chat" | "form";

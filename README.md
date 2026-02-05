@@ -1,4 +1,4 @@
-# ilanlar cebimde — Usta Başvuru Paketi
+﻿# ilanlar cebimde — Usta Başvuru Paketi
 
 Yurtdışında iş arayan ustalar için tek sayfa premium landing + CV bilgi toplama ve ödeme akışı.
 
@@ -24,16 +24,19 @@ Tarayıcıda: [http://localhost:3000](http://localhost:3000)
 
 ## Ortam Değişkenleri
 
-| Değişken | Açıklama |
-|----------|----------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase proje URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-| `PAYTR_MERCHANT_ID` | PayTR mağaza ID (sunucu) |
-| `PAYTR_MERCHANT_KEY` | PayTR mağaza key – hash için (sunucu, gizli) |
-| `PAYTR_MERCHANT_SALT` | PayTR salt – hash için (sunucu, gizli) |
-| `NEXT_PUBLIC_SITE_URL` | Sitenin tam adresi (callback/redirect için), örn. `https://www.ilanlarcebimde.com` veya `http://localhost:3000` |
-| `PAYTR_TEST_MODE` | İsteğe bağlı; `1` ise PayTR’ye test_mode=1 gider |
-| `GEMINI_API_KEY` | Google Gemini (CV metin/yapılandırma, opsiyonel) |
+| Değişken | Açıklama | Nerede |
+|----------|----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase proje URL | Client + Server |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Client + Server |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role (RLS bypass) | **Sadece server** |
+| `PAYTR_MERCHANT_ID` | PayTR mağaza ID | **Sadece server** |
+| `PAYTR_MERCHANT_KEY` | PayTR key (hash) | **Sadece server**, gizli |
+| `PAYTR_MERCHANT_SALT` | PayTR salt (hash) | **Sadece server**, gizli |
+| `NEXT_PUBLIC_SITE_URL` / `SITE_URL` | Sitenin tam adresi | Server (callback) |
+| `PAYTR_TEST_MODE` | `1` = test modu | Server |
+| `ELEVENLABS_API_KEY` | ElevenLabs TTS | **Sadece server** (`/api/tts`) |
+| `ELEVENLABS_VOICE_ID` | İsteğe bağlı ses ID | Server |
+| `GEMINI_API_KEY` | Gemini (opsiyonel) | Server |
 
 ## PayTR
 
@@ -43,13 +46,14 @@ Tarayıcıda: [http://localhost:3000](http://localhost:3000)
 
 ## Supabase
 
-Migration: `supabase/migrations/001_initial_schema.sql`
+Migration’lar: `supabase/migrations/001_initial_schema.sql`, `002_payments_and_status.sql`
 
-- **profiles:** draft/completed/paid durumunda CV verisi (method, country, job_area, job_branch, answers jsonb, photo_url)
-- **events:** profile_created, answer_saved, photo_uploaded, checkout_started, payment_success, payment_fail
-- **uploads:** photo/passport/document tipinde dosya URL’leri
+- **profiles:** status (draft, completed, checkout_started, paid, failed, processing, delivered), method, country, job_area, job_branch, answers jsonb, photo_url
+- **events:** profile_created, answer_saved, photo_uploaded, method_selected, checkout_started, payment_success, payment_fail
+- **uploads:** photo/passport/document tipinde; Storage path: `{user_id}/{profile_id}/photo.jpg` – signed URL kullanın, bucket public yapmayın
+- **payments:** PayTR ödeme kayıtları (profile_id, user_id, provider, status: started/success/fail, amount, currency, provider_ref)
 
-RLS açık; kullanıcı kendi kayıtlarına erişir.
+RLS açık; kullanıcı kendi kayıtlarına erişir. Ödeme insert/update sadece server (service_role) ile.
 
 ## Proje Yapısı
 
@@ -57,7 +61,10 @@ RLS açık; kullanıcı kendi kayıtlarına erişir.
 - `src/components/` — Header, Hero, MethodSelection, WizardArea, CountriesSection, ProfessionsSection, NeyiCozuyoruz, Footer, AuthModal
 - `src/components/wizard/` — VoiceWizard, ChatWizard, FormWizard, PhotoUpload, CompletionSummary, WizardTypes
 - `src/data/` — countries, professions (meslek alanları ve dallar)
-- `src/lib/` — supabase client, profileSave (draft + events)
+- `src/lib/` — supabase client, profileSave (draft + events), paytr, stt (Web Speech API + transcribeAudio abstraction)
+- `src/store/` — Zustand profileDraft store
+- `src/hooks/` — useProfileDraft, useAutosave, useVoiceAssistant
+- `src/app/api/tts/` — ElevenLabs TTS (POST text → audio/mpeg)
 
 ## Sonraki Adımlar
 

@@ -4,12 +4,14 @@ import { useCallback, useState, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import type { WizardMethod } from "./WizardTypes";
 import { getAnswerBySaveKey } from "@/data/cvQuestions";
+import { useAutosave } from "@/hooks/useAutosave";
 import { VoiceWizard } from "./VoiceWizard";
 import { ChatWizard } from "./ChatWizard";
 import { FormWizard } from "./FormWizard";
 import { CompletionSummary } from "./CompletionSummary";
 
 export interface WizardState {
+  profileId: string | null;
   method: WizardMethod;
   answers: Record<string, unknown>;
   country: string;
@@ -20,6 +22,7 @@ export interface WizardState {
 }
 
 const DEFAULT_STATE: WizardState = {
+  profileId: null,
   method: "form",
   answers: {},
   country: "",
@@ -52,6 +55,20 @@ export function WizardArea({
     setState((s) => (s.method === selectedMethod ? s : { ...DEFAULT_STATE, method: selectedMethod }));
     setCompleted(false);
   }, [selectedMethod]);
+
+  useAutosave(
+    {
+      profileId: state.profileId,
+      method: selectedMethod,
+      status: "draft",
+      answers: state.answers,
+      country: state.country,
+      job_area: state.jobArea,
+      job_branch: state.jobBranch,
+      photo_url: state.photoUrl,
+    },
+    useCallback((id: string) => setState((s) => ({ ...s, profileId: id })), [])
+  );
 
   const setAnswers = useCallback((answers: Record<string, unknown>) => {
     setState((s) => ({ ...s, answers }));

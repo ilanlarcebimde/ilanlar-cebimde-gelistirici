@@ -39,7 +39,7 @@ export function Hero({ onCtaClick }: { onCtaClick: () => void }) {
   };
 
   return (
-    <section className="relative overflow-hidden bg-[#fafbfc] py-14 sm:py-20 lg:py-24">
+    <section id="hero" className="relative overflow-hidden bg-[#fafbfc] py-14 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
           <div>

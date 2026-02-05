@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Send } from "lucide-react";
 import { COUNTRIES } from "@/data/countries";
@@ -11,6 +11,7 @@ import {
   getAnswerBySaveKey,
   TOTAL_QUESTION_STEPS,
 } from "@/data/cvQuestions";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { PhotoUpload } from "./PhotoUpload";
 
 const QUESTIONS = getQuestionsFor("voice");
@@ -44,6 +45,7 @@ export function VoiceWizard({
   onPhotoClear: () => void;
   onComplete: () => void;
 }) {
+  const voice = useVoiceAssistant();
   const [listening, setListening] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentQ, setCurrentQ] = useState(0);
@@ -54,22 +56,31 @@ export function VoiceWizard({
 
   const question = QUESTIONS[currentQ];
   const savedValue = question ? getAnswerBySaveKey(answers, question.saveKey) : "";
-  const displayValue = transcript || savedValue;
+  const liveTranscript = listening ? voice.transcript : transcript;
+  const displayValue = liveTranscript || savedValue;
+
+  useEffect(() => {
+    if (modalOpen && question) voice.playTTS(question.question);
+  }, [modalOpen, currentQ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStart = () => {
     setModalOpen(true);
     setCurrentQ(0);
     setTranscript("");
+    voice.setTranscript("");
   };
 
   const toggleMic = () => {
     if (listening) {
       setListening(false);
+      voice.stopSTT();
       setPhase("converting");
+      const finalText = voice.getTranscript() || transcript;
+      setTranscript(finalText);
       setTimeout(() => {
         setPhase("editing");
         if (question) {
-          const v = transcript || "(boş)";
+          const v = finalText.trim() || "(boş)";
           onAnswersChange(setAnswerBySaveKey(answers, question.saveKey, v));
         }
         setTimeout(() => setPhase("idle"), 800);
@@ -78,11 +89,14 @@ export function VoiceWizard({
       setListening(true);
       setPhase("listening");
       setTranscript("");
+      voice.setTranscript("");
+      voice.startSTT(() => {});
     }
   };
 
   const handleTranscriptChange = (v: string) => {
     setTranscript(v);
+    if (!listening) voice.setTranscript(v);
   };
 
   const handleNext = () => {
