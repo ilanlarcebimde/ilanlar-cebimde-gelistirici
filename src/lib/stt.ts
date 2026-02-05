@@ -6,6 +6,11 @@
 
 export type STTResult = { text: string; isFinal: boolean };
 
+/** Web Speech API result event shape (browser type not in TS lib) */
+interface SpeechResultEvent {
+  results: ArrayLike<{ readonly length: number; 0: { transcript: string }; isFinal: boolean }>;
+}
+
 export function isSpeechRecognitionSupported(): boolean {
   if (typeof window === "undefined") return false;
   return "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
@@ -17,7 +22,7 @@ interface BrowserSpeechRecognition extends EventTarget {
   lang: string;
   start: () => void;
   stop: () => void;
-  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onresult: ((e: SpeechResultEvent) => void) | null;
   onend: (() => void) | null;
 }
 
@@ -44,7 +49,7 @@ export function createBrowserSTT(
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = "tr-TR";
-  recognition.onresult = (e: SpeechRecognitionEvent) => {
+  recognition.onresult = (e: SpeechResultEvent) => {
     const last = e.results[e.results.length - 1];
     const text = last[0].transcript;
     onResult({ text, isFinal: last.isFinal });
