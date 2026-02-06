@@ -244,6 +244,13 @@ async function callGeminiStrictJson(system: string, user: string) {
   const model = (process.env.GEMINI_MODEL || "gemini-1.5-flash").trim().replace(/^models\//, "");
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
+  // Vercel loglarında teşhis için (API key URL'de loglanmaz)
+  console.log("--- GEMINI DEBUG ---");
+  console.log("İşlenen Model Adı:", model);
+  console.log("URL (key gizli):", `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=***`);
+  console.log("API Key Var mı?:", !!apiKey);
+  console.log("--- GEMINI DEBUG BİTİŞ ---");
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
