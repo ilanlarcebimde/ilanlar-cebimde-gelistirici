@@ -6,6 +6,8 @@ import { Mic } from "lucide-react";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
 import { getVoiceFieldRulesBundle } from "@/lib/assistant/fieldRules";
+import { createSession, loadSession } from "@/lib/assistant/sessionClient";
+import { unflattenCv } from "@/lib/assistant/applyFieldRules";
 import { PhotoUpload } from "./PhotoUpload";
 import { VoiceWizardGeminiModal } from "./VoiceWizardGeminiModal";
 
