@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { Lightbulb, Mic, MicOff } from "lucide-react";
 import { NormalizeConfirm } from "@/components/wizard/NormalizeConfirm";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { setAnswerBySaveKey } from "@/data/cvQuestions";
+import { cleanTextForTTS } from "@/lib/ttsClean";
 
 type AssistantNextAction = "ASK" | "CLARIFY" | "SAVE_AND_NEXT" | "FINISH";
 
@@ -14,6 +16,9 @@ type AssistantReply = {
   answerKey: string;
   inputType: "text" | "textarea" | "number" | "date" | "select";
   examples: string[];
+  showSuggestions?: boolean;
+  showSkipButton?: boolean;
+  hintExamples?: string[];
   validation?: { required?: boolean; minLength?: number; maxLength?: number; pattern?: string };
   review?: {
     needsNormalization?: boolean;
@@ -104,6 +109,7 @@ export function VoiceWizardGeminiModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showFinishedMessage, setShowFinishedMessage] = useState(false);
+  const [hintOpen, setHintOpen] = useState(false);
   const lastSpokenRef = useRef("");
 
   useEffect(() => {
@@ -118,6 +124,10 @@ export function VoiceWizardGeminiModal({
       ...(sessionIdProp != null ? { sessionId: sessionIdProp } : {}),
     }));
   }, [cv, filledKeys, target, allowedKeys, keyHints, fieldRules, sessionIdProp]);
+
+  useEffect(() => {
+    if (reply) setHintOpen(false);
+  }, [reply?.answerKey]);
 
   async function fetchNext(state: AssistantState) {
     setBusy(true);
@@ -164,8 +174,9 @@ export function VoiceWizardGeminiModal({
     const init = async () => {
       const next = await fetchNext(stateToSend);
       if (next?.speakText) {
+        const toSpeak = cleanTextForTTS(next.speakText, { answerKey: next.answerKey });
         lastSpokenRef.current = next.speakText;
-        await voice.playTTS(next.speakText);
+        await voice.playTTS(toSpeak);
       }
     };
 
@@ -178,21 +189,58 @@ export function VoiceWizardGeminiModal({
 
     const run = async () => {
       lastSpokenRef.current = reply.speakText;
-      await voice.playTTS(reply.speakText);
+      const toSpeak = cleanTextForTTS(reply.speakText, { answerKey: reply.answerKey });
+      await voice.playTTS(toSpeak);
     };
 
     run();
   }, [reply?.speakText, isOpen]);
 
   const canListen = voice.isSTTSupported;
+  const isEmailStep = reply?.answerKey === "personal.email";
+  const isHitapStep = reply?.answerKey === "personal.hitap";
+  const showSuggestionsChips = reply?.showSuggestions === true && (reply?.examples?.length ?? 0) > 0;
+  const showSkipButton = reply?.showSkipButton === true;
+  const hitapOptions = isHitapStep ? (reply?.examples?.length ? reply.examples : ["Bey", "Hanım", "Sadece isim"]) : [];
+  /** İpucu kartında gösterilecek örnekler: API hintExamples veya açık uçlu sorularda examples. */
+  const hintExamples = reply?.hintExamples?.length
+    ? reply.hintExamples
+    : reply?.showSuggestions !== true && reply?.examples?.length
+      ? reply.examples
+      : [];
 
-  async function handleStopAndSubmit() {
+  async function handleSkip() {
+    if (!reply) return;
+    setError("");
+    voice.stopSTT();
+    const currentQuestion = reply.displayText ?? reply.speakText ?? "";
+    const skipState: AssistantState = {
+      ...assistantState,
+      lastQuestion: currentQuestion,
+      lastAnswer: "[Kullanıcı bu adımı atladı]",
+      history: [
+        ...assistantState.history,
+        ...(currentQuestion ? [{ role: "assistant" as const, text: currentQuestion }] : []),
+        { role: "user" as const, text: "[Atla]" },
+      ].slice(-40),
+    };
+    setAssistantState(skipState);
+    setLocalText("");
+    setReply(null);
+    const next = await fetchNext(skipState);
+    if (next?.speakText) {
+      lastSpokenRef.current = next.speakText;
+      await voice.playTTS(cleanTextForTTS(next.speakText, { answerKey: next.answerKey }));
+    }
+  }
+
+  async function handleStopAndSubmit(overrideText?: string) {
     setError("");
     voice.stopSTT();
 
     const spoken = (voice.getTranscript() ?? "").trim();
     const typed = (localText ?? "").trim();
-    const finalText = (typed.length > 0 ? typed : spoken).trim();
+    const finalText = (overrideText ?? (typed.length > 0 ? typed : spoken)).trim();
 
     if (!finalText) {
       setError("Cevap boş görünüyor. Kısaca yazabilir veya tekrar konuşabilirsin.");
@@ -341,7 +389,7 @@ export function VoiceWizardGeminiModal({
           <div>
             <div className="text-lg font-semibold text-slate-900">Sesli Asistan</div>
             <div className="text-xs text-slate-500">
-              Soru Gemini tarafından üretilir, ElevenLabs seslendirir.
+              Soruları sesli dinleyebilir, konuşarak veya yazarak yanıtlayabilirsiniz.
             </div>
           </div>
           <button
@@ -354,10 +402,49 @@ export function VoiceWizardGeminiModal({
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-200 p-3">
-          <div className="text-sm font-semibold text-slate-800">Soru</div>
-          <div className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-            {reply?.displayText ?? (busy ? "Hazırlanıyor…" : "Başlatılıyor…")}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                Soru
+                {voice.phase === "playing" && (
+                  <span className="flex gap-0.5" aria-hidden>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <motion.span
+                        key={i}
+                        className="w-1 rounded-full bg-slate-400"
+                        animate={{ height: [4, 12, 4] }}
+                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                        style={{ height: 4 }}
+                      />
+                    ))}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                {reply?.displayText ?? (busy ? "Hazırlanıyor…" : "Başlatılıyor…")}
+              </div>
+            </div>
+            {hintExamples.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setHintOpen((o) => !o)}
+                className="shrink-0 flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                title="İpucu"
+              >
+                <Lightbulb className="h-3.5 w-3.5" /> İpucu
+              </button>
+            ) : null}
           </div>
+          {hintOpen && hintExamples.length > 0 ? (
+            <div className="mt-3 rounded-lg bg-amber-50/80 border border-amber-200 p-3">
+              <div className="text-xs font-semibold text-amber-900 mb-2">Örnek cevaplar</div>
+              <ul className="space-y-1 text-xs text-amber-800">
+                {hintExamples.slice(0, 4).map((ex) => (
+                  <li key={ex}>• {ex}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {reply?.progress ? (
             <div className="mt-2 text-xs text-slate-500">
@@ -365,31 +452,72 @@ export function VoiceWizardGeminiModal({
             </div>
           ) : null}
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2 items-center">
             <button
               type="button"
               className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-40 hover:bg-slate-700"
-              onClick={() => reply?.speakText && voice.playTTS(reply.speakText)}
+              onClick={() =>
+                reply?.speakText &&
+                voice.playTTS(cleanTextForTTS(reply.speakText, { answerKey: reply.answerKey }))
+              }
               disabled={!reply?.speakText || busy}
             >
               Soruyu Tekrar Oku
             </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-40 hover:bg-slate-50"
-              onClick={() => voice.startSTT()}
-              disabled={!canListen || busy}
-            >
-              Konuş
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-40 hover:bg-slate-50"
-              onClick={handleStopAndSubmit}
-              disabled={busy}
-            >
-              Sonlandır ve Gönder
-            </button>
+            {!isEmailStep && !isHitapStep && (
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-40 hover:bg-slate-50 inline-flex items-center gap-1.5"
+                onClick={() => voice.startSTT()}
+                disabled={!canListen || busy}
+              >
+                {voice.phase === "listening" ? (
+                  <>
+                    <span className="flex gap-0.5">
+                      {[1, 2, 3, 4].map((i) => (
+                        <motion.span
+                          key={i}
+                          className="w-1 rounded-full bg-red-500"
+                          animate={{ height: [6, 14, 6] }}
+                          transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.08 }}
+                          style={{ height: 6 }}
+                        />
+                      ))}
+                    </span>
+                    Dinleniyor…
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4" /> Konuş
+                  </>
+                )}
+              </button>
+            )}
+            {isEmailStep && (
+              <span className="text-xs text-slate-500 flex items-center gap-1">
+                <MicOff className="h-3.5 w-3.5" /> Bu alanı yazarak doldurun.
+              </span>
+            )}
+            {!isHitapStep && (
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-40 hover:bg-slate-50"
+                onClick={() => handleStopAndSubmit()}
+                disabled={busy}
+              >
+                Sonlandır ve Gönder
+              </button>
+            )}
+            {showSkipButton && (
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                onClick={handleSkip}
+                disabled={busy}
+              >
+                Bu Adımı Atla
+              </button>
+            )}
           </div>
 
           {voice.lastError ? (
@@ -398,17 +526,17 @@ export function VoiceWizardGeminiModal({
             </div>
           ) : null}
 
-          {!canListen ? (
+          {!isEmailStep && !canListen ? (
             <div className="mt-2 text-xs text-amber-600">
               Bu tarayıcı konuşma tanımayı desteklemiyor.
             </div>
           ) : null}
 
-          {reply?.examples?.length ? (
+          {showSuggestionsChips && !isHitapStep && (
             <div className="mt-3">
               <div className="text-xs font-semibold text-slate-600">Öneriler</div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {reply.examples.map((ex) => (
+                {(reply?.examples ?? []).map((ex) => (
                   <button
                     key={ex}
                     type="button"
@@ -420,33 +548,51 @@ export function VoiceWizardGeminiModal({
                 ))}
               </div>
             </div>
-          ) : null}
+          )}
+
+          {isHitapStep && hitapOptions.length > 0 && (
+            <div className="mt-3">
+              <div className="text-xs font-semibold text-slate-600">Seçin</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {hitapOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    className="rounded-xl border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 disabled:opacity-50"
+                    onClick={() => handleStopAndSubmit(opt)}
+                    disabled={busy}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="mt-4">
-          <div className="text-sm font-semibold text-slate-800">Cevabın</div>
-          <textarea
-            className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-800"
-            rows={4}
-            value={localText || voice.transcript}
-            onChange={(e) => setLocalText(e.target.value)}
-            placeholder="Konuşarak veya yazarak cevap ver…"
-          />
-
-          <NormalizeConfirm
-            originalText={localText}
-            normalizedText={reply?.review?.normalizedValue != null ? String(reply.review.normalizedValue) : undefined}
-            hint={reply?.review?.normalizedHint}
-            onConfirm={handleConfirmNormalize}
-          />
-
-          {error ? <div className="mt-2 text-sm text-red-600">{error}</div> : null}
-
-          <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-            <div>Durum: {voice.phase}</div>
-            {reply?.debug?.reason ? <div>Not: {reply.debug.reason}</div> : <div />}
+        {!isHitapStep ? (
+          <div className="mt-4">
+            <div className="text-sm font-semibold text-slate-800">Cevabın</div>
+            <textarea
+              className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-800"
+              rows={4}
+              value={localText || voice.transcript}
+              onChange={(e) => setLocalText(e.target.value)}
+              placeholder="Konuşarak veya yazarak cevap ver…"
+            />
+            <NormalizeConfirm
+              originalText={localText}
+              normalizedText={reply?.review?.normalizedValue != null ? String(reply.review.normalizedValue) : undefined}
+              hint={reply?.review?.normalizedHint}
+              onConfirm={handleConfirmNormalize}
+            />
+            {error ? <div className="mt-2 text-sm text-red-600">{error}</div> : null}
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+              <div>Durum: {voice.phase}</div>
+              {reply?.debug?.reason ? <div>Not: {reply.debug.reason}</div> : <div />}
+            </div>
           </div>
-        </div>
+        ) : null}
       </motion.div>
     </div>
   );

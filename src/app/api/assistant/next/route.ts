@@ -11,6 +11,12 @@ type AssistantReply = {
   answerKey: string;
   inputType: "text" | "textarea" | "number" | "date" | "select";
   examples: string[];
+  /** Açık uçlu sorularda false; çoktan seçmeli/stratejik sorularda true — öneri chip'leri sadece true iken gösterilir. */
+  showSuggestions?: boolean;
+  /** Opsiyonel sorularda true — "Bu Adımı Atla" butonu gösterilir. */
+  showSkipButton?: boolean;
+  /** İpucu butonunda gösterilecek örnek cevaplar (açık uçlu sorularda; parantez içi okunmaz). */
+  hintExamples?: string[];
   validation?: {
     required?: boolean;
     minLength?: number;
@@ -90,6 +96,9 @@ function validateReply(
       : "text";
 
   const examples = asArrayOfStrings(raw?.examples);
+  const showSuggestions = raw?.showSuggestions === true;
+  const showSkipButton = raw?.showSkipButton === true;
+  const hintExamples = asArrayOfStrings(raw?.hintExamples).slice(0, 6);
 
   const nextAction: AssistantNextAction =
     raw?.nextAction === "ASK" ||
@@ -105,6 +114,9 @@ function validateReply(
     answerKey,
     inputType,
     examples,
+    showSuggestions: showSuggestions || undefined,
+    showSkipButton: showSkipButton || undefined,
+    hintExamples: hintExamples.length ? hintExamples : undefined,
     nextAction,
     validation: raw?.validation && typeof raw.validation === "object" ? (raw.validation as AssistantReply["validation"]) : undefined,
     review: raw?.review && typeof raw.review === "object" ? (raw.review as AssistantReply["review"]) : undefined,
@@ -177,26 +189,27 @@ JSON ŞEMASI:
   "answerKey": "allowedKeys içinden",
   "inputType": "state.fieldRules[answerKey].inputType",
   "examples": ["..."],
+  "showSuggestions": true veya false,
+  "showSkipButton": true veya false,
+  "hintExamples": ["örnek1", "örnek2"],
   "validation": { ... },
-  "review": {
-    "needsNormalization": true,
-    "normalizedHint": "...",
-    "normalizedValue": "...",
-    "confidence": 0.0
-  },
+  "review": { ... },
   "nextAction": "ASK|CLARIFY|SAVE_AND_NEXT|FINISH",
-  "save": { "key": "allowedKeys içinden", "value": "normalize edilmiş değer" },
+  "save": { "key": "...", "value": "..." },
   "progress": { "step": 1, "total": 18 },
-  "debug": { "reason": "kısa neden" }
+  "debug": { "reason": "..." }
 }
 
 DAVRANIŞ:
-- state.fieldRules[key].semantic.normalizeHint varsa buna uy.
-- Telefon: sadece sayı/+; email: geçerli format; date: YYYY-AA-GG; number: sayı.
-- Dolu alanları tekrar sorma (state.filledKeys ve state.cv).
-- Cevap uygunsa SAVE_AND_NEXT + save.value üret.
-- Yetersizse CLARIFY.
-- Tümü tamamlanınca FINISH.
+- Hedef kitle: Lise mezunu, mavi yaka (inşaat/elektrik/kaynak ustası vb.). Dil sade, yönlendirici, güven verici olsun.
+- speakText: Parantez içi (İsim, firma, iletişim) gibi teknik detayları ASLA okutma; sadece ana cümleyi yaz. displayText'te parantez kalabilir.
+- Telefon: "Bunu şöyle yazdım doğru mu?" sorma. Kaydettim deyip bir sonraki soruya geç.
+- Tarih: Teyit ederken "15 Mart 1985 olarak kaydettim" gibi doğal ifade kullan; sayısal kod okuma.
+- Açık uçlu sorular (iş tanımı, kendini özetleme, referans, ek not): examples boş bırak, showSuggestions: false, hintExamples ile 1-2 örnek cümle ver (ipucu kartında gösterilir).
+- Çoktan seçmeli / kısa cevaplı sorular (ehliyet, vardiya, hedef ülke, en erken başlama, eğitim seviyesi): examples doldur ve showSuggestions: true.
+- Opsiyonel sorularda (referans, ek not, fotoğraf, maaş notu vb.): showSkipButton: true. "Hayır" veya atla geçilebilsin.
+- İsim: Önce ad soyad al; sonra cinsiyete göre "Memnun oldum Ahmet Bey" / "Hanım" diye hitap et. Hitap seçimi ayrı input olarak sorma.
+- state.fieldRules[key].semantic.normalizeHint varsa buna uy. Dolu alanları tekrar sorma. Tümü tamamlanınca FINISH.
 `.trim();
 }
 

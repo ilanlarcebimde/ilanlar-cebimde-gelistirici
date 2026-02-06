@@ -7,7 +7,7 @@ const METHODS = [
   {
     id: "voice" as const,
     title: "Sesli Asistan ile",
-    desc: "Sesli sorular, sesli yanıt. Metne dönüştürülür, otomatik kaydedilir.",
+    desc: "Sesli asistanınız size nasıl yanıt vermeniz gerektiği ile ilgili rehberlik edecektir. İsterseniz konuşarak, isterseniz yazarak özgeçmiş (CV) formunuzu kolayca oluşturabilirsiniz.",
     icon: Mic,
     buttonLabel: "Sesli Asistan ile Başla",
   },

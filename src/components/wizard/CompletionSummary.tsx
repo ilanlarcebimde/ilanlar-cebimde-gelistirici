@@ -93,7 +93,7 @@ export function CompletionSummary({
         disabled={!email?.trim()}
         className="w-full rounded-xl bg-slate-800 py-4 text-lg font-semibold text-white shadow-soft hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Ödeme Yap ({PRICE} TL)
+        Paketimi Oluştur
       </button>
       {!email?.trim() && (
         <p className="mt-2 text-sm text-amber-600">Ödeme için e-posta adresi gereklidir. Formda e-posta alanını doldurun.</p>

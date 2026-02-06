@@ -138,19 +138,29 @@ export function VoiceWizard({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft text-center"
+            className="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft"
           >
-            <p className="text-slate-600 mb-6">
-              Merhaba. Profesyonel CV’n için soruları Gemini asistanı belirleyecek; ElevenLabs seslendirecek.
-              Konuşarak veya yazarak cevaplayabilirsin.
-            </p>
-            <button
-              type="button"
-              onClick={openWizard}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-8 py-4 text-lg font-medium text-white shadow-soft hover:bg-slate-700"
-            >
-              <Mic className="h-6 w-6" /> Sesli Asistanı Başlat
-            </button>
+            <div className="flex flex-col items-center text-center max-w-xl mx-auto">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                  <Mic className="h-6 w-6" />
+                </span>
+                <span className="text-lg font-semibold text-slate-800">Sesli Asistan</span>
+              </div>
+              <p className="text-slate-600 mb-2">
+                Asistanınız size etkili ve işe alınma ihtimalinizi artıracak sorular soracak. İsterseniz sesli yanıtlayabilir, isterseniz yazarak cevaplayabilirsiniz.
+              </p>
+              <p className="text-slate-500 text-sm mb-6">
+                Merak etmeyin; gelişmiş sistemimiz hataları giderecek ve sizin için en etkili CV’yi oluşturacaktır.
+              </p>
+              <button
+                type="button"
+                onClick={openWizard}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-8 py-4 text-lg font-medium text-white shadow-soft hover:bg-slate-700 transition-colors"
+              >
+                <Mic className="h-6 w-6" /> Sesli Asistanı Başlat
+              </button>
+            </div>
           </motion.div>
 
           {showCompletedGate ? (
