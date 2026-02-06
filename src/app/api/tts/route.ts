@@ -22,21 +22,23 @@ export async function POST(req: Request) {
     }
 
     const voiceId = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID;
+    // eleven_turbo_v2_5: düşük gecikme; eleven_multilingual_v2: çok dilli (Türkçe)
+    const modelId = process.env.ELEVENLABS_MODEL_ID || "eleven_turbo_v2_5";
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
 
     const r = await fetch(url, {
       method: "POST",
       headers: {
-        "xi-api-key": apiKey,
-        "Content-Type": "application/json",
         Accept: "audio/mpeg",
+        "Content-Type": "application/json",
+        "xi-api-key": apiKey, // ElevenLabs Authorization değil, xi-api-key kullanır
       },
       body: JSON.stringify({
         text: text.trim(),
-        model_id: "eleven_multilingual_v2",
+        model_id: modelId,
         voice_settings: {
-          stability: 0.4,
-          similarity_boost: 0.8,
+          stability: 0.5,
+          similarity_boost: 0.5,
         },
       }),
     });
