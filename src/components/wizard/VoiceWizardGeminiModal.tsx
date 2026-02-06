@@ -127,8 +127,11 @@ export function VoiceWizardGeminiModal({
       });
 
       if (!r.ok) {
-        const j = await r.json().catch(() => null);
-        throw new Error((j as { error?: string })?.error ?? "assistant_failed");
+        const j = (await r.json().catch(() => null)) as { error?: string; detail?: string } | null;
+        const errMsg = j?.error ?? "assistant_failed";
+        const detail = j?.detail?.trim();
+        setError(detail ? `${errMsg}: ${detail}` : errMsg);
+        return null;
       }
 
       const data = (await r.json()) as { reply: AssistantReply };
@@ -138,7 +141,7 @@ export function VoiceWizardGeminiModal({
       setLocalText("");
       return next;
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "assistant_failed");
+      setError(e instanceof Error ? e.message : "Bağlantı hatası.");
       return null;
     } finally {
       setBusy(false);
