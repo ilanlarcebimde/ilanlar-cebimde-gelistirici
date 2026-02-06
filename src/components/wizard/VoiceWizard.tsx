@@ -59,6 +59,7 @@ export function VoiceWizard({
   const [phase2, setPhase2] = useState<"countryJob" | "photo">("countryJob");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showCompletedGate, setShowCompletedGate] = useState(false);
+  const lastCreatedSessionIdRef = useRef<string | null>(null);
 
   const filledKeys = useMemo(() => getFilledKeysFromAnswers(answers), [answers]);
 
@@ -110,6 +111,7 @@ export function VoiceWizard({
   async function startNewSession() {
     const created = await createSession({ target });
     if (!created?.ok) return;
+    lastCreatedSessionIdRef.current = created.session.sessionId;
     setSessionId(created.session.sessionId);
     onAnswersChange(unflattenCv(created.session.cv));
     setShowCompletedGate(false);
