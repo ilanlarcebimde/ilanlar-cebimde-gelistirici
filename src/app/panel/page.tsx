@@ -69,6 +69,8 @@ export default function PanelPage() {
     );
   }
 
+  if (!user) return null;
+
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-md">
@@ -78,7 +80,7 @@ export default function PanelPage() {
             <span className="font-bold">İlanlar Cebimde</span>
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600 truncate max-w-[160px]">{user.email}</span>
+            <span className="text-sm text-slate-600 truncate max-w-[160px]">{user.email ?? ""}</span>
             <button
               type="button"
               onClick={() => supabase.auth.signOut()}
