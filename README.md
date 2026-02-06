@@ -1,4 +1,4 @@
-﻿# ilanlar cebimde — Usta Başvuru Paketi
+# ilanlar cebimde — Usta Başvuru Paketi
 
 Yurtdışında iş arayan ustalar için tek sayfa premium landing + CV bilgi toplama ve ödeme akışı.
 
@@ -54,6 +54,14 @@ Migration’lar: `supabase/migrations/001_initial_schema.sql`, `002_payments_and
 - **payments:** PayTR ödeme kayıtları (profile_id, user_id, provider, status: started/success/fail, amount, currency, provider_ref)
 
 RLS açık; kullanıcı kendi kayıtlarına erişir. Ödeme insert/update sadece server (service_role) ile.
+
+### Google giriş (OAuth)
+
+- **Redirect URL:** Supabase Dashboard → Authentication → URL Configuration → **Redirect URLs** listesine ekleyin:
+  - Yerel: `http://localhost:3000/auth/callback`
+  - Canlı: `https://yourdomain.com/auth/callback`
+- Yerel testte **`npm run dev` çalışır durumda olmalı**; Google’dan dönüşte tarayıcı `localhost:3000`’e gideceği için sunucu açık değilse “Bağlantı reddedildi” hatası alırsınız.
+- Token’lar bazen hash ile ana sayfaya düşer (`/#access_token=...`). Uygulama bunu okuyup oturumu kurar ve panele yönlendirir.
 
 ## Proje Yapısı
 

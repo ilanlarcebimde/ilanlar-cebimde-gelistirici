@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthHashHandler } from "@/components/AuthHashHandler";
 
 export const metadata: Metadata = {
   title: "İlanlar Cebimde — Usta Başvuru Paketi | 549 TL",
@@ -26,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body className="antialiased font-sans bg-[var(--background)] text-[var(--foreground)]">
+        <AuthHashHandler />
         {children}
       </body>
     </html>
