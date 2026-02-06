@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import type { WizardMethod } from "./WizardTypes";
 import { getAnswerBySaveKey } from "@/data/cvQuestions";
 import { useAutosave } from "@/hooks/useAutosave";
+import { logEvent } from "@/lib/profileSave";
 import { VoiceWizard } from "./VoiceWizard";
 import { ChatWizard } from "./ChatWizard";
 import { FormWizard } from "./FormWizard";
@@ -51,6 +52,8 @@ export function WizardArea({
 }) {
   const [state, setState] = useState<WizardState>({ ...DEFAULT_STATE, method: selectedMethod ?? "form" });
   const [completed, setCompleted] = useState(false);
+  const profileIdRef = useRef<string | null>(null);
+  profileIdRef.current = state.profileId;
 
   useEffect(() => {
     if (!selectedMethod) return;
@@ -83,6 +86,8 @@ export function WizardArea({
   }, []);
   const setPhotoUploaded = useCallback((file: File, url: string) => {
     setState((s) => ({ ...s, photoFile: file, photoUrl: url }));
+    const pid = profileIdRef.current;
+    if (pid) logEvent("photo_uploaded", pid, { photo_url: url });
   }, []);
   const clearPhoto = useCallback(() => {
     setState((s) => ({ ...s, photoFile: null, photoUrl: null }));
