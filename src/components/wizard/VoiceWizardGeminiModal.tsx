@@ -316,7 +316,7 @@ export function VoiceWizardGeminiModal({
           >
             Tamam
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
