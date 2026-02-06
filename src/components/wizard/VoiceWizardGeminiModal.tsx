@@ -392,6 +392,12 @@ export function VoiceWizardGeminiModal({
             </button>
           </div>
 
+          {voice.lastError ? (
+            <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {voice.lastError}
+            </div>
+          ) : null}
+
           {!canListen ? (
             <div className="mt-2 text-xs text-amber-600">
               Bu tarayıcı konuşma tanımayı desteklemiyor.

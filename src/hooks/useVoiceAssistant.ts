@@ -10,27 +10,37 @@ const STT_SILENCE_MS = 2500;
 /** Soru sesi cache: aynı metin tekrar istenirse ElevenLabs çağrılmaz */
 const ttsCache = new Map<string, Blob>();
 
-function getCachedOrFetch(text: string): Promise<Blob> {
+async function getCachedOrFetch(text: string): Promise<Blob> {
   const key = text.trim();
-  if (!key) return Promise.reject(new Error("empty"));
+  if (!key) throw new Error("empty");
   const cached = ttsCache.get(key);
-  if (cached) return Promise.resolve(cached);
-  return fetch("/api/tts", {
+  if (cached) return cached;
+
+  const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text: key }),
-  }).then((res) => {
-    if (!res.ok) throw new Error("TTS failed");
-    return res.blob();
-  }).then((blob) => {
-    ttsCache.set(key, blob);
-    return blob;
   });
+
+  const ct = res.headers.get("content-type") ?? "";
+  if (!res.ok) {
+    const detail = ct.includes("application/json") ? await res.json() : await res.text();
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  if (!ct.includes("audio")) {
+    const maybeJson = await res.text();
+    throw new Error("TTS audio dönmedi: " + maybeJson.slice(0, 200));
+  }
+
+  const blob = await res.blob();
+  ttsCache.set(key, blob);
+  return blob;
 }
 
 export function useVoiceAssistant() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [transcript, setTranscript] = useState("");
+  const [lastError, setLastError] = useState<string | null>(null);
   const transcriptRef = useRef("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
@@ -51,6 +61,8 @@ export function useVoiceAssistant() {
   }, []);
 
   const playTTS = useCallback(async (text: string) => {
+    if (!text?.trim()) return;
+    setLastError(null);
     cancelCurrentTTS();
     setPhase("loading");
     try {
@@ -59,6 +71,7 @@ export function useVoiceAssistant() {
       objectUrlRef.current = url;
       const audio = new Audio(url);
       audioRef.current = audio;
+
       audio.onended = () => {
         if (objectUrlRef.current === url) {
           URL.revokeObjectURL(url);
@@ -75,10 +88,29 @@ export function useVoiceAssistant() {
         audioRef.current = null;
         setPhase("idle");
       };
+
+      await audio.play().catch((err: unknown) => {
+        URL.revokeObjectURL(url);
+        objectUrlRef.current = null;
+        audioRef.current = null;
+        setPhase("idle");
+        const isNotAllowed = err instanceof Error && err.name === "NotAllowedError";
+        setLastError(
+          isNotAllowed
+            ? "Tarayıcı otomatik ses oynatmayı engelledi. 'Soruyu Tekrar Oku'ya tıklayın."
+            : "Ses üretilemedi veya oynatılamadı."
+        );
+        throw err;
+      });
+
       setPhase("playing");
-      await audio.play();
-    } catch {
+    } catch (e) {
       setPhase("idle");
+      if (e instanceof Error && e.name === "NotAllowedError") return; // zaten play().catch içinde setLastError yapıldı
+      console.error("TTS_FAILED", e);
+      const msg =
+        e instanceof Error ? e.message : "Ses üretilemedi. Lütfen 'Soruyu Tekrar Oku'ya tıklayın.";
+      setLastError(msg.length > 140 ? msg.slice(0, 140) + "…" : msg);
     }
   }, [cancelCurrentTTS]);
 
@@ -139,6 +171,7 @@ export function useVoiceAssistant() {
   return {
     phase,
     transcript,
+    lastError,
     playTTS,
     startSTT,
     stopSTT,
