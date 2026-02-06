@@ -240,7 +240,8 @@ async function callGeminiStrictJson(system: string, user: string) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY_MISSING");
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  // Geçerli örnekler: gemini-1.5-flash, gemini-1.5-pro (models/ prefix kullanma)
+  const model = (process.env.GEMINI_MODEL || "gemini-1.5-flash").trim().replace(/^models\//, "");
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const res = await fetch(url, {
