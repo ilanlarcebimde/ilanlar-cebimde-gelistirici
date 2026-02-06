@@ -99,7 +99,7 @@ export function WizardArea({
     return (
       <section className="py-12 bg-slate-50/50">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center text-slate-500">
-          <p>Yukarıdan bir yöntem seçin: Sesli Asistan, Sohbet veya Form.</p>
+          <p>Yöntem seçmek için yukarıdaki &quot;CV Bilgilerini Nasıl Alacağız? — Yöntem seçin&quot; butonuna tıklayın.</p>
         </div>
       </section>
     );
