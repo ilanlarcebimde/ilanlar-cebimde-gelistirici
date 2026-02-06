@@ -60,6 +60,8 @@ type Props = {
   allowedKeys: string[];
   keyHints?: Record<string, string>;
   fieldRules: Record<string, FieldRuleShape>;
+  /** Parent create/load akışında kullanılır; yoksa modal kendi sessionId üretir. */
+  sessionId?: string | null;
 };
 
 function newSessionId() {
