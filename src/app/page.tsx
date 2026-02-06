@@ -7,6 +7,7 @@ import { Hero } from "@/components/Hero";
 import { MethodSelection } from "@/components/MethodSelection";
 import { WizardArea } from "@/components/wizard/WizardArea";
 import { CountriesAndJobsSection } from "@/components/CountriesAndJobsSection";
+import { CvWhySection } from "@/components/CvWhySection";
 import { WhatWeSolveSection } from "@/components/WhatWeSolveSection";
 import { FinalCtaSection } from "@/components/FinalCtaSection";
 import { Footer } from "@/components/Footer";
