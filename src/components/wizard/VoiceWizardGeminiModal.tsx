@@ -126,7 +126,11 @@ export function VoiceWizardGeminiModal({
   }, [cv, filledKeys, target, allowedKeys, keyHints, fieldRules, sessionIdProp]);
 
   useEffect(() => {
-    if (reply) setHintOpen(false);
+    if (reply) {
+      setHintOpen(false);
+      setLocalText("");
+      voice.setTranscript("");
+    }
   }, [reply?.answerKey]);
 
   async function fetchNext(state: AssistantState) {
