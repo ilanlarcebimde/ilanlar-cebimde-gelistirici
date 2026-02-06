@@ -11,6 +11,10 @@ import { unflattenCv } from "@/lib/assistant/applyFieldRules";
 import { PhotoUpload } from "./PhotoUpload";
 import { VoiceWizardGeminiModal } from "./VoiceWizardGeminiModal";
 
+function newSessionId() {
+  return `va_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 /** Nested answers objesinden dolu alanların noktalı yollarını döndürür (örn. personal.fullName). */
 function getFilledKeysFromAnswers(obj: Record<string, unknown>, prefix = ""): string[] {
   const out: string[] = [];
@@ -74,48 +78,53 @@ export function VoiceWizard({
     [jobArea, jobBranch, country]
   );
 
-  async function openWizard() {
+  function openWizard() {
     if (!sessionId) {
-      const created = await createSession({ target });
-      if (!created?.ok) return;
-      lastCreatedSessionIdRef.current = created.session.sessionId;
-      setSessionId(created.session.sessionId);
-      onAnswersChange(unflattenCv(created.session.cv));
+      const id = newSessionId();
+      lastCreatedSessionIdRef.current = id;
+      setSessionId(id);
       setShowCompletedGate(false);
       setGeminiModalOpen(true);
+      createSession({ sessionId: id, target }).then((created) => {
+        if (created?.ok) {
+          onAnswersChange(unflattenCv(created.session.cv));
+        }
+      });
       return;
     }
 
-    const loaded = await loadSession(sessionId);
-    if (!loaded?.ok) {
-      const created = await createSession({ target });
-      if (!created?.ok) return;
-      lastCreatedSessionIdRef.current = created.session.sessionId;
-      setSessionId(created.session.sessionId);
-      onAnswersChange(unflattenCv(created.session.cv));
+    loadSession(sessionId).then((loaded) => {
+      if (!loaded?.ok) {
+        const id = newSessionId();
+        lastCreatedSessionIdRef.current = id;
+        setSessionId(id);
+        setShowCompletedGate(false);
+        setGeminiModalOpen(true);
+        createSession({ sessionId: id, target }).then((c) => {
+          if (c?.ok) onAnswersChange(unflattenCv(c.session.cv));
+        });
+        return;
+      }
+      if (loaded.session.completed) {
+        setShowCompletedGate(true);
+        return;
+      }
+      onAnswersChange(unflattenCv(loaded.session.cv));
       setShowCompletedGate(false);
       setGeminiModalOpen(true);
-      return;
-    }
-
-    if (loaded.session.completed) {
-      setShowCompletedGate(true);
-      return;
-    }
-
-    onAnswersChange(unflattenCv(loaded.session.cv));
-    setShowCompletedGate(false);
-    setGeminiModalOpen(true);
+    });
   }
 
-  async function startNewSession() {
-    const created = await createSession({ target });
-    if (!created?.ok) return;
-    lastCreatedSessionIdRef.current = created.session.sessionId;
-    setSessionId(created.session.sessionId);
-    onAnswersChange(unflattenCv(created.session.cv));
+  function startNewSession() {
+    const id = newSessionId();
+    lastCreatedSessionIdRef.current = id;
+    setSessionId(id);
+    onAnswersChange({});
     setShowCompletedGate(false);
     setGeminiModalOpen(true);
+    createSession({ sessionId: id, target }).then((c) => {
+      if (c?.ok) onAnswersChange(unflattenCv(c.session.cv));
+    });
   }
 
   return (

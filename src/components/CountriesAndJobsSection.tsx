@@ -68,7 +68,7 @@ export function CountriesAndJobsSection() {
           <div
             className="flex w-max items-center gap-6"
             style={{
-              animation: marqueePaused ? "none" : "marquee-slow 80s linear infinite",
+              animation: marqueePaused ? "none" : "countries-marquee 80s linear infinite",
             }}
           >
             {countriesRow.map((c, i) => (
@@ -76,9 +76,13 @@ export function CountriesAndJobsSection() {
                 key={`${c.id}-${i}`}
                 className="flex shrink-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-5 py-2.5"
               >
-                <span className="text-2xl leading-none" aria-hidden>
-                  {c.flag}
-                </span>
+                <img
+                  src={`https://flagcdn.com/w80/${c.id}.png`}
+                  alt=""
+                  width={32}
+                  height={24}
+                  className="h-6 w-8 shrink-0 rounded object-cover"
+                />
                 <span className="text-sm font-medium text-slate-800 whitespace-nowrap">
                   {c.name}
                 </span>

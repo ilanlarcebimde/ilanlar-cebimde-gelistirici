@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { NormalizeConfirm } from "@/components/wizard/NormalizeConfirm";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { setAnswerBySaveKey } from "@/data/cvQuestions";
@@ -291,10 +292,21 @@ export function VoiceWizardGeminiModal({
 
   if (!isOpen) return null;
 
+  const overlayClass = "fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3";
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
   if (showFinishedMessage) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
-        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl text-center">
+      <div className={overlayClass} onClick={handleBackdropClick}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl text-center"
+        >
           <p className="text-lg font-medium text-slate-800">Bilgileriniz kaydedildi.</p>
           <p className="mt-2 text-sm text-slate-500">Teşekkürler.</p>
           <button
@@ -310,8 +322,14 @@ export function VoiceWizardGeminiModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
-      <div className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl">
+    <div className={overlayClass} onClick={handleBackdropClick}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-2xl border border-slate-200/80"
+      >
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="text-lg font-semibold text-slate-900">Sesli Asistan</div>
@@ -416,7 +434,7 @@ export function VoiceWizardGeminiModal({
             {reply?.debug?.reason ? <div>Not: {reply.debug.reason}</div> : <div />}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
