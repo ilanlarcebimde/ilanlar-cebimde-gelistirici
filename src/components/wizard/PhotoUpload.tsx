@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { Upload, X, Loader2 } from "lucide-react";
+import { uploadCVPhoto } from "@/lib/storage";
 
 const UPLOAD_STEPS = [
   "Fotoğraf yükleniyor…",
@@ -16,34 +17,52 @@ export function PhotoUpload({
   photoFile,
   onPhotoChange,
   onClear,
+  userId,
+  onPhotoUploaded,
 }: {
   photoUrl: string | null;
   photoFile: File | null;
   onPhotoChange: (file: File) => void;
   onClear: () => void;
+  /** Varsa fotoğraf Supabase cv-photos bucket'ına yüklenir ve onPhotoUploaded ile URL döner */
+  userId?: string;
+  onPhotoUploaded?: (file: File, url: string) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<number | null>(null);
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       if (!file.type.startsWith("image/")) return;
       setUploadPhase(0);
       const t1 = setTimeout(() => setUploadPhase(1), 500);
       const t2 = setTimeout(() => setUploadPhase(2), 1000);
       const t3 = setTimeout(() => setUploadPhase(3), 1500);
-      const t4 = setTimeout(() => {
-        onPhotoChange(file);
-        setTimeout(() => setUploadPhase(null), 400);
-      }, 2200);
-      return () => {
+
+      if (userId && onPhotoUploaded) {
+        try {
+          const url = await uploadCVPhoto(file, userId);
+          onPhotoUploaded(file, url);
+        } catch {
+          onPhotoChange(file);
+        }
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
-        clearTimeout(t4);
-      };
+        setUploadPhase(null);
+        return;
+      }
+
+      const t4 = setTimeout(() => {
+        onPhotoChange(file);
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        setUploadPhase(null);
+      }, 2200);
+      return () => clearTimeout(t4);
     },
-    [onPhotoChange]
+    [onPhotoChange, userId, onPhotoUploaded]
   );
 
   const onDrop = (e: React.DragEvent) => {

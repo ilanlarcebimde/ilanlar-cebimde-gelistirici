@@ -41,6 +41,7 @@ export function VoiceWizard({
   onJobAreaChange,
   onJobBranchChange,
   onPhotoChange,
+  onPhotoUploaded,
   onPhotoClear,
   onComplete,
   userId,
@@ -56,6 +57,7 @@ export function VoiceWizard({
   onJobAreaChange: (a: string) => void;
   onJobBranchChange: (b: string) => void;
   onPhotoChange: (f: File) => void;
+  onPhotoUploaded?: (file: File, url: string) => void;
   onPhotoClear: () => void;
   onComplete: () => void;
   userId?: string;
@@ -265,7 +267,9 @@ export function VoiceWizard({
             photoUrl={photoUrl}
             photoFile={photoFile}
             onPhotoChange={onPhotoChange}
+            onPhotoUploaded={onPhotoUploaded}
             onClear={onPhotoClear}
+            userId={userId}
           />
           <div className="flex gap-2">
             <button

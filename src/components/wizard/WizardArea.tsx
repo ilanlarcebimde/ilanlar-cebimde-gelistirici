@@ -81,6 +81,9 @@ export function WizardArea({
   const setPhoto = useCallback((file: File) => {
     setState((s) => ({ ...s, photoFile: file, photoUrl: null }));
   }, []);
+  const setPhotoUploaded = useCallback((file: File, url: string) => {
+    setState((s) => ({ ...s, photoFile: file, photoUrl: url }));
+  }, []);
   const clearPhoto = useCallback(() => {
     setState((s) => ({ ...s, photoFile: null, photoUrl: null }));
   }, []);
@@ -126,6 +129,7 @@ export function WizardArea({
               onJobAreaChange={setJobArea}
               onJobBranchChange={setJobBranch}
               onPhotoChange={setPhoto}
+              onPhotoUploaded={setPhotoUploaded}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
               userId={userId}
@@ -144,8 +148,10 @@ export function WizardArea({
               onJobAreaChange={setJobArea}
               onJobBranchChange={setJobBranch}
               onPhotoChange={setPhoto}
+              onPhotoUploaded={setPhotoUploaded}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
+              userId={userId}
             />
           ) : (
             <FormWizard
@@ -161,8 +167,10 @@ export function WizardArea({
               onJobAreaChange={setJobArea}
               onJobBranchChange={setJobBranch}
               onPhotoChange={setPhoto}
+              onPhotoUploaded={setPhotoUploaded}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
+              userId={userId}
             />
           )}
         </AnimatePresence>

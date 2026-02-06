@@ -28,8 +28,10 @@ export function FormWizard({
   onJobAreaChange,
   onJobBranchChange,
   onPhotoChange,
+  onPhotoUploaded,
   onPhotoClear,
   onComplete,
+  userId,
 }: {
   answers: Record<string, unknown>;
   country: string;
@@ -42,7 +44,9 @@ export function FormWizard({
   onJobAreaChange: (a: string) => void;
   onJobBranchChange: (b: string) => void;
   onPhotoChange: (f: File) => void;
+  onPhotoUploaded?: (file: File, url: string) => void;
   onPhotoClear: () => void;
+  userId?: string;
   onComplete: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("questions");
@@ -220,7 +224,9 @@ export function FormWizard({
               photoUrl={photoUrl}
               photoFile={photoFile}
               onPhotoChange={onPhotoChange}
+              onPhotoUploaded={onPhotoUploaded}
               onClear={onPhotoClear}
+              userId={userId}
             />
           </motion.div>
         )}

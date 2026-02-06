@@ -32,8 +32,10 @@ export function ChatWizard({
   onJobAreaChange,
   onJobBranchChange,
   onPhotoChange,
+  onPhotoUploaded,
   onPhotoClear,
   onComplete,
+  userId,
 }: {
   answers: Record<string, unknown>;
   country: string;
@@ -46,7 +48,9 @@ export function ChatWizard({
   onJobAreaChange: (a: string) => void;
   onJobBranchChange: (b: string) => void;
   onPhotoChange: (f: File) => void;
+  onPhotoUploaded?: (file: File, url: string) => void;
   onPhotoClear: () => void;
+  userId?: string;
   onComplete: () => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -248,7 +252,9 @@ export function ChatWizard({
             photoUrl={photoUrl}
             photoFile={photoFile}
             onPhotoChange={onPhotoChange}
+            onPhotoUploaded={onPhotoUploaded}
             onClear={onPhotoClear}
+            userId={userId}
           />
           <div className="flex justify-end gap-2">
             <button
