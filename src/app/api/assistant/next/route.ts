@@ -242,13 +242,13 @@ async function callGeminiStrictJson(system: string, user: string) {
 
   // Geçerli örnekler: gemini-1.5-flash, gemini-1.5-pro (models/ prefix kullanma)
   const model = (process.env.GEMINI_MODEL || "gemini-1.5-flash").trim().replace(/^models\//, "");
-  // v1 = kararlı sürüm (v1beta bazen 404 verebiliyor)
-  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+  // gemini-1.5-flash v1'de 404 veriyor; v1beta kullanıyoruz (model adı ve body düzgün)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   // Vercel loglarında teşhis için (API key URL'de loglanmaz)
   console.log("--- GEMINI DEBUG ---");
   console.log("İşlenen Model Adı:", model);
-  console.log("URL (key gizli):", `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=***`);
+  console.log("URL (key gizli):", `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=***`);
   console.log("API Key Var mı?:", !!apiKey);
   console.log("--- GEMINI DEBUG BİTİŞ ---");
 
