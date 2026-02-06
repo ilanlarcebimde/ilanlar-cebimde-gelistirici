@@ -57,10 +57,18 @@ RLS açık; kullanıcı kendi kayıtlarına erişir. Ödeme insert/update sadece
 
 ### Google giriş (OAuth)
 
-- **Redirect URL:** Supabase Dashboard → Authentication → URL Configuration → **Redirect URLs** listesine ekleyin:
-  - Yerel: `http://localhost:3000/auth/callback`
-  - Canlı: `https://yourdomain.com/auth/callback`
-- Yerel testte **`npm run dev` çalışır durumda olmalı**; Google’dan dönüşte tarayıcı `localhost:3000`’e gideceği için sunucu açık değilse “Bağlantı reddedildi” hatası alırsınız.
+**Canlı sitede (ilanlarcebimde.com) giriş sonrası localhost’a gidiyorsa:** Supabase hâlâ localhost’u kullanıyordur. Aşağıdakileri yapın:
+
+1. **Supabase Dashboard** → **Authentication** → **URL Configuration**
+2. **Site URL:** Canlı site için `https://ilanlarcebimde.com` yapın (yerel test için tekrar `http://localhost:3000` kullanabilirsiniz).
+3. **Redirect URLs** listesine **ikisini de** ekleyin (her satıra bir tane):
+   - `http://localhost:3000/auth/callback`
+   - `https://ilanlarcebimde.com/auth/callback`
+4. **Save** ile kaydedin.
+
+Bundan sonra ilanlarcebimde.com’da “Google ile giriş” yapınca yönlendirme canlı siteye döner.
+
+- Yerel testte **`npm run dev` çalışır durumda olmalı**; aksi halde “Bağlantı reddedildi” alırsınız.
 - Token’lar bazen hash ile ana sayfaya düşer (`/#access_token=...`). Uygulama bunu okuyup oturumu kurar ve panele yönlendirir.
 
 ## Proje Yapısı
