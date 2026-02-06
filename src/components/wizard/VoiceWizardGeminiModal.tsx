@@ -66,10 +66,6 @@ function newSessionId() {
   return `va_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-function newSessionId() {
-  return `va_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
 export function VoiceWizardGeminiModal({
   isOpen,
   onClose,
