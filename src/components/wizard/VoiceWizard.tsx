@@ -43,6 +43,7 @@ export function VoiceWizard({
   onPhotoChange,
   onPhotoClear,
   onComplete,
+  userId,
 }: {
   answers: Record<string, unknown>;
   country: string;
@@ -57,6 +58,7 @@ export function VoiceWizard({
   onPhotoChange: (f: File) => void;
   onPhotoClear: () => void;
   onComplete: () => void;
+  userId?: string;
 }) {
   const [geminiModalOpen, setGeminiModalOpen] = useState(false);
   const [questionsComplete, setQuestionsComplete] = useState(false);
@@ -85,7 +87,7 @@ export function VoiceWizard({
       setSessionId(id);
       setShowCompletedGate(false);
       setGeminiModalOpen(true);
-      createSession({ sessionId: id, target }).then((created) => {
+      createSession({ sessionId: id, target, userId }).then((created) => {
         if (created?.ok) {
           onAnswersChange(unflattenCv(created.session.cv));
         }
@@ -93,14 +95,14 @@ export function VoiceWizard({
       return;
     }
 
-    loadSession(sessionId).then((loaded) => {
+    loadSession(sessionId, userId).then((loaded) => {
       if (!loaded?.ok) {
         const id = newSessionId();
         lastCreatedSessionIdRef.current = id;
         setSessionId(id);
         setShowCompletedGate(false);
         setGeminiModalOpen(true);
-        createSession({ sessionId: id, target }).then((c) => {
+        createSession({ sessionId: id, target, userId }).then((c) => {
           if (c?.ok) onAnswersChange(unflattenCv(c.session.cv));
         });
         return;
@@ -122,7 +124,7 @@ export function VoiceWizard({
     onAnswersChange({});
     setShowCompletedGate(false);
     setGeminiModalOpen(true);
-    createSession({ sessionId: id, target }).then((c) => {
+    createSession({ sessionId: id, target, userId }).then((c) => {
       if (c?.ok) onAnswersChange(unflattenCv(c.session.cv));
     });
   }
@@ -191,6 +193,7 @@ export function VoiceWizard({
         keyHints={keyHints}
         fieldRules={fieldRules}
         sessionId={sessionId ?? lastCreatedSessionIdRef.current}
+        userId={userId}
       />
 
       {!geminiModalOpen && questionsComplete && phase2 === "countryJob" && (

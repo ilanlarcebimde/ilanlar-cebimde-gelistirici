@@ -3,29 +3,61 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export function AuthModal({
   open,
   onClose,
   onGoogle,
   onEmailSubmit,
+  redirectNext = "/panel",
 }: {
   open: boolean;
   onClose: () => void;
   onGoogle: () => void;
   onEmailSubmit: (email: string, password: string) => void;
+  /** Google giriş sonrası yönlendirilecek sayfa (örn. /odeme) */
+  redirectNext?: string;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!open) return null;
 
+  const handleGoogle = async () => {
+    setError("");
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const next = redirectNext;
+    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
+
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
+    });
+
+    if (err) {
+      setError(err.message || "Google ile giriş yapılamadı.");
+      return;
+    }
+    onGoogle();
+  };
+
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
     try {
-      await onEmailSubmit(email, password);
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) {
+        setError(err.message || "E-posta veya şifre hatalı.");
+        return;
+      }
+      onEmailSubmit(email, password);
       onClose();
     } finally {
       setLoading(false);
@@ -59,9 +91,13 @@ export function AuthModal({
           </button>
         </div>
 
+        {error ? (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+        ) : null}
+
         <button
           type="button"
-          onClick={onGoogle}
+          onClick={handleGoogle}
           className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 py-3 font-medium text-slate-800 hover:bg-slate-50 transition-colors"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">

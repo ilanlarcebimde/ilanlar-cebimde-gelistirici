@@ -43,9 +43,11 @@ function getUserNameFromAnswers(answers: Record<string, unknown>): string {
 export function WizardArea({
   selectedMethod,
   onPaymentClick,
+  userId,
 }: {
   selectedMethod: WizardMethod | null;
   onPaymentClick: (payload: { email: string; user_name?: string }) => void;
+  userId?: string;
 }) {
   const [state, setState] = useState<WizardState>({ ...DEFAULT_STATE, method: selectedMethod ?? "form" });
   const [completed, setCompleted] = useState(false);
@@ -126,6 +128,7 @@ export function WizardArea({
               onPhotoChange={setPhoto}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
+              userId={userId}
             />
           ) : state.method === "chat" ? (
             <ChatWizard

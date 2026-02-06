@@ -63,6 +63,8 @@ type Props = {
   fieldRules: Record<string, FieldRuleShape>;
   /** Parent create/load akışında kullanılır; yoksa modal kendi sessionId üretir. */
   sessionId?: string | null;
+  /** Giriş yapmış kullanıcı id (oturumlar panele bağlansın). */
+  userId?: string;
 };
 
 function newSessionId() {
@@ -81,6 +83,7 @@ export function VoiceWizardGeminiModal({
   keyHints,
   fieldRules,
   sessionId: sessionIdProp,
+  userId,
 }: Props) {
   const voice = useVoiceAssistant();
 
@@ -221,7 +224,7 @@ export function VoiceWizardGeminiModal({
       await fetch("/api/session/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: assistantState.sessionId }),
+        body: JSON.stringify({ sessionId: assistantState.sessionId, userId: userId ?? undefined }),
       }).catch(() => {});
 
       setShowFinishedMessage(true);
@@ -255,6 +258,7 @@ export function VoiceWizardGeminiModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: assistantState.sessionId,
+          userId: userId ?? undefined,
           cv: cvState,
           updates,
           allowedKeys,

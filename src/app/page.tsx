@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { MethodSelection } from "@/components/MethodSelection";
@@ -16,6 +17,7 @@ import { StickyCta } from "@/components/StickyCta";
 import type { WizardMethod } from "@/components/wizard/WizardTypes";
 
 export default function Home() {
+  const { user } = useAuth();
   const [method, setMethod] = useState<WizardMethod | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string } | null>(null);
@@ -63,7 +65,7 @@ export default function Home() {
       <main>
         <Hero onCtaClick={scrollToMethods} />
         <MethodSelection selectedMethod={method} onSelect={setMethod} />
-        <WizardArea selectedMethod={method} onPaymentClick={handlePaymentClick} />
+        <WizardArea selectedMethod={method} onPaymentClick={handlePaymentClick} userId={user?.id} />
         <CountriesAndJobsSection />
         <CvWhySection />
         <WhatWeSolveSection />
@@ -81,6 +83,7 @@ export default function Home() {
           }}
           onGoogle={handleGoogleAuth}
           onEmailSubmit={handleEmailAuth}
+          redirectNext={paymentPayload ? "/odeme" : "/panel"}
         />
       </AnimatePresence>
     </>
