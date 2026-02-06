@@ -252,12 +252,14 @@ async function callGeminiStrictJson(system: string, user: string) {
   console.log("API Key Var mı?:", !!apiKey);
   console.log("--- GEMINI DEBUG BİTİŞ ---");
 
+  // v1 API systemInstruction desteklemiyor; sistem talimatını ilk kullanıcı mesajının başına ekliyoruz
+  const userPromptWithSystem = `${system}\n\n---\n\nKullanıcı girdisi:\n${user}`;
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: user }] }],
-      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: userPromptWithSystem }] }],
       generationConfig: {
         temperature: 0.4,
         topP: 0.9,
