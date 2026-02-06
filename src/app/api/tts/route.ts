@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 /**
- * TTS: Metni ElevenLabs ile sese çevirir.
+ * TTS: Metni ElevenLabs ile sese çevirir (resmi SDK ile; header/401 sorunları önlenir).
  * ELEVENLABS_API_KEY server env'de olmalı.
  * Kontrat: 200 → audio/mpeg (binary) | 400 → text_required | 503 → tts_unavailable | 500 → internal_error
  */
@@ -22,40 +23,30 @@ export async function POST(req: Request) {
     }
 
     const voiceId = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID;
-    // eleven_turbo_v2_5: düşük gecikme; eleven_multilingual_v2: çok dilli (Türkçe)
     const modelId = process.env.ELEVENLABS_MODEL_ID || "eleven_turbo_v2_5";
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
 
-    const r = await fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": apiKey, // ElevenLabs Authorization değil, xi-api-key kullanır
+    const elevenlabs = new ElevenLabsClient({ apiKey });
+
+    const stream = await elevenlabs.textToSpeech.convert(voiceId, {
+      text: text.trim(),
+      modelId,
+      outputFormat: "mp3_44100_128",
+      voiceSettings: {
+        stability: 0.5,
+        similarityBoost: 0.5,
       },
-      body: JSON.stringify({
-        text: text.trim(),
-        model_id: modelId,
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5,
-        },
-      }),
     });
 
-    if (!r.ok) {
-      const errText = await r.text();
-      return NextResponse.json(
-        {
-          error: "elevenlabs_failed",
-          status: r.status,
-          detail: errText.slice(0, 500),
-        },
-        { status: 503 }
-      );
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let done = false;
+    while (!done) {
+      const result = await reader.read();
+      done = result.done;
+      if (result.value) chunks.push(result.value);
     }
+    const audioBuffer = Buffer.concat(chunks);
 
-    const audioBuffer = await r.arrayBuffer();
     return new NextResponse(audioBuffer, {
       status: 200,
       headers: {
@@ -65,12 +56,18 @@ export async function POST(req: Request) {
     });
   } catch (e: unknown) {
     console.error("TTS error", e);
+    const status = e && typeof e === "object" && "status" in e ? (e as { status: number }).status : 503;
+    const detail =
+      e && typeof e === "object" && "message" in e
+        ? String((e as { message: unknown }).message)
+        : String(e instanceof Error ? e.message : "unknown");
     return NextResponse.json(
       {
-        error: "internal_error",
-        detail: String(e instanceof Error ? e.message : "unknown").slice(0, 200),
+        error: "elevenlabs_failed",
+        status: status || 503,
+        detail: detail.slice(0, 500),
       },
-      { status: 500 }
+      { status: 503 }
     );
   }
 }
