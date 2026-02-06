@@ -8,7 +8,7 @@ import {
   getQuestionsFor,
   setAnswerBySaveKey,
   getAnswerBySaveKey,
-  TOTAL_QUESTION_STEPS,
+  getDisplayName,
 } from "@/data/cvQuestions";
 import { PhotoUpload } from "./PhotoUpload";
 
@@ -90,12 +90,12 @@ export function FormWizard({
       {/* Progress: Soru X / 26 */}
       {phase === "questions" && (
         <div className="flex items-center justify-between text-sm text-slate-600">
-          <span>Soru {step + 1} / {TOTAL_QUESTION_STEPS}</span>
+          <span>Soru {step + 1} / {QUESTIONS.length}</span>
           <div className="h-2 flex-1 max-w-[200px] ml-4 rounded-full bg-slate-200 overflow-hidden">
             <motion.div
               className="h-full bg-slate-700 rounded-full"
               initial={false}
-              animate={{ width: `${((step + 1) / TOTAL_QUESTION_STEPS) * 100}%` }}
+              animate={{ width: `${QUESTIONS.length > 0 ? ((step + 1) / QUESTIONS.length) * 100 : 0}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
@@ -112,7 +112,7 @@ export function FormWizard({
             className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft"
           >
             <label className="block text-lg font-medium text-slate-900 mb-4">
-              {currentQ.question}
+              {getDisplayName(answers) ? `${getDisplayName(answers)}, ${currentQ.question}` : currentQ.question}
             </label>
             {currentQ.hint && (
               <p className="text-sm text-slate-500 mb-3">{currentQ.hint}</p>

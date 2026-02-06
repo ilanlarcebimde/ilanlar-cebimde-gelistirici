@@ -24,16 +24,16 @@ export const CV_QUESTIONS: CVQuestion[] = [
     question: "Size nasıl hitap etmemi istersiniz? Bey, Hanım ya da sadece isim.",
     type: "select",
     required: true,
-    voiceEnabled: true,
-    chatEnabled: true,
-    formEnabled: true,
+    voiceEnabled: false,
+    chatEnabled: false,
+    formEnabled: false,
     examples: ["Bey", "Hanım", "Sadece isim"],
     saveKey: "personal.hitap",
   },
   {
     id: "full_name",
     step: 2,
-    question: "Özgeçmişinizde görünecek tam adınız nedir?",
+    question: "Adınız ve soyadınız nedir? (Özgeçmişinizde görünecek tam ad.)",
     type: "text",
     required: true,
     voiceEnabled: true,
@@ -378,3 +378,27 @@ export function getQuestionsFor(mode: "voice" | "chat" | "form"): CVQuestion[] {
 }
 
 export const TOTAL_QUESTION_STEPS = CV_QUESTIONS.length;
+
+/** Yaygın erkek isimleri (küçük harf) — cinsiyet tahmini için */
+const MALE_FIRST_NAMES = new Set([
+  "ahmet", "mehmet", "ali", "mustafa", "hüseyin", "hasan", "ibrahim", "ismail", "osman", "yusuf",
+  "ömer", "ramazan", "halil", "süleyman", "abdullah", "mahmut", "recep", "salih", "fatih", "emre",
+  "can", "burak", "serkan", "murat", "volkan", "onur", "barış", "eren", "koray", "ugur", "uğur",
+  "cem", "tolga", "oguz", "oğuz", "berk", "alp", "kaan", "burak", "eren", "yasin", "yasir",
+  "muhammet", "muhammed", "adem", "ibrahim", "enver", "celal", "nihat", "orhan", "taner", "turgut",
+]);
+
+/** İlk isimden hitap tahmini (Bey/Hanım). */
+export function inferHitapFromFullName(fullName: string): "Bey" | "Hanım" {
+  const first = fullName.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-zçğıöşü]/gi, "") ?? "";
+  return MALE_FIRST_NAMES.has(first) ? "Bey" : "Hanım";
+}
+
+/** answers'tan tam ad + tahmin edilen hitap ile görüntü ismi (örn. "Ahmet Bey"). */
+export function getDisplayName(answers: Record<string, unknown>): string {
+  const fullName = getAnswerBySaveKey(answers, "personal.fullName").trim();
+  if (!fullName) return "";
+  const firstName = fullName.split(/\s+/)[0] ?? fullName;
+  const hitap = inferHitapFromFullName(fullName);
+  return `${firstName} ${hitap}`;
+}

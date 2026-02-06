@@ -38,12 +38,11 @@ export function dateForSpeech(text: string): string {
   return `${day} ${month} ${year}`;
 }
 
-/** "5+" → "5 yıldan fazla" vb. */
+/** "5+" veya "5+ yıl" → "5 yıldan uzun süredir" (zaman vurgusu). Cümle içi de dönüştürülür. */
 export function yearsForSpeech(text: string): string {
-  const t = text.trim();
-  const m = t.match(/^(\d+)\s*\+\s*$/);
-  if (m) return `${m[1]} yıldan fazla`;
-  return t;
+  return text.replace(/(\d+)\s*\+\s*(yıl)?/gi, (_, n, yil) =>
+    yil ? `${n} yıldan uzun süredir` : `${n} yıldan uzun süredir`
+  ).trim();
 }
 
 /**
@@ -62,9 +61,8 @@ export function cleanTextForTTS(
     out = phoneForSpeech(out);
   } else if (key.includes("birth") || key.includes("date") || key.includes("tarih")) {
     out = dateForSpeech(out);
-  } else if (key.includes("year") || key.includes("experience") || key.includes("yil")) {
-    out = yearsForSpeech(out);
   }
+  out = yearsForSpeech(out);
 
   return out.replace(/\s+/g, " ").trim();
 }

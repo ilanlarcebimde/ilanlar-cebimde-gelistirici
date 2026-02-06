@@ -8,7 +8,7 @@ import { PROFESSION_AREAS } from "@/data/professions";
 import {
   getQuestionsFor,
   setAnswerBySaveKey,
-  TOTAL_QUESTION_STEPS,
+  getDisplayName,
 } from "@/data/cvQuestions";
 import { PhotoUpload } from "./PhotoUpload";
 
@@ -56,7 +56,10 @@ export function ChatWizard({
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const first = QUESTIONS[0];
     return first
-      ? [{ id: "0", role: "system", text: "Merhaba. Profesyonel CV'n için soruları tek tek soracağım. Hazırsan başlayalım." }, { id: "0q", role: "system", text: first.question }]
+      ? [
+          { id: "0", role: "system", text: "Merhaba. CV'nizi oluşturmak için soruları tek tek soracağım. İlk olarak adınızı ve soyadınızı alalım." },
+          { id: "0q", role: "system", text: first.question },
+        ]
       : [];
   });
   const [input, setInput] = useState("");
@@ -80,8 +83,10 @@ export function ChatWizard({
     onAnswersChange(newAnswers);
 
     if (nextQ) {
+      const displayName = getDisplayName(newAnswers);
+      const nextQuestionText = displayName ? `${displayName}, ${nextQ.question}` : nextQ.question;
       setTimeout(() => {
-        setMessages((m) => [...m, { id: `s-${currentQ.id}`, role: "system", text: nextQ.question }]);
+        setMessages((m) => [...m, { id: `s-${currentQ.id}`, role: "system", text: nextQuestionText }]);
         setQIndex((i) => i + 1);
       }, 400);
     } else {
@@ -108,7 +113,7 @@ export function ChatWizard({
           </div>
           {currentQ && !questionsDone && (
             <span className="text-xs font-medium text-slate-500">
-              Soru {qIndex + 1} / {TOTAL_QUESTION_STEPS}
+              Soru {qIndex + 1} / {QUESTIONS.length}
             </span>
           )}
         </div>

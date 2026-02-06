@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Lightbulb, Mic, MicOff } from "lucide-react";
 import { NormalizeConfirm } from "@/components/wizard/NormalizeConfirm";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
-import { setAnswerBySaveKey } from "@/data/cvQuestions";
+import { setAnswerBySaveKey, inferHitapFromFullName } from "@/data/cvQuestions";
 import { cleanTextForTTS } from "@/lib/ttsClean";
 
 type AssistantNextAction = "ASK" | "CLARIFY" | "SAVE_AND_NEXT" | "FINISH";
@@ -283,14 +283,17 @@ export function VoiceWizardGeminiModal({
     if (next.nextAction === "SAVE_AND_NEXT" && next.save?.key) {
       const needsNorm = !!next.review?.needsNormalization && !!next.review?.normalizedValue;
       if (!needsNorm) {
-        const newAnswers = setAnswerBySaveKey(cv, next.save!.key, String(next.save!.value ?? ""));
-        const newFilledKeys = filledKeys.includes(next.save!.key)
-          ? filledKeys
-          : [...filledKeys, next.save!.key];
+        const saveKey = next.save!.key;
+        const saveValue = String(next.save!.value ?? "");
+        let newAnswers = setAnswerBySaveKey(cv, saveKey, saveValue);
+        const newFilledKeys = filledKeys.includes(saveKey) ? filledKeys : [...filledKeys, saveKey];
+        const updates: Array<{ key: string; value: unknown }> = [{ key: saveKey, value: next.save!.value }];
+        if (saveKey === "personal.fullName") {
+          const hitap = inferHitapFromFullName(saveValue);
+          newAnswers = setAnswerBySaveKey(newAnswers, "personal.hitap", hitap);
+        }
         setAnswers(newAnswers);
-        await saveSession(newAnswers, newFilledKeys, [
-          { key: next.save!.key, value: next.save!.value },
-        ]);
+        await saveSession(newAnswers, newFilledKeys, updates);
       }
     }
   }
@@ -505,7 +508,7 @@ export function VoiceWizardGeminiModal({
                 onClick={() => handleStopAndSubmit()}
                 disabled={busy}
               >
-                Sonlandır ve Gönder
+                Yanıt verdim
               </button>
             )}
             {showSkipButton && (
