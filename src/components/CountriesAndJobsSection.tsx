@@ -1,33 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { COUNTRIES } from "@/data/countries";
+import { PROFESSION_AREAS } from "@/data/professions";
 
-const COUNTRY_CHIPS = [
-  { id: "de", name: "Almanya", flag: "🇩🇪" },
-  { id: "fr", name: "Fransa", flag: "🇫🇷" },
-  { id: "nl", name: "Hollanda", flag: "🇳🇱" },
-  { id: "at", name: "Avusturya", flag: "🇦🇹" },
-  { id: "ch", name: "İsviçre", flag: "🇨🇭" },
-  { id: "qa", name: "Katar", flag: "🇶🇦" },
-  { id: "ae", name: "BAE", flag: "🇦🇪" },
-  { id: "sa", name: "Suudi Arabistan", flag: "🇸🇦" },
-  { id: "kw", name: "Kuveyt", flag: "🇰🇼" },
-  { id: "iq", name: "Irak", flag: "🇮🇶" },
-  { id: "ly", name: "Libya", flag: "🇱🇾" },
-];
-
-const JOB_UNIVERSE = [
-  "Elektrik & Tesisat",
-  "Seramik & Kaplama",
-  "Boya & Yüzey",
-  "Metal & Kaynak",
-  "İnşaat & Saha",
-  "Üretim & Montaj",
-];
+const PROFESSION_DESCRIPTIONS: Record<string, string> = {
+  insaat: "Sıvacılık, betonarme, fayans, izolasyon ve şantiye dalları.",
+  elektrik: "Tesisat, pano, otomasyon ve güneş enerjisi alanları.",
+  metal: "Kaynak, sac işleme, çelik konstrüksiyon ve boru işleri.",
+  motorlu: "Oto elektrik, mekanik, kaporta ve boya.",
+  seramik: "Fayans, seramik, mozaik ve mermer uygulamaları.",
+  konaklama: "Oda, kat hizmetleri, resepsiyon ve mutfak.",
+  yiyecek: "Aşçılık, pastacılık, fırın ve servis.",
+  tekstil: "Dikiş, konfeksiyon, kesim ve kalite kontrol.",
+  ahsap: "Mobilya montaj, parke, doğrama ve döşeme.",
+  makine: "CNC, torna, freze ve makine bakım.",
+  boya: "İç ve dış cephe, endüstriyel ve püskürtme boya.",
+  tesisat: "Sıhhi tesisat, klima, ısıtma ve doğalgaz.",
+};
 
 export function CountriesAndJobsSection() {
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [marqueePaused, setMarqueePaused] = useState(false);
+
+  const filteredAreas = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return PROFESSION_AREAS;
+    return PROFESSION_AREAS.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.branches.some((b) => b.toLowerCase().includes(q))
+    );
+  }, [search]);
+
+  const countriesRow = useMemo(
+    () => [...COUNTRIES, ...COUNTRIES],
+    []
+  );
 
   return (
     <section className="py-16 sm:py-20 bg-[#f8f9fa]">
@@ -41,7 +51,7 @@ export function CountriesAndJobsSection() {
           Bu sistem bu pazarı biliyor
         </motion.p>
         <motion.h2
-          className="text-2xl font-bold text-slate-900 sm:text-3xl text-center mb-10"
+          className="text-2xl font-bold text-slate-900 sm:text-3xl text-center mb-12"
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -49,37 +59,80 @@ export function CountriesAndJobsSection() {
           Ülkeler & Meslek Alanları
         </motion.h2>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-          {COUNTRY_CHIPS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setSelectedCountry(selectedCountry === c.id ? null : c.id)}
-              className={`shrink-0 flex items-center gap-2 rounded-full border-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
-                selectedCountry === c.id
-                  ? "border-slate-800 bg-slate-800 text-white"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
-              }`}
-            >
-              <span className="text-lg">{c.flag}</span>
-              {c.name}
-            </button>
-          ))}
+        {/* Ülkeler: yatay marquee, hover'da durur */}
+        <div
+          className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+          onMouseEnter={() => setMarqueePaused(true)}
+          onMouseLeave={() => setMarqueePaused(false)}
+        >
+          <div
+            className="flex w-max items-center gap-6"
+            style={{
+              animation: marqueePaused ? "none" : "marquee-slow 80s linear infinite",
+            }}
+          >
+            {countriesRow.map((c, i) => (
+              <div
+                key={`${c.id}-${i}`}
+                className="flex shrink-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-5 py-2.5"
+              >
+                <span className="text-2xl leading-none" aria-hidden>
+                  {c.flag}
+                </span>
+                <span className="text-sm font-medium text-slate-800 whitespace-nowrap">
+                  {c.name}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {JOB_UNIVERSE.map((job, i) => (
-            <motion.div
-              key={job}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]"
-              initial={{ opacity: 0, y: 8 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.04 }}
-            >
-              <span className="text-sm font-medium text-slate-800">{job}</span>
-            </motion.div>
-          ))}
+        {/* Meslek alanları: arama + kartlar */}
+        <div className="mt-14">
+          <motion.div
+            className="mb-6"
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <label htmlFor="job-search" className="sr-only">
+              Meslek veya alan ara
+            </label>
+            <input
+              id="job-search"
+              type="search"
+              placeholder="Meslek veya alan ara"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full max-w-md mx-auto block rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 placeholder:text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200/60 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+            />
+          </motion.div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredAreas.map((area, i) => (
+              <motion.div
+                key={area.id}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all duration-300 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: Math.min(i * 0.03, 0.24) }}
+              >
+                <h3 className="text-base font-semibold text-slate-900 mb-1.5">
+                  {area.name}
+                </h3>
+                <p className="text-sm text-slate-600 leading-snug">
+                  {PROFESSION_DESCRIPTIONS[area.id] ??
+                    `${area.branches.slice(0, 3).join(", ")} ve diğerleri.`}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+          {filteredAreas.length === 0 && (
+            <p className="text-center text-slate-500 text-sm py-8">
+              Arama kriterine uygun alan bulunamadı.
+            </p>
+          )}
         </div>
       </div>
     </section>

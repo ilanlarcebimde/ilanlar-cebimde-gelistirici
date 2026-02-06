@@ -64,6 +64,7 @@ export default function Home() {
         <MethodSelection selectedMethod={method} onSelect={setMethod} />
         <WizardArea selectedMethod={method} onPaymentClick={handlePaymentClick} />
         <CountriesAndJobsSection />
+        <CvWhySection />
         <WhatWeSolveSection />
         <FinalCtaSection onCtaClick={scrollToMethods} />
         <Footer />

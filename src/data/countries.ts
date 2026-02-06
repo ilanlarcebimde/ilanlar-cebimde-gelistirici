@@ -10,6 +10,7 @@ export const COUNTRIES = [
   { id: "kw", name: "Kuveyt", flag: "🇰🇼" },
   { id: "iq", name: "Irak", flag: "🇮🇶" },
   { id: "ly", name: "Libya", flag: "🇱🇾" },
+  { id: "us", name: "ABD / Alaska", flag: "🇺🇸" },
 ] as const;
 
 export type CountryId = (typeof COUNTRIES)[number]["id"];
@@ -26,4 +27,5 @@ export const POPULAR_JOBS_BY_COUNTRY: Record<string, string[]> = {
   kw: ["İnşaat", "Elektrik", "Tesisat", "Seramik"],
   iq: ["İnşaat", "Elektrik", "Petrol", "Kaynak", "Tesisat"],
   ly: ["İnşaat", "Elektrik", "Petrol", "Tesisat", "Kaynak"],
+  us: ["İnşaat", "Elektrik", "Petrol", "Tesisat", "Kaynak", "HVAC", "Makine"],
 };
