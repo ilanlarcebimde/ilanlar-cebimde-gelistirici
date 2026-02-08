@@ -100,15 +100,16 @@ export function ChatWizard({
   const showPhotoStep = questionsDone && phase === "photo";
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col flex-1 min-h-0 space-y-6 sm:space-y-8">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-slate-200 bg-white shadow-soft overflow-hidden"
+        className="flex flex-col flex-1 min-h-0 rounded-2xl border border-slate-200 bg-white shadow-soft overflow-hidden"
       >
-        <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 flex justify-between items-center">
+        {/* Header: sticky */}
+        <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-slate-50 px-4 sm:px-6 py-3 flex justify-between items-center">
           <div>
-            <p className="text-sm font-medium text-slate-700">Sohbet ile CV bilgileri</p>
+            <p className="text-sm font-semibold text-slate-700">Sohbet ile CV bilgileri</p>
             <p className="text-xs text-slate-500">Her yanıt otomatik kaydedilir.</p>
           </div>
           {currentQ && !questionsDone && (
@@ -117,7 +118,9 @@ export function ChatWizard({
             </span>
           )}
         </div>
-        <div className="max-h-[360px] overflow-y-auto p-4 space-y-4">
+
+        {/* Body: scrollable */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-4 space-y-4">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -140,13 +143,13 @@ export function ChatWizard({
             </div>
           )}
           {currentQ?.examples?.length > 0 && !showCountryJob && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <span className="w-full text-xs font-medium text-slate-500">İpuçları</span>
               {currentQ.examples.map((c) => (
                 <span
                   key={c}
                   title={c}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-600 cursor-default"
+                  className="w-full sm:w-auto text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 sm:px-3 sm:py-1.5 text-sm text-slate-600 cursor-default"
                 >
                   {c}
                 </span>
@@ -154,14 +157,14 @@ export function ChatWizard({
             </div>
           )}
           {currentQ?.type === "select" && Array.isArray(currentQ.options) && currentQ.options.length > 0 && !showCountryJob && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <span className="w-full text-xs font-medium text-slate-500">Seçenekler</span>
               {currentQ.options.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => send(opt)}
-                  className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                  className="w-full sm:w-auto text-left rounded-full border border-slate-300 bg-white px-4 py-3 sm:px-3 sm:py-1.5 text-sm text-slate-700 hover:bg-slate-100"
                 >
                   {opt}
                 </button>
@@ -170,30 +173,37 @@ export function ChatWizard({
           )}
           <div ref={bottomRef} />
         </div>
+
+        {/* Footer: sticky + safe-area */}
         {!showCountryJob && (
-          <div className="flex gap-2 p-4 border-t border-slate-200">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send(input)}
-              placeholder="Yanıtınızı yazın..."
-              className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400"
-            />
-            <button
-              type="button"
-              onClick={() => send(input)}
-              className="rounded-xl bg-slate-800 p-2.5 text-white hover:bg-slate-700"
-            >
-              <Send className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-slate-300 p-2.5 text-slate-600 hover:bg-slate-50"
-              aria-label="Sesli giriş"
-            >
-              <Mic className="h-5 w-5" />
-            </button>
+          <div
+            className="sticky bottom-0 z-10 shrink-0 bg-white border-t border-slate-200 px-3 sm:px-6 py-3"
+            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+          >
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send(input)}
+                placeholder="Yanıtınızı yazın..."
+                className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400"
+              />
+              <button
+                type="button"
+                onClick={() => send(input)}
+                className="rounded-xl bg-slate-800 p-2.5 text-white hover:bg-slate-700 shrink-0"
+              >
+                <Send className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border border-slate-300 p-2.5 text-slate-600 hover:bg-slate-50 shrink-0"
+                aria-label="Sesli giriş"
+              >
+                <Mic className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         )}
       </motion.div>

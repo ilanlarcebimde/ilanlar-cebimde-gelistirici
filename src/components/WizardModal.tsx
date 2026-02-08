@@ -36,7 +36,7 @@ export function WizardModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 sm:p-6"
           onClick={onClose}
           role="dialog"
           aria-modal="true"
@@ -48,7 +48,7 @@ export function WizardModal({
             exit={{ scale: 0.96, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col min-h-0"
+            className="relative w-[96vw] max-w-none sm:w-full sm:max-w-[680px] h-[92vh] sm:h-auto sm:max-h-[85vh] rounded-2xl bg-white shadow-xl flex flex-col overflow-hidden"
           >
             <div className="shrink-0 flex justify-end p-3 sm:p-4 border-b border-slate-100">
               <button
@@ -60,7 +60,7 @@ export function WizardModal({
                 <X className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 bg-slate-50/50">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-slate-50/50">
               <WizardArea
                 selectedMethod={selectedMethod}
                 onPaymentClick={onPaymentClick}

@@ -106,8 +106,8 @@ export function WizardArea({
   }
 
   return (
-    <section className="py-12 sm:py-16 bg-slate-50/50">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+    <section className="flex-1 flex flex-col min-h-0 py-4 sm:py-12 bg-slate-50/50">
+      <div className="flex-1 flex flex-col min-h-0 mx-auto w-full max-w-3xl px-4 sm:px-6">
         <AnimatePresence mode="wait">
           {completed ? (
             <CompletionSummary
