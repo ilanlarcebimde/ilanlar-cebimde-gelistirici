@@ -136,20 +136,34 @@ export function ChatWizard({
           ))}
           {currentQ?.hint && !showCountryJob && (
             <div className="flex items-start gap-2 text-amber-700 bg-amber-50 rounded-lg px-3 py-2 text-xs">
-              <span aria-hidden>💡</span>
               <span>{currentQ.hint}</span>
             </div>
           )}
           {currentQ?.examples?.length > 0 && !showCountryJob && (
             <div className="flex flex-wrap gap-2">
+              <span className="w-full text-xs font-medium text-slate-500">İpuçları</span>
               {currentQ.examples.map((c) => (
-                <button
+                <span
                   key={c}
-                  type="button"
-                  onClick={() => send(c)}
-                  className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  title={c}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-600 cursor-default"
                 >
                   {c}
+                </span>
+              ))}
+            </div>
+          )}
+          {currentQ?.type === "select" && currentQ.options?.length > 0 && !showCountryJob && (
+            <div className="flex flex-wrap gap-2">
+              <span className="w-full text-xs font-medium text-slate-500">Seçenekler</span>
+              {(currentQ.options ?? []).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => send(opt)}
+                  className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  {opt}
                 </button>
               ))}
             </div>
