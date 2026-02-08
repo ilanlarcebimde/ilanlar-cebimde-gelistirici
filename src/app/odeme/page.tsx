@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 
 const AMOUNT = 549;
 const BASKET_DESCRIPTION = "Usta Başvuru Paketi";
+const FREE_COUPON_CODE = "ADMIN549";
 
 function generateMerchantOid(): string {
   return "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
@@ -16,6 +17,25 @@ export default function OdemePage() {
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [freeWithCoupon, setFreeWithCoupon] = useState(false);
+
+  const applyCoupon = useCallback(() => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) {
+      setCouponMessage({ type: "error", text: "Kupon kodu girin." });
+      return;
+    }
+    if (code === FREE_COUPON_CODE) {
+      setCouponMessage({ type: "success", text: "Kupon uygulandı. Ücretsiz sipariş tamamlanıyor…" });
+      setFreeWithCoupon(true);
+      sessionStorage.removeItem("paytr_pending");
+      router.replace("/odeme/basarili");
+      return;
+    }
+    setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
+  }, [couponCode, router]);
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
@@ -101,6 +121,36 @@ export default function OdemePage() {
       <div className="min-h-screen bg-slate-50 py-8 px-4">
         <div className="mx-auto max-w-2xl">
           <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
+
+          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <label className="mb-2 block text-sm font-medium text-slate-700">Kupon Kodu</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value);
+                  setCouponMessage(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                placeholder="Kupon kodunu girin"
+                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              />
+              <button
+                type="button"
+                onClick={applyCoupon}
+                className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
+              >
+                Uygula
+              </button>
+            </div>
+            {couponMessage && (
+              <p className={`mt-2 text-sm ${couponMessage.type === "success" ? "text-emerald-600" : "text-red-600"}`}>
+                {couponMessage.text}
+              </p>
+            )}
+          </div>
+
           {iframeUrl && (
             <iframe
               id="paytriframe"
