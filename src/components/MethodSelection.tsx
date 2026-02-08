@@ -1,33 +1,57 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Mic, MessageCircle, FileEdit } from "lucide-react";
-
-const METHODS = [
-  {
-    id: "voice" as const,
-    title: "Sesli Asistan ile",
-    desc: "Sesli asistanınız size nasıl yanıt vermeniz gerektiği ile ilgili rehberlik edecektir. İsterseniz konuşarak, isterseniz yazarak özgeçmiş (CV) formunuzu kolayca oluşturabilirsiniz.",
-    icon: Mic,
-    buttonLabel: "Sesli Asistan ile Başla",
-  },
-  {
-    id: "chat" as const,
-    title: "Sohbet ile",
-    desc: "Soru-cevap sohbeti. Öneri chip’leri ve otomatik kayıt.",
-    icon: MessageCircle,
-    buttonLabel: "Sohbet ile Başla",
-  },
-  {
-    id: "form" as const,
-    title: "Form ile",
-    desc: "Adım adım form. İlerleme çubuğu, kaydet ve devam et.",
-    icon: FileEdit,
-    buttonLabel: "Form ile Devam Et",
-  },
-];
+import { Mic, MessageCircle, FileEdit, Check } from "lucide-react";
 
 type MethodId = "voice" | "chat" | "form";
+
+const METHODS: Array<{
+  id: MethodId;
+  title: string;
+  badge?: string;
+  desc: string;
+  bullets: string[];
+  ctaText: string;
+  icon: typeof Mic;
+}> = [
+  {
+    id: "voice",
+    title: "Sesli Asistan ile",
+    badge: "Önerilen",
+    desc: "Sesli asistanınız size ne cevap vermeniz gerektiğini adım adım söyler. İsterseniz konuşarak, isterseniz yazarak CV'nizi hızlıca tamamlayabilirsiniz.",
+    bullets: [
+      "Kolay yönlendirme: Ne yazacağınızı söyler",
+      "Konuşarak veya yazarak ilerleme",
+      "Hızlı tamamla, otomatik kayıt",
+    ],
+    ctaText: "Sesli Asistan ile Başla",
+    icon: Mic,
+  },
+  {
+    id: "chat",
+    title: "Sohbet ile",
+    desc: "Soru–cevap sohbetiyle ilerleyin. Her soruda ipuçları vardır; yanıtlarınız anında kaydedilir. İsterseniz bazı soruları atlayabilirsiniz.",
+    bullets: [
+      "Tek tek soru: hızlı ilerleme",
+      "İpuçlarıyla yönlendirme",
+      "Otomatik kayıt, hata yok",
+    ],
+    ctaText: "Sohbet ile Başla",
+    icon: MessageCircle,
+  },
+  {
+    id: "form",
+    title: "Form ile",
+    desc: "Adım adım form ile düzenli ilerleyin. İlerleme çubuğu ile nerede olduğunuzu görürsünüz. İsterseniz kaydedip sonra devam edebilirsiniz.",
+    bullets: [
+      "Adım adım, düzenli akış",
+      "İlerleme çubuğu",
+      "Kaydet ve devam et",
+    ],
+    ctaText: "Form ile Devam Et",
+    icon: FileEdit,
+  },
+];
 
 export function MethodSelection({
   selectedMethod,
@@ -56,37 +80,61 @@ export function MethodSelection({
           Size en uygun yöntemi seçin. Sayfa değişmeden aynı yerde devam edersiniz.
         </motion.p>
 
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
           {METHODS.map((m, i) => {
             const Icon = m.icon;
             const isSelected = selectedMethod === m.id;
             return (
-              <motion.button
+              <motion.article
                 key={m.id}
-                type="button"
-                onClick={() => onSelect(m.id)}
-                className="group relative flex flex-col items-center rounded-2xl border-2 bg-white p-6 sm:p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all duration-200 hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
+                className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md focus-within:ring-2 focus-within:ring-slate-400 focus-within:ring-offset-2"
                 style={{
                   borderColor: isSelected ? "#0f172a" : undefined,
-                  boxShadow: isSelected ? "0 8px 24px rgba(0,0,0,0.08)" : undefined,
+                  boxShadow: isSelected ? "0 4px 14px rgba(0,0,0,0.1)" : undefined,
                 }}
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
+                {m.badge && (
+                  <span className="absolute top-4 right-4 rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white">
+                    {m.badge}
+                  </span>
+                )}
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600 shrink-0">
                   <Icon className="h-6 w-6" />
                 </span>
                 <h3 className="mt-4 text-lg font-semibold text-slate-900">{m.title}</h3>
-                <p className="mt-2 text-sm text-slate-500 leading-snug">{m.desc}</p>
-                <span className="mt-6 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors group-hover:bg-slate-800">
-                  {m.buttonLabel}
-                </span>
-              </motion.button>
+                <p className="mt-2 text-sm text-slate-600 leading-snug">{m.desc}</p>
+                <ul className="mt-4 space-y-2 flex-1">
+                  {m.bullets.map((b) => (
+                    <li key={b} className="flex items-start gap-2 text-sm text-slate-600">
+                      <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => onSelect(m.id)}
+                  className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                >
+                  {m.ctaText}
+                </button>
+              </motion.article>
             );
           })}
         </div>
+
+        <motion.p
+          className="mt-10 text-center text-sm text-slate-500 max-w-xl mx-auto"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+        >
+          Boş bıraktığınız alanlar CV&apos;de gösterilmez. Yanıtlarınız güvenle kaydedilir.
+        </motion.p>
       </div>
     </section>
   );
