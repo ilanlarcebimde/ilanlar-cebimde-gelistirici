@@ -19,11 +19,17 @@ export default function OdemePage() {
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-    const email = pending ? (JSON.parse(pending) as { email?: string }).email : null;
+    const parsed = pending ? (JSON.parse(pending) as { email?: string; user_name?: string }) : null;
+    const email = parsed?.email ?? null;
     if (!email) {
       router.replace("/");
       return;
     }
+
+    const user_name =
+      (parsed?.user_name && String(parsed.user_name).trim()) ||
+      email.split("@")[0] ||
+      "Müşteri";
 
     const merchant_oid = generateMerchantOid();
     const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -31,7 +37,7 @@ export default function OdemePage() {
       merchant_oid,
       email,
       amount: AMOUNT,
-      user_name: "",
+      user_name: user_name.trim().slice(0, 100),
       user_address: "Adres bilgisi girilmedi",
       user_phone: "5550000000",
       merchant_ok_url: `${siteUrl}/odeme/basarili`,

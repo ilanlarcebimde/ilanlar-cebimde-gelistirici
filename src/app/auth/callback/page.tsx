@@ -23,9 +23,16 @@ function AuthCallbackContent() {
         if (next === "/odeme") {
           const { data: { user } } = await supabase.auth.getUser();
           if (user?.email) {
+            const meta = user.user_metadata || {};
+            const user_name =
+              (typeof meta.full_name === "string" && meta.full_name.trim()) ||
+              (typeof meta.name === "string" && meta.name.trim()) ||
+              [meta.given_name, meta.family_name].filter(Boolean).join(" ").trim() ||
+              user.email.split("@")[0] ||
+              "Müşteri";
             sessionStorage.setItem(
               "paytr_pending",
-              JSON.stringify({ email: user.email, user_name: user.user_metadata?.full_name || user.user_metadata?.name })
+              JSON.stringify({ email: user.email, user_name })
             );
           }
         }

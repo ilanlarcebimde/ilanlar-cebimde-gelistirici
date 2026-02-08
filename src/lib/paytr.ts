@@ -131,7 +131,7 @@ export async function getPaytrToken(params: InitiateParams, userIp: string): Pro
     lang: "tr",
     merchant_ok_url,
     merchant_fail_url,
-    user_name: params.user_name || "",
+    user_name: (params.user_name && String(params.user_name).trim()) || "Müşteri",
     user_address: params.user_address || "Adres bilgisi girilmedi",
     user_phone: params.user_phone || "5550000000",
   });
