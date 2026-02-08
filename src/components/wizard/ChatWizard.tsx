@@ -153,10 +153,10 @@ export function ChatWizard({
               ))}
             </div>
           )}
-          {currentQ?.type === "select" && currentQ.options?.length > 0 && !showCountryJob && (
+          {currentQ?.type === "select" && Array.isArray(currentQ.options) && currentQ.options.length > 0 && !showCountryJob && (
             <div className="flex flex-wrap gap-2">
               <span className="w-full text-xs font-medium text-slate-500">Seçenekler</span>
-              {(currentQ.options ?? []).map((opt) => (
+              {currentQ.options.map((opt) => (
                 <button
                   key={opt}
                   type="button"
