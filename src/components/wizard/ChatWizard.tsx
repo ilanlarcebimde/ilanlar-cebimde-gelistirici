@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Send, Mic, MicOff } from "lucide-react";
+import { Send, Mic, MicOff, Lightbulb, X } from "lucide-react";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
 import {
@@ -92,6 +92,9 @@ export function ChatWizard({
     const userMsg: ChatMessage = { id: `${Date.now()}`, role: "user", text: t };
     setMessages((m) => [...m, userMsg]);
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     const newAnswers = setAnswerBySaveKey(answers, currentQ.saveKey, t);
     onAnswersChange(newAnswers);
 
@@ -111,6 +114,19 @@ export function ChatWizard({
   const [phase, setPhase] = useState<"countryJob" | "photo">("countryJob");
   const showCountryJob = questionsDone && phase === "countryJob";
   const showPhotoStep = questionsDone && phase === "photo";
+  const [isTipsOpen, setIsTipsOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleTextareaInput = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  };
+
+  useEffect(() => {
+    handleTextareaInput();
+  }, [input, voice.transcript]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 space-y-6 sm:space-y-8">
@@ -150,24 +166,71 @@ export function ChatWizard({
               </div>
             </div>
           ))}
-          {currentQ?.hint && !showCountryJob && (
-            <div className="flex items-start gap-2 text-amber-700 bg-amber-50 rounded-lg px-3 py-2 text-xs">
-              <span>{currentQ.hint}</span>
+          {currentQ && !showCountryJob && (
+            <div className="flex flex-col gap-2">
+              {currentQ.hint && (
+                <p className="text-xs text-slate-500">{currentQ.hint}</p>
+              )}
+              {currentQ.examples?.length > 0 && (
+                <>
+                  <p className="text-xs text-slate-500">İstersen ipuçlarını açabilirsin.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsTipsOpen(true)}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm w-fit"
+                  >
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    İpuçlarını Gör
+                  </button>
+                </>
+              )}
             </div>
           )}
-          {currentQ?.examples?.length > 0 && !showCountryJob && (
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-              <span className="w-full text-xs font-medium text-slate-500">İpuçları</span>
-              {currentQ.examples.map((c) => (
-                <span
-                  key={c}
-                  title={c}
-                  className="w-full sm:w-auto text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 sm:px-3 sm:py-1.5 text-sm text-slate-600 cursor-default"
+
+          {/* İpuçları bottom-sheet (mobil) / dialog (masaüstü) */}
+          {isTipsOpen && currentQ?.examples?.length > 0 && (
+            <>
+              <div
+                className="fixed inset-0 z-[100] bg-black/40 sm:flex sm:items-center sm:justify-center"
+                onClick={() => setIsTipsOpen(false)}
+                aria-hidden
+              />
+              <div
+                className="fixed z-[101] w-full left-0 right-0 bottom-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-[560px] sm:max-h-[70vh] sm:rounded-2xl sm:shadow-xl rounded-t-2xl bg-white max-h-[70vh] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-labelledby="tips-title"
+                aria-modal="true"
+              >
+                <div className="shrink-0 flex items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3">
+                  <h2 id="tips-title" className="text-base font-semibold text-slate-800">İpuçları</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsTipsOpen(false)}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
+                    aria-label="Kapat"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="shrink-0 px-4 sm:px-6 pt-2 text-xs text-slate-500">
+                  Bu soruyu doğru doldurmak için kısa öneriler
+                </p>
+                <div
+                  className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-2"
+                  style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
                 >
-                  {c}
-                </span>
-              ))}
-            </div>
+                  {currentQ.examples.map((c) => (
+                    <div
+                      key={c}
+                      className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    >
+                      {c}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
           {currentQ?.type === "select" && Array.isArray(currentQ.options) && currentQ.options.length > 0 && !showCountryJob && (
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
@@ -193,15 +256,16 @@ export function ChatWizard({
             className="sticky bottom-0 z-10 shrink-0 bg-white border-t border-slate-200 px-3 sm:px-6 py-3 min-w-0 overflow-hidden"
             style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
           >
-            <div className="flex gap-2 min-w-0">
-              <input
-                type="text"
+            <div className="flex gap-2 min-w-0 items-end">
+              <textarea
+                ref={textareaRef}
                 value={voice.phase === "listening" ? voice.transcript : input}
                 onChange={(e) => voice.phase !== "listening" && setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && voice.phase !== "listening" && send(input)}
+                onInput={handleTextareaInput}
                 placeholder={voice.phase === "listening" ? "Dinleniyor…" : "Yanıtınızı yazın..."}
                 readOnly={voice.phase === "listening"}
-                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400"
+                rows={1}
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 resize-none overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words min-h-[44px] max-h-[160px] leading-6"
               />
               <button
                 type="button"
