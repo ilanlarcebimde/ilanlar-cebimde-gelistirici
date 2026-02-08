@@ -10,7 +10,14 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get("code");
-    const next = searchParams.get("next") ?? "/panel";
+    // URL'deki next bazen OAuth redirect'te kayboluyor; sessionStorage'dan yedekle
+    const nextFromUrl = searchParams.get("next");
+    const nextFromStorage =
+      typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_next") : null;
+    const next = nextFromUrl ?? nextFromStorage ?? "/panel";
+    if (typeof window !== "undefined" && nextFromStorage) {
+      sessionStorage.removeItem("auth_redirect_next");
+    }
 
     if (!code) {
       setStatus("error");

@@ -30,6 +30,10 @@ export function AuthModal({
     setError("");
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const next = redirectNext;
+    // OAuth redirect bazen query'yi kaybettigi icin next'i sessionStorage'da da sakla
+    if (typeof window !== "undefined" && next) {
+      sessionStorage.setItem("auth_redirect_next", next);
+    }
     const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
     const { error: err } = await supabase.auth.signInWithOAuth({
@@ -42,6 +46,7 @@ export function AuthModal({
 
     if (err) {
       setError(err.message || "Google ile giriş yapılamadı.");
+      if (typeof window !== "undefined") sessionStorage.removeItem("auth_redirect_next");
       return;
     }
     onGoogle();

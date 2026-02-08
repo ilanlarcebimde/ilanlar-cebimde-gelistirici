@@ -25,11 +25,30 @@ export function AuthHashHandler() {
     if (!access_token || !refresh_token) return;
 
     handled.current = true;
-    const next = params.get("next") ?? "/panel";
+    const nextFromHash = params.get("next");
+    const nextFromStorage = sessionStorage.getItem("auth_redirect_next");
+    const next = nextFromHash ?? nextFromStorage ?? "/panel";
+    if (nextFromStorage) sessionStorage.removeItem("auth_redirect_next");
 
     supabase.auth
       .setSession({ access_token, refresh_token })
-      .then(() => {
+      .then(async () => {
+        if (next === "/odeme") {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            const meta = user.user_metadata || {};
+            const user_name =
+              (typeof meta.full_name === "string" && meta.full_name.trim()) ||
+              (typeof meta.name === "string" && meta.name.trim()) ||
+              [meta.given_name, meta.family_name].filter(Boolean).join(" ").trim() ||
+              user.email.split("@")[0] ||
+              "Müşteri";
+            sessionStorage.setItem(
+              "paytr_pending",
+              JSON.stringify({ email: user.email, user_name })
+            );
+          }
+        }
         window.history.replaceState(null, "", window.location.pathname + window.location.search);
         router.replace(next);
       })
