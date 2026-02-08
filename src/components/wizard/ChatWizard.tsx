@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Send, Mic } from "lucide-react";
+import { Send, Mic, MicOff } from "lucide-react";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
 import {
@@ -10,6 +10,7 @@ import {
   setAnswerBySaveKey,
   getDisplayName,
 } from "@/data/cvQuestions";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { PhotoUpload } from "./PhotoUpload";
 
 interface ChatMessage {
@@ -65,10 +66,22 @@ export function ChatWizard({
   const [input, setInput] = useState("");
   const [qIndex, setQIndex] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const voice = useVoiceAssistant();
+  const wasListeningRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Sesli giriş bittiğinde transkripti input'a yaz (düzenleyip gönderebilsin)
+  useEffect(() => {
+    if (wasListeningRef.current && (voice.phase === "idle" || voice.phase === "converting")) {
+      const text = (voice.getTranscript?.() ?? voice.transcript ?? "").trim();
+      if (text) setInput(text);
+      wasListeningRef.current = false;
+    }
+    if (voice.phase === "listening") wasListeningRef.current = true;
+  }, [voice.phase, voice.transcript, voice.getTranscript]);
 
   const currentQ = QUESTIONS[qIndex];
   const nextQ = QUESTIONS[qIndex + 1];
@@ -183,26 +196,49 @@ export function ChatWizard({
             <div className="flex gap-2 min-w-0">
               <input
                 type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send(input)}
-                placeholder="Yanıtınızı yazın..."
+                value={voice.phase === "listening" ? voice.transcript : input}
+                onChange={(e) => voice.phase !== "listening" && setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && voice.phase !== "listening" && send(input)}
+                placeholder={voice.phase === "listening" ? "Dinleniyor…" : "Yanıtınızı yazın..."}
+                readOnly={voice.phase === "listening"}
                 className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400"
               />
               <button
                 type="button"
                 onClick={() => send(input)}
-                className="rounded-xl bg-slate-800 p-2.5 text-white hover:bg-slate-700 shrink-0"
+                disabled={voice.phase === "listening"}
+                className="rounded-xl bg-slate-800 p-2.5 text-white hover:bg-slate-700 shrink-0 disabled:opacity-50"
               >
                 <Send className="h-5 w-5" />
               </button>
-              <button
-                type="button"
-                className="rounded-xl border border-slate-300 p-2.5 text-slate-600 hover:bg-slate-50 shrink-0"
-                aria-label="Sesli giriş"
-              >
-                <Mic className="h-5 w-5" />
-              </button>
+              {voice.isSTTSupported ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (voice.phase === "listening") {
+                      voice.stopSTT();
+                    } else {
+                      voice.startSTT();
+                    }
+                  }}
+                  className={`rounded-xl p-2.5 shrink-0 ${
+                    voice.phase === "listening"
+                      ? "bg-red-100 text-red-700 hover:bg-red-200"
+                      : "border border-slate-300 text-slate-600 hover:bg-slate-50"
+                  }`}
+                  aria-label={voice.phase === "listening" ? "Dinlemeyi durdur" : "Sesli yanıt"}
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+              ) : (
+                <span
+                  className="rounded-xl border border-slate-200 p-2.5 text-slate-400 shrink-0"
+                  title="Bu tarayıcı sesli girişi desteklemiyor"
+                  aria-label="Sesli giriş desteklenmiyor"
+                >
+                  <MicOff className="h-5 w-5" />
+                </span>
+              )}
             </div>
           </div>
         )}
