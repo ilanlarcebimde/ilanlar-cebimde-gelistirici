@@ -19,7 +19,16 @@ function AuthCallbackContent() {
 
     supabase.auth
       .exchangeCodeForSession(code)
-      .then(() => {
+      .then(async () => {
+        if (next === "/odeme") {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            sessionStorage.setItem(
+              "paytr_pending",
+              JSON.stringify({ email: user.email, user_name: user.user_metadata?.full_name || user.user_metadata?.name })
+            );
+          }
+        }
         setStatus("ok");
         window.location.href = next;
       })

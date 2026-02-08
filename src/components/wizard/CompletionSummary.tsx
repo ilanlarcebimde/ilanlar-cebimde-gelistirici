@@ -42,8 +42,10 @@ export function CompletionSummary({
   const countryName = COUNTRIES.find((c) => c.id === country)?.name ?? country;
 
   const handlePay = () => {
-    if (!email?.trim()) return;
-    onPaymentClick({ email: email.trim(), user_name: user_name?.trim() || undefined });
+    onPaymentClick({
+      email: email?.trim() || "",
+      user_name: user_name?.trim() || undefined,
+    });
   };
 
   return (
@@ -90,14 +92,13 @@ export function CompletionSummary({
       <button
         type="button"
         onClick={handlePay}
-        disabled={!email?.trim()}
-        className="w-full rounded-xl bg-slate-800 py-4 text-lg font-semibold text-white shadow-soft hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-slate-800 py-4 text-lg font-semibold text-white shadow-soft hover:bg-slate-700 transition-colors hover:opacity-95"
       >
         Paketimi Oluştur
       </button>
-      {!email?.trim() && (
-        <p className="mt-2 text-sm text-amber-600">Ödeme için e-posta adresi gereklidir. Formda e-posta alanını doldurun.</p>
-      )}
+      <p className="mt-3 text-sm text-slate-500 text-center">
+        Paketimi Oluştur’a tıkladığınızda oturum açmanız istenecek; giriş yaptıktan sonra ödeme ekranına yönlendirileceksiniz.
+      </p>
     </motion.section>
   );
 }

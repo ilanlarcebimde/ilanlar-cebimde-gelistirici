@@ -39,27 +39,34 @@ export default function Home() {
     setAuthOpen(true);
   }, []);
 
-  const handleAuthSuccess = useCallback(() => {
-    setAuthOpen(false);
-    if (paymentPayload) {
-      sessionStorage.setItem("paytr_pending", JSON.stringify({
-        email: paymentPayload.email,
-        user_name: paymentPayload.user_name,
-      }));
-      setPaymentPayload(null);
-      window.location.href = "/odeme";
-    }
-  }, [paymentPayload]);
+  const handleAuthSuccess = useCallback(
+    (loginEmail?: string) => {
+      setAuthOpen(false);
+      if (paymentPayload) {
+        const email = loginEmail?.trim() || paymentPayload.email?.trim();
+        if (email) {
+          sessionStorage.setItem(
+            "paytr_pending",
+            JSON.stringify({
+              email,
+              user_name: paymentPayload.user_name?.trim() || undefined,
+            })
+          );
+          setPaymentPayload(null);
+          window.location.href = "/odeme";
+        }
+      }
+    },
+    [paymentPayload]
+  );
 
-  const handleGoogleAuth = useCallback(async () => {
-    console.log("Google sign-in");
+  const handleGoogleAuth = useCallback(() => {
     handleAuthSuccess();
   }, [handleAuthSuccess]);
 
   const handleEmailAuth = useCallback(
-    async (email: string, password: string) => {
-      console.log("Email sign-in", email);
-      handleAuthSuccess();
+    async (email: string, _password: string) => {
+      handleAuthSuccess(email);
     },
     [handleAuthSuccess]
   );
