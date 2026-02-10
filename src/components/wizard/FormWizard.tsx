@@ -8,7 +8,6 @@ import {
   getQuestionsFor,
   setAnswerBySaveKey,
   getAnswerBySaveKey,
-  getDisplayName,
 } from "@/data/cvQuestions";
 import { PhotoUpload } from "./PhotoUpload";
 
@@ -112,7 +111,7 @@ export function FormWizard({
             className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft"
           >
             <label className="block text-lg font-medium text-slate-900 mb-4">
-              {getDisplayName(answers) ? `${getDisplayName(answers)}, ${currentQ.question}` : currentQ.question}
+              {currentQ.question}
             </label>
             {currentQ.hint && (
               <p className="text-sm text-slate-500 mb-3">{currentQ.hint}</p>
