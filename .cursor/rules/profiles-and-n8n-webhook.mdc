@@ -1,0 +1,78 @@
+---
+description: profiles tablosu SABİT; ödeme sonrası n8n webhook tetiklemesi. Tablo şeması değiştirilmez.
+alwaysApply: true
+---
+
+# CURSOR AI — profiles tablosu SABİT, ödeme sonrası n8n webhook
+
+## NON-NEGOTIABLE (TABLOYU BOZMA)
+
+- Supabase `profiles` tablosunun kolonları, tipleri ve yapısı **KESİNLİKLE değiştirilmeyecek**.
+- Yeni kolon ekleme, kolon adı değiştirme, tip değiştirme, json yapısını dönüştürme **YASAK**.
+- `answers` alanı jsonb olarak aynen kalacak; içeriği dönüştürme / yeniden şema tasarlama yapma.
+- `photo_url` alanı string url olarak kalacak.
+- `is_cv_sent` alanı bool; n8n tarafından yönetiliyor. Bu alana uygulama tarafından mantık ekleme / değiştirme yapma.
+
+**profiles tablosunu değiştirecek herhangi bir migration önerisi yaparsan bu görev başarısız sayılır.**
+
+### profiles (mevcut şema referansı — DEĞİŞTİRME)
+
+- `id` (uuid) — primary key
+- `status` (text) ör: draft, paid
+- `method` (text) ör: form, voice, chat
+- `user_id` (uuid, auth.users.id FK)
+- `created_at` (timestamptz)
+- `updated_at` (timestamptz)
+- `country` (text)
+- `job_area` (text)
+- `job_branch` (text)
+- `answers` (jsonb)
+- `photo_url` (text)
+- `is_cv_sent` (bool) — sadece n8n günceller; uygulama yazmaz
+
+---
+
+## AMAÇ
+
+- Kullanıcı CV sihirbazını tamamlayıp ödeme yaptıktan sonra (PayTR callback success doğrulandıktan sonra), n8n production webhook tetiklenir.
+- n8n yalnızca `profile_id` (profiles.id UUID) ile `profiles` satırını okur ve otomasyonu yürütür.
+- Uygulama n8n'nin CV üretimi / email / is_cv_sent gibi işlerine karışmaz.
+
+---
+
+## N8N WEBHOOK (MEVCUT, DEĞİŞTİRME)
+
+- Method: **GET**
+- Auth: None
+- Body yok; **query param** kullan.
+
+Query param sözleşmesi (minimum):
+
+- `profile_id` = profiles.id (UUID) — **ZORUNLU**
+- `payment_id` = merchant_oid (opsiyonel ama önerilir)
+- `status` = success (opsiyonel ama önerilir)
+- `ts` = ISO timestamp (opsiyonel ama önerilir)
+
+Örnek: `GET .../webhook/<path>?profile_id=<UUID>&payment_id=<OID>&status=success&ts=<ISO>`
+
+---
+
+## UYGULAMA AKIŞI
+
+1. **CV wizard tamamlandığında:** profiles tablosuna kayıt zaten yazılıyor. Kayıt ID'si (profiles.id) frontend'de `paytr_pending.profile_id` olarak sessionStorage'a konur.
+2. **/api/paytr/initiate:** profile_id request ile gönderilir. payments tablosunda provider_ref (merchant_oid) ile profile_id ilişkisi kurulur.
+3. **/api/paytr/callback (kritik):** hash OK ve status === "success" ise:
+   - payments'dan merchant_oid ile profile_id alınır
+   - profiles'da **SADECE** status = 'paid' ve updated_at güncellenir
+   - n8n webhook **GET** + query param ile tetiklenir
+   - Webhook çağrısı başarısız olsa bile ödeme akışı bozulmaz; sadece log alınır.
+
+---
+
+## KABUL KRİTERLERİ
+
+- profiles tablosu şeması aynen korunur (kolon isimleri/tipleri değişmez)
+- profiles.id UUID'dir; webhook'a giden profile_id her zaman UUID olur
+- Ödeme doğrulanmadan webhook tetiklenmez
+- Ödeme doğrulandıktan sonra webhook tetiklenir; uygulama kullanıcı akışını bloklamaz
+- is_cv_sent veya CV üretim mantığına uygulama tarafı karışmaz

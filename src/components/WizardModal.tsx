@@ -16,7 +16,7 @@ export function WizardModal({
   open: boolean;
   onClose: () => void;
   selectedMethod: WizardMethod | null;
-  onPaymentClick: (payload: { email: string; user_name?: string }) => void;
+  onPaymentClick: (payload: { email: string; user_name?: string; profile_id?: string }) => void;
   userId?: string;
 }) {
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { makeCallbackHash } from "@/lib/paytr";
+import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 /** PayTR bildirim endpoint'i. Her durumda 200 + "OK" dönülmeli; redirect olmamalı. */
 export async function POST(request: NextRequest) {
@@ -14,29 +15,41 @@ export async function POST(request: NextRequest) {
     const hashOk = hash === expectedHash;
 
     if (hashOk && status === "success") {
-      // Ödeme başarılı: siparişi güncelle (profiles.status = 'paid', events vb.)
-      // TODO: profile_id veya merchant_oid ile eşleştirip DB güncellemesi
+      const supabase = getSupabaseAdmin();
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("profile_id, user_id")
+        .eq("provider_ref", merchant_oid)
+        .eq("provider", "paytr")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      // n8n webhook tetikleyicisi (fire-and-forget; hata PayTR yanıtını etkilemez)
+      const profileId = payment?.profile_id ?? null;
+
+      if (profileId) {
+        await supabase.from("profiles").update({ status: "paid", updated_at: new Date().toISOString() }).eq("id", profileId);
+        await supabase.from("payments").update({ status: "success" }).eq("provider_ref", merchant_oid).eq("provider", "paytr").eq("status", "started");
+        await supabase.from("events").insert({
+          user_id: payment.user_id ?? null,
+          profile_id: profileId,
+          type: "payment_success",
+          payload: { merchant_oid, total_amount },
+        });
+      }
+
+      // n8n webhook: GET + query params; n8n profile_id ile profiles satırını okur
       const webhookUrl = process.env.N8N_CV_WEBHOOK_URL;
-      const authKey = process.env.N8N_AUTH_KEY;
-      if (webhookUrl) {
+      if (webhookUrl && profileId) {
         try {
-          const payload: Record<string, string> = {
-            orderId: merchant_oid,
-            paymentStatus: "success",
-            action: "generate_cv",
-          };
-          await fetch(webhookUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(authKey ? { "x-api-key": authKey } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
+          const url = new URL(webhookUrl.trim());
+          url.searchParams.set("profile_id", profileId);
+          url.searchParams.set("payment_id", merchant_oid);
+          url.searchParams.set("status", "success");
+          url.searchParams.set("ts", new Date().toISOString());
+          await fetch(url.toString(), { method: "GET" });
         } catch (err) {
-          console.error("[PayTR callback] n8n webhook error:", err);
+          console.error("[PayTR callback] n8n webhook failed", err);
         }
       }
     }

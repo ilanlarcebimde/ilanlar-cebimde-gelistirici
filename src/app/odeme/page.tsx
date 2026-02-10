@@ -39,7 +39,7 @@ export default function OdemePage() {
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-    const parsed = pending ? (JSON.parse(pending) as { email?: string; user_name?: string }) : null;
+    const parsed = pending ? (JSON.parse(pending) as { email?: string; user_name?: string; profile_id?: string }) : null;
     const email = parsed?.email ?? null;
     if (!email) {
       router.replace("/");
@@ -63,6 +63,7 @@ export default function OdemePage() {
       merchant_ok_url: `${siteUrl}/odeme/basarili`,
       merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
       basket_description: BASKET_DESCRIPTION,
+      profile_id: parsed?.profile_id || undefined,
     };
 
     fetch("/api/paytr/initiate", {

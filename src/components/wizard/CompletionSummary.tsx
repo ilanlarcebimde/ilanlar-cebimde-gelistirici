@@ -20,6 +20,7 @@ const PRICE = 549;
 export interface PaymentPayload {
   email: string;
   user_name?: string;
+  profile_id?: string;
 }
 
 export function CompletionSummary({
@@ -29,6 +30,7 @@ export function CompletionSummary({
   hasPhoto,
   email,
   user_name,
+  profile_id,
   onPaymentClick,
 }: {
   country: string;
@@ -37,6 +39,7 @@ export function CompletionSummary({
   hasPhoto: boolean;
   email: string;
   user_name?: string;
+  profile_id?: string | null;
   onPaymentClick: (payload: PaymentPayload) => void;
 }) {
   const countryName = COUNTRIES.find((c) => c.id === country)?.name ?? country;
@@ -45,6 +48,7 @@ export function CompletionSummary({
     onPaymentClick({
       email: email?.trim() || "",
       user_name: user_name?.trim() || undefined,
+      profile_id: profile_id ?? undefined,
     });
   };
 

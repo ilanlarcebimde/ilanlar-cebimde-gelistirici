@@ -47,7 +47,7 @@ export function WizardArea({
   userId,
 }: {
   selectedMethod: WizardMethod | null;
-  onPaymentClick: (payload: { email: string; user_name?: string }) => void;
+  onPaymentClick: (payload: { email: string; user_name?: string; profile_id?: string }) => void;
   userId?: string;
 }) {
   const [state, setState] = useState<WizardState>({ ...DEFAULT_STATE, method: selectedMethod ?? "form" });
@@ -118,6 +118,7 @@ export function WizardArea({
               hasPhoto={!!(state.photoUrl || state.photoFile)}
               email={getEmailFromAnswers(state.answers)}
               user_name={getUserNameFromAnswers(state.answers)}
+              profile_id={state.profileId}
               onPaymentClick={onPaymentClick}
             />
           ) : state.method === "voice" ? (

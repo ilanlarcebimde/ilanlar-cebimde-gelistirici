@@ -21,7 +21,7 @@ export default function Home() {
   const [method, setMethod] = useState<WizardMethod | null>(null);
   const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string } | null>(null);
+  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; profile_id?: string } | null>(null);
 
   const handleLoginClick = useCallback(() => setAuthOpen(true), []);
 
@@ -34,7 +34,7 @@ export default function Home() {
     setWizardModalOpen(true);
   }, []);
 
-  const handlePaymentClick = useCallback((payload: { email: string; user_name?: string }) => {
+  const handlePaymentClick = useCallback((payload: { email: string; user_name?: string; profile_id?: string }) => {
     setPaymentPayload(payload);
     setAuthOpen(true);
   }, []);
@@ -42,7 +42,7 @@ export default function Home() {
   const handleAuthSuccess = useCallback(
     (loginEmail?: string) => {
       setAuthOpen(false);
-      if (paymentPayload) {
+        if (paymentPayload) {
         const email = loginEmail?.trim() || paymentPayload.email?.trim();
         if (email) {
           sessionStorage.setItem(
@@ -50,6 +50,7 @@ export default function Home() {
             JSON.stringify({
               email,
               user_name: paymentPayload.user_name?.trim() || undefined,
+              profile_id: paymentPayload.profile_id || undefined,
             })
           );
           setPaymentPayload(null);

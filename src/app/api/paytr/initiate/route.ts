@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPaytrToken, getSiteUrl } from "@/lib/paytr";
+import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
       merchant_ok_url,
       merchant_fail_url,
       basket_description,
+      profile_id,
     } = body as {
       merchant_oid?: string;
       email?: string;
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
       merchant_ok_url?: string;
       merchant_fail_url?: string;
       basket_description?: string;
+      profile_id?: string;
     };
 
     if (!merchant_oid || !email || amount == null || amount <= 0) {
@@ -42,6 +45,25 @@ export async function POST(request: NextRequest) {
     }
 
     const siteUrl = getSiteUrl();
+
+    if (profile_id) {
+      const supabase = getSupabaseAdmin();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("id", profile_id)
+        .single();
+      await supabase.from("payments").insert({
+        profile_id,
+        user_id: profile?.user_id ?? null,
+        provider: "paytr",
+        status: "started",
+        amount: Number(amount),
+        currency: "TRY",
+        provider_ref: merchant_oid,
+      });
+    }
+
     const token = await getPaytrToken(
       {
         merchant_oid,
