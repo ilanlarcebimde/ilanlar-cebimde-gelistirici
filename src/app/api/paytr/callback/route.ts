@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         await supabase.from("profiles").update({ status: "paid", updated_at: new Date().toISOString() }).eq("id", profileId);
         await supabase.from("payments").update({ status: "success" }).eq("provider_ref", merchant_oid).eq("provider", "paytr").eq("status", "started");
         await supabase.from("events").insert({
-          user_id: payment.user_id ?? null,
+          user_id: payment?.user_id ?? null,
           profile_id: profileId,
           type: "payment_success",
           payload: { merchant_oid, total_amount },
