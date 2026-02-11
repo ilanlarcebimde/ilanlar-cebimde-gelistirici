@@ -19,6 +19,10 @@ export interface CVQuestion {
   saveKey: string;
   /** Tek cümle ipucu; sohbette 💡 ile gösterilir. */
   hint?: string;
+  /** Form yönteminde zorunlu mu (örn. e-posta formda zorunlu). */
+  formRequired?: boolean;
+  /** Form yönteminde gösterilecek ipucu (yoksa hint kullanılır). */
+  formHint?: string;
 }
 
 export const CV_QUESTIONS: CVQuestion[] = [
@@ -94,18 +98,18 @@ export const CV_QUESTIONS: CVQuestion[] = [
   {
     id: "email",
     step: 5,
-    question: "E-posta adresiniz var mı? Varsa yazın.",
+    question: "E-posta adresinizi girin.",
     type: "text",
     required: false,
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
+    formRequired: true,
+    formHint: "💡 Geçerli bir e-posta adresi girin.",
     examples: [
-      "E-posta yoksa boş bırakın",
       "Aktif kullandığınız adres olsun",
       "Basit ve ciddi bir adres tercih edin",
-      "Yanlış yazmayın",
-      "İsterseniz sonra ekleyebilirsiniz",
+      "Örn: ad.soyad@email.com",
     ],
     saveKey: "personal.email",
     hint: "💡 E-posta yoksa boş bırakabilirsiniz.",

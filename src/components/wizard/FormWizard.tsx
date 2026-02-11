@@ -13,6 +13,13 @@ import { PhotoUpload } from "./PhotoUpload";
 
 const QUESTIONS = getQuestionsFor("form");
 
+/** Formda e-posta formatı kontrolü */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(s: string): boolean {
+  return EMAIL_REGEX.test(s.trim());
+}
+
 type Phase = "questions" | "countryJob" | "photo";
 
 export function FormWizard({
@@ -30,6 +37,7 @@ export function FormWizard({
   onPhotoUploaded,
   onPhotoClear,
   onComplete,
+  isCompleting = false,
   userId,
 }: {
   answers: Record<string, unknown>;
@@ -47,6 +55,7 @@ export function FormWizard({
   onPhotoClear: () => void;
   userId?: string;
   onComplete: () => void;
+  isCompleting?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("questions");
   const [step, setStep] = useState(0);
@@ -76,9 +85,14 @@ export function FormWizard({
     else if (step > 0) setStep((s) => s - 1);
   };
 
+  const isFormRequired = currentQ ? (currentQ.formRequired ?? currentQ.required) : false;
+  const isEmailStep = currentQ?.saveKey === "personal.email";
+
   const canNext = () => {
-    if (phase === "questions" && currentQ?.required) {
-      return value.trim().length > 0;
+    if (phase === "questions" && currentQ) {
+      if (isFormRequired && !value.trim()) return false;
+      if (isEmailStep && isFormRequired && value.trim()) return isValidEmail(value);
+      if (isFormRequired) return value.trim().length > 0;
     }
     if (phase === "countryJob") return country && jobBranch;
     return true;
@@ -113,8 +127,8 @@ export function FormWizard({
             <label className="block text-lg font-medium text-slate-900 mb-4">
               {currentQ.question}
             </label>
-            {currentQ.hint && (
-              <p className="text-sm text-slate-500 mb-3">{currentQ.hint}</p>
+            {(currentQ.formHint ?? currentQ.hint) && (
+              <p className="text-sm text-slate-500 mb-3">{currentQ.formHint ?? currentQ.hint}</p>
             )}
             {currentQ.type === "multiline" ? (
               <textarea
@@ -126,7 +140,7 @@ export function FormWizard({
               />
             ) : (
               <input
-                type="text"
+                type={isEmailStep ? "email" : "text"}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={currentQ.examples[0] || ""}
@@ -243,10 +257,12 @@ export function FormWizard({
         <button
           type="button"
           onClick={goNext}
-          disabled={phase === "questions" && currentQ?.required ? !value?.trim() : phase === "countryJob" ? !country || !jobBranch : false}
+          disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobBranch : false || isCompleting}
           className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
         >
-          {phase === "questions" && step < QUESTIONS.length - 1
+          {isCompleting
+            ? "Kaydediliyor…"
+            : phase === "questions" && step < QUESTIONS.length - 1
             ? "İleri"
             : phase === "questions"
             ? "Devam et"

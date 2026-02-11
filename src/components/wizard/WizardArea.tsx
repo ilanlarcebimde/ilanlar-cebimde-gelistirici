@@ -52,6 +52,8 @@ export function WizardArea({
 }) {
   const [state, setState] = useState<WizardState>({ ...DEFAULT_STATE, method: selectedMethod ?? "form" });
   const [completed, setCompleted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const profileIdRef = useRef<string | null>(null);
   profileIdRef.current = state.profileId;
 
@@ -59,9 +61,10 @@ export function WizardArea({
     if (!selectedMethod) return;
     setState((s) => (s.method === selectedMethod ? s : { ...DEFAULT_STATE, method: selectedMethod }));
     setCompleted(false);
+    setCompleteError(null);
   }, [selectedMethod]);
 
-  useAutosave(
+  const { saveNow } = useAutosave(
     {
       profileId: state.profileId,
       method: selectedMethod,
@@ -93,7 +96,23 @@ export function WizardArea({
     setState((s) => ({ ...s, photoFile: null, photoUrl: null }));
   }, []);
 
-  const handleComplete = useCallback(() => setCompleted(true), []);
+  const handleComplete = useCallback(async () => {
+    setCompleteError(null);
+    setSaving(true);
+    try {
+      const id = await saveNow();
+      if (id) {
+        setState((s) => (s.profileId ? s : { ...s, profileId: id }));
+        setCompleted(true);
+      } else {
+        setCompleteError("Kayıt yapılamadı. Lütfen tekrar deneyin.");
+      }
+    } catch {
+      setCompleteError("Kayıt yapılamadı. Lütfen tekrar deneyin.");
+    } finally {
+      setSaving(false);
+    }
+  }, [saveNow]);
 
   if (!selectedMethod) {
     return (
@@ -107,6 +126,11 @@ export function WizardArea({
 
   return (
     <section className="flex-1 flex flex-col min-h-0 py-4 sm:py-12 bg-slate-50/50">
+      {completeError && (
+        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 mb-4 p-4 rounded-xl bg-red-50 text-red-700 text-sm">
+          {completeError}
+        </div>
+      )}
       <div className="flex-1 flex flex-col min-h-0 mx-auto w-full max-w-3xl px-4 sm:px-6">
         <AnimatePresence mode="wait">
           {completed ? (
@@ -138,6 +162,7 @@ export function WizardArea({
               onPhotoUploaded={setPhotoUploaded}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
+              isCompleting={saving}
               userId={userId}
             />
           ) : state.method === "chat" ? (
@@ -157,6 +182,7 @@ export function WizardArea({
               onPhotoUploaded={setPhotoUploaded}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
+              isCompleting={saving}
               userId={userId}
             />
           ) : (
@@ -176,6 +202,7 @@ export function WizardArea({
               onPhotoUploaded={setPhotoUploaded}
               onPhotoClear={clearPhoto}
               onComplete={handleComplete}
+              isCompleting={saving}
               userId={userId}
             />
           )}

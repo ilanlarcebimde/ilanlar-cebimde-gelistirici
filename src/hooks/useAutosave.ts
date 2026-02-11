@@ -25,7 +25,7 @@ export function useAutosave(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (): Promise<string | null> => {
     const payload = {
       id: snapshot.profileId ?? undefined,
       method: snapshot.method ?? "form",
@@ -37,14 +37,24 @@ export function useAutosave(
       photo_url: snapshot.photo_url || null,
     };
     const key = JSON.stringify(payload);
-    if (key === lastSavedRef.current) return;
+    if (key === lastSavedRef.current) return snapshot.profileId ?? null;
     const id = await saveProfileDraft(payload);
     if (id) {
       lastSavedRef.current = key;
       if (id !== snapshot.profileId) onProfileId?.(id);
       await logEvent("answer_saved", id, { answers: snapshot.answers });
+      return id;
     }
+    return null;
   }, [snapshot, onProfileId]);
+
+  const saveNow = useCallback(async (): Promise<string | null> => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    return save();
+  }, [save]);
 
   useEffect(() => {
     if (!snapshot.method) return;
@@ -66,4 +76,6 @@ export function useAutosave(
     snapshot.method,
     snapshot.profileId,
   ]);
+
+  return { saveNow };
 }

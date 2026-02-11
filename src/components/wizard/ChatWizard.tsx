@@ -36,6 +36,7 @@ export function ChatWizard({
   onPhotoUploaded,
   onPhotoClear,
   onComplete,
+  isCompleting = false,
   userId,
 }: {
   answers: Record<string, unknown>;
@@ -53,6 +54,7 @@ export function ChatWizard({
   onPhotoClear: () => void;
   userId?: string;
   onComplete: () => void;
+  isCompleting?: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const first = QUESTIONS[0];
@@ -396,9 +398,10 @@ export function ChatWizard({
             <button
               type="button"
               onClick={onComplete}
-              className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium"
+              disabled={isCompleting}
+              className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
             >
-              Tamamla
+              {isCompleting ? "Kaydediliyor…" : "Tamamla"}
             </button>
           </div>
         </>

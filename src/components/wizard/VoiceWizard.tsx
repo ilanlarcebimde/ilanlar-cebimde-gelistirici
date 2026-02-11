@@ -44,6 +44,7 @@ export function VoiceWizard({
   onPhotoUploaded,
   onPhotoClear,
   onComplete,
+  isCompleting = false,
   userId,
 }: {
   answers: Record<string, unknown>;
@@ -60,6 +61,7 @@ export function VoiceWizard({
   onPhotoUploaded?: (file: File, url: string) => void;
   onPhotoClear: () => void;
   onComplete: () => void;
+  isCompleting?: boolean;
   userId?: string;
 }) {
   const [geminiModalOpen, setGeminiModalOpen] = useState(false);
@@ -292,9 +294,10 @@ export function VoiceWizard({
             <button
               type="button"
               onClick={onComplete}
-              className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium hover:bg-slate-700"
+              disabled={isCompleting}
+              className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium hover:bg-slate-700 disabled:opacity-50"
             >
-              Tamamla
+              {isCompleting ? "Kaydediliyor…" : "Tamamla"}
             </button>
           </div>
         </>

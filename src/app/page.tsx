@@ -34,10 +34,27 @@ export default function Home() {
     setWizardModalOpen(true);
   }, []);
 
-  const handlePaymentClick = useCallback((payload: { email: string; user_name?: string; profile_id?: string }) => {
-    setPaymentPayload(payload);
-    setAuthOpen(true);
-  }, []);
+  const handlePaymentClick = useCallback(
+    (payload: { email: string; user_name?: string; profile_id?: string }) => {
+      setWizardModalOpen(false);
+      const email = payload.email?.trim() || "";
+      const user_name = payload.user_name?.trim() || undefined;
+      const profile_id = payload.profile_id || undefined;
+      if (user && email) {
+        sessionStorage.setItem(
+          "paytr_pending",
+          JSON.stringify({ email, user_name, profile_id })
+        );
+        setPaymentPayload(null);
+        setAuthOpen(false);
+        window.location.href = "/odeme";
+        return;
+      }
+      setPaymentPayload({ email, user_name, profile_id });
+      setAuthOpen(true);
+    },
+    [user]
+  );
 
   const handleAuthSuccess = useCallback(
     (loginEmail?: string) => {
