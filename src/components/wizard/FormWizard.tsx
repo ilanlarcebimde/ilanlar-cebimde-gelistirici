@@ -138,28 +138,63 @@ export function FormWizard({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder:text-slate-400 min-h-[100px]"
                 rows={4}
               />
+            ) : currentQ.type === "select" ? (
+              <>
+                <select
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+                >
+                  <option value="">Seçin</option>
+                  {(currentQ.options ?? []).map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {(currentQ.options ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {(currentQ.options ?? []).map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setValue(opt)}
+                        className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                          value === opt
+                            ? "border-slate-700 bg-slate-700 text-white"
+                            : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
-              <input
-                type={isEmailStep ? "email" : "text"}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={currentQ.examples[0] || ""}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder:text-slate-400"
-              />
-            )}
-            {currentQ.examples.length > 0 && currentQ.type !== "multiline" && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {currentQ.examples.map((ex) => (
-                  <button
-                    key={ex}
-                    type="button"
-                    onClick={() => setValue(ex)}
-                    className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-                  >
-                    {ex}
-                  </button>
-                ))}
-              </div>
+              <>
+                <input
+                  type={isEmailStep ? "email" : "text"}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder={currentQ.examples[0] || ""}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder:text-slate-400"
+                />
+                {currentQ.examples.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {currentQ.examples.map((ex) => (
+                      <button
+                        key={ex}
+                        type="button"
+                        onClick={() => setValue(ex)}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                      >
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </motion.div>
         )}

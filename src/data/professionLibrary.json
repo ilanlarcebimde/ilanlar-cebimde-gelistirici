@@ -1,0 +1,154 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-02-11",
+  "fallback": {
+    "genericSkills": [
+      "Ekip çalışması",
+      "Zaman yönetimi",
+      "İş güvenliği kurallarına uyum",
+      "El aletleri kullanımı",
+      "Kalite kontrol",
+      "Problem çözme",
+      "Düzen ve temizlik",
+      "Talimatlara uygun çalışma",
+      "Sorumluluk alma",
+      "İletişim becerisi",
+      "Hızlı öğrenme",
+      "İş disiplini"
+    ],
+    "genericTasks": [
+      "Günlük iş planına göre görevlerimi zamanında tamamladım.",
+      "İş güvenliği kurallarına uygun şekilde çalıştım.",
+      "Ekip ile koordineli çalışarak iş akışını destekledim.",
+      "Malzeme ve ekipman kullanımında düzen ve temizliği sağladım.",
+      "Kalite kontrol adımlarını takip ederek hataları azalttım.",
+      "Usta/amir talimatlarına uygun şekilde iş sıralamasını uyguladım.",
+      "İş bitiminde çalışma alanının temizliğini yaptım.",
+      "Farklı görevlerde gerektiğinde destek sağlayarak esneklik gösterdim.",
+      "İş süreçlerinde sorunları hızlıca tespit edip çözüm ürettim.",
+      "Teslim öncesi son kontrolleri yaparak eksikleri giderdim."
+    ]
+  },
+  "areas": [
+    {
+      "areaKey": "insaat",
+      "areaLabel": "İnşaat Teknolojisi",
+      "branches": [
+        {
+          "branchKey": "sivacilik",
+          "branchLabel": "Sıvacılık",
+          "skills": [
+            "İç cephe sıva uygulaması",
+            "Dış cephe sıva",
+            "Macun ve yüzey hazırlığı",
+            "Zımpara ve düzeltme",
+            "Alçı sıva",
+            "Çimento sıva",
+            "Mastar kullanımı",
+            "İş güvenliği",
+            "Ekip çalışması",
+            "Kalite kontrol",
+            "Temiz işçilik",
+            "Talimatlara uyum"
+          ],
+          "tasks": [
+            "İç ve dış cephe sıva uygulamalarını yaptım.",
+            "Macun ve zımpara ile yüzey hazırlığı gerçekleştirdim.",
+            "Mastar ile düzgünlük kontrolleri yaptım.",
+            "Alçı ve çimento sıva işlerinde usta ile koordineli çalıştım.",
+            "İş güvenliği kurallarına uygun çalıştım.",
+            "Teslim öncesi son kontrolleri yaptım."
+          ],
+          "skillRules": { "minSelect": 3, "maxSelect": 12, "defaultSelect": ["İç cephe sıva uygulaması", "Macun ve yüzey hazırlığı", "Mastar kullanımı"] },
+          "taskRules": { "minSelect": 2, "maxSelect": 6, "defaultSelect": ["İç ve dış cephe sıva uygulamalarını yaptım.", "Macun ve zımpara ile yüzey hazırlığı gerçekleştirdim."] }
+        },
+        {
+          "branchKey": "fayans_seramik",
+          "branchLabel": "Fayans / Seramik Döşeme",
+          "skills": [
+            "Zemin fayans döşeme",
+            "Duvar fayans döşeme",
+            "Derz dolgu uygulaması",
+            "Şap ve yüzey hazırlığı",
+            "Terazi ve mastar kullanımı",
+            "Kesim makinesi kullanımı",
+            "Seramik yapıştırıcı uygulaması",
+            "Simetri ve desen hizalama",
+            "Temiz işçilik",
+            "Kalite kontrol",
+            "İş güvenliği",
+            "Tadilat ve söküm"
+          ],
+          "tasks": [
+            "Zemin ve duvar seramik/fayans döşeme işlerini yaptım.",
+            "Döşeme öncesi yüzey hazırlığı ve şap kontrolü gerçekleştirdim.",
+            "Derz dolgu uygulaması yaparak suya dayanımı artırdım.",
+            "Terazi ile düzgünlük ve kot kontrollerini yaptım.",
+            "Teslim öncesi son kontrolleri yapıp kusurları giderdim."
+          ],
+          "skillRules": { "minSelect": 3, "maxSelect": 12, "defaultSelect": ["Zemin fayans döşeme", "Derz dolgu uygulaması", "Terazi ve mastar kullanımı"] },
+          "taskRules": { "minSelect": 2, "maxSelect": 6, "defaultSelect": ["Zemin ve duvar seramik/fayans döşeme işlerini yaptım.", "Derz dolgu uygulaması yaparak suya dayanımı artırdım."] }
+        },
+        {
+          "branchKey": "betonarme",
+          "branchLabel": "Betonarme",
+          "skills": [
+            "Kalıp kurulumu",
+            "Demir bağlama",
+            "Beton dökümü",
+            "Terazi ve ölçü",
+            "İş güvenliği",
+            "Ekip koordinasyonu",
+            "Kalite kontrol",
+            "Şantiye düzeni",
+            "El aletleri kullanımı",
+            "Talimat takibi",
+            "Zaman yönetimi",
+            "Temizlik"
+          ],
+          "tasks": [
+            "Kalıp kurulumu ve demir bağlama işlerinde çalıştım.",
+            "Beton dökümü süreçlerinde ekip ile koordineli çalıştım.",
+            "Terazi ve ölçü kontrollerini yaptım.",
+            "İş güvenliği kurallarına uygun çalıştım.",
+            "Teslim öncesi kontrolleri tamamladım."
+          ],
+          "skillRules": { "minSelect": 3, "maxSelect": 12, "defaultSelect": ["Kalıp kurulumu", "Demir bağlama", "İş güvenliği"] },
+          "taskRules": { "minSelect": 2, "maxSelect": 6, "defaultSelect": ["Kalıp kurulumu ve demir bağlama işlerinde çalıştım.", "Beton dökümü süreçlerinde ekip ile koordineli çalıştım."] }
+        }
+      ]
+    },
+    {
+      "areaKey": "boya",
+      "areaLabel": "Boya & Badana",
+      "branches": [
+        {
+          "branchKey": "ic_cephe_boya",
+          "branchLabel": "İç Cephe Boya",
+          "skills": [
+            "İç cephe boya uygulaması",
+            "Macun ve yüzey hazırlığı",
+            "Zımpara ve yüzey düzeltme",
+            "Astar uygulaması",
+            "Rulo ve fırça kullanımı",
+            "Maskeleme ve koruma",
+            "Alçıpan yüzey hazırlığı",
+            "Temiz işçilik ve bitiş kontrolü",
+            "İş güvenliği",
+            "Kalite kontrol",
+            "Renk karışımı",
+            "Çatlak tamiri"
+          ],
+          "tasks": [
+            "Boya öncesi yüzey hazırlığı, macun ve zımpara işlemlerini yaptım.",
+            "İç cephe boya uygulamalarını rulo ve fırça ile gerçekleştirdim.",
+            "Maskeleme ile kapı, pencere ve zemin koruması sağladım.",
+            "Teslim öncesi son kontrolleri yaparak kusurları giderdim."
+          ],
+          "skillRules": { "minSelect": 3, "maxSelect": 12, "defaultSelect": ["İç cephe boya uygulaması", "Macun ve yüzey hazırlığı", "Maskeleme ve koruma"] },
+          "taskRules": { "minSelect": 2, "maxSelect": 6, "defaultSelect": ["Boya öncesi yüzey hazırlığı, macun ve zımpara işlemlerini yaptım.", "İç cephe boya uygulamalarını rulo ve fırça ile gerçekleştirdim."] }
+        }
+      ]
+    }
+  ]
+}
