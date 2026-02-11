@@ -3,24 +3,28 @@ import type { Profile, EventType } from "./supabase";
 
 export async function saveProfileDraft(profile: Partial<Profile>): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser();
-  const row = {
-    ...profile,
+  const body = {
+    id: profile.id ?? undefined,
     user_id: user?.id ?? null,
-    updated_at: new Date().toISOString(),
+    method: profile.method ?? "form",
+    status: profile.status ?? "draft",
+    country: profile.country ?? null,
+    job_area: profile.job_area ?? null,
+    job_branch: profile.job_branch ?? null,
+    answers: profile.answers ?? {},
+    photo_url: profile.photo_url ?? null,
   };
-  if (profile.id) {
-    const { error } = await supabase.from("profiles").update(row).eq("id", profile.id);
-    if (error) {
-      console.warn("Profile update error", error);
-      return null;
-    }
-    return profile.id;
-  }
-  const { data, error } = await supabase.from("profiles").insert(row).select("id").single();
-  if (error) {
-    console.warn("Profile insert error", error);
+  const res = await fetch("/api/profile/draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    console.warn("Profile draft save failed", res.status, j);
     return null;
   }
+  const data = await res.json();
   return data?.id ?? null;
 }
 
