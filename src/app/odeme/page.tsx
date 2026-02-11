@@ -31,15 +31,16 @@ export default function OdemePage() {
       setCouponMessage({ type: "success", text: "Kupon uygulandı. Sipariş tamamlanıyor…" });
       setFreeWithCoupon(true);
       const pending = sessionStorage.getItem("paytr_pending");
-      let parsed: { method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null } | null = null;
+      type PendingPayload = { method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null };
+      let parsed: PendingPayload | null = null;
       try {
-        parsed = pending ? (JSON.parse(pending) as typeof parsed) : null;
+        parsed = pending ? (JSON.parse(pending) as PendingPayload) : null;
       } catch {
         setCouponMessage({ type: "error", text: "Oturum verisi okunamadı. Lütfen formu doldurup tekrar ödeme sayfasına gelin." });
         setFreeWithCoupon(false);
         return;
       }
-      if (parsed?.method == null) {
+      if (!parsed || parsed.method == null) {
         setCouponMessage({ type: "error", text: "Eksik bilgi (yöntem). Lütfen formu baştan doldurup tekrar deneyin." });
         setFreeWithCoupon(false);
         return;
