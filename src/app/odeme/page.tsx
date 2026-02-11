@@ -21,7 +21,7 @@ export default function OdemePage() {
   const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [freeWithCoupon, setFreeWithCoupon] = useState(false);
 
-  const applyCoupon = useCallback(() => {
+  const applyCoupon = useCallback(async () => {
     const code = couponCode.trim().toUpperCase();
     if (!code) {
       setCouponMessage({ type: "error", text: "Kupon kodu girin." });
@@ -30,6 +30,29 @@ export default function OdemePage() {
     if (code === FREE_COUPON_CODE) {
       setCouponMessage({ type: "success", text: "Kupon uygulandı. Ücretsiz sipariş tamamlanıyor…" });
       setFreeWithCoupon(true);
+      const pending = sessionStorage.getItem("paytr_pending");
+      const parsed = pending ? (JSON.parse(pending) as { method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null }) : null;
+      if (parsed?.method != null && parsed?.country != null) {
+        try {
+          const res = await fetch("/api/profile/complete-coupon", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              method: parsed.method,
+              country: parsed.country,
+              job_area: parsed.job_area ?? null,
+              job_branch: parsed.job_branch ?? null,
+              answers: parsed.answers ?? {},
+              photo_url: parsed.photo_url ?? null,
+            }),
+          });
+          if (!res.ok) {
+            console.warn("complete-coupon failed", await res.text());
+          }
+        } catch (e) {
+          console.warn("complete-coupon error", e);
+        }
+      }
       sessionStorage.removeItem("paytr_pending");
       router.replace("/odeme/basarili");
       return;
@@ -39,8 +62,8 @@ export default function OdemePage() {
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-    const parsed = pending ? (JSON.parse(pending) as { email?: string; user_name?: string; profile_id?: string }) : null;
-    const email = parsed?.email ?? null;
+    const parsed = pending ? (JSON.parse(pending) as { email?: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null }) : null;
+    const email = parsed?.email?.trim() ?? null;
     if (!email) {
       router.replace("/");
       return;
@@ -53,6 +76,18 @@ export default function OdemePage() {
 
     const merchant_oid = generateMerchantOid();
     const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const profile_snapshot =
+      parsed?.method != null && parsed?.country != null
+        ? {
+            method: parsed.method,
+            country: parsed.country ?? null,
+            job_area: parsed.job_area ?? null,
+            job_branch: parsed.job_branch ?? null,
+            answers: parsed.answers ?? {},
+            photo_url: parsed.photo_url ?? null,
+          }
+        : undefined;
+
     const body = {
       merchant_oid,
       email,
@@ -63,7 +98,7 @@ export default function OdemePage() {
       merchant_ok_url: `${siteUrl}/odeme/basarili`,
       merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
       basket_description: BASKET_DESCRIPTION,
-      profile_id: parsed?.profile_id || undefined,
+      profile_snapshot,
     };
 
     fetch("/api/paytr/initiate", {

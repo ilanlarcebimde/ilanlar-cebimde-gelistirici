@@ -20,12 +20,15 @@ export interface DraftSnapshot {
 
 export function useAutosave(
   snapshot: DraftSnapshot,
-  onProfileId?: (id: string) => void
+  onProfileId?: (id: string) => void,
+  options?: { serverSaveDisabled?: boolean }
 ) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
+  const disabled = options?.serverSaveDisabled === true;
 
   const save = useCallback(async (): Promise<string | null> => {
+    if (disabled) return null;
     const payload = {
       id: snapshot.profileId ?? undefined,
       method: snapshot.method ?? "form",
@@ -46,18 +49,19 @@ export function useAutosave(
       return id;
     }
     return null;
-  }, [snapshot, onProfileId]);
+  }, [snapshot, onProfileId, disabled]);
 
   const saveNow = useCallback(async (): Promise<string | null> => {
+    if (disabled) return null;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     return save();
-  }, [save]);
+  }, [save, disabled]);
 
   useEffect(() => {
-    if (!snapshot.method) return;
+    if (disabled || !snapshot.method) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       save();
@@ -67,6 +71,7 @@ export function useAutosave(
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [
+    disabled,
     snapshot.answers,
     snapshot.country,
     snapshot.job_area,

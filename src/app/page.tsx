@@ -21,7 +21,7 @@ export default function Home() {
   const [method, setMethod] = useState<WizardMethod | null>(null);
   const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; profile_id?: string } | null>(null);
+  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null } | null>(null);
 
   const handleLoginClick = useCallback(() => setAuthOpen(true), []);
 
@@ -35,15 +35,9 @@ export default function Home() {
   }, []);
 
   const handlePaymentClick = useCallback(
-    (payload: { email: string; user_name?: string; profile_id?: string }) => {
+    (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null }) => {
       setWizardModalOpen(false);
-      const email = payload.email?.trim() || "";
-      const user_name = payload.user_name?.trim() || undefined;
-      const profile_id = payload.profile_id || undefined;
-      sessionStorage.setItem(
-        "paytr_pending",
-        JSON.stringify({ email, user_name, profile_id })
-      );
+      sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
       setPaymentPayload(null);
       setAuthOpen(false);
       window.location.href = "/odeme";
@@ -60,9 +54,9 @@ export default function Home() {
           sessionStorage.setItem(
             "paytr_pending",
             JSON.stringify({
+              ...paymentPayload,
               email,
               user_name: paymentPayload.user_name?.trim() || undefined,
-              profile_id: paymentPayload.profile_id || undefined,
             })
           );
           setPaymentPayload(null);

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       merchant_ok_url,
       merchant_fail_url,
       basket_description,
-      profile_id,
+      profile_snapshot,
     } = body as {
       merchant_oid?: string;
       email?: string;
@@ -34,7 +34,14 @@ export async function POST(request: NextRequest) {
       merchant_ok_url?: string;
       merchant_fail_url?: string;
       basket_description?: string;
-      profile_id?: string;
+      profile_snapshot?: {
+        method?: string;
+        country?: string | null;
+        job_area?: string | null;
+        job_branch?: string | null;
+        answers?: Record<string, unknown>;
+        photo_url?: string | null;
+      };
     };
 
     if (!merchant_oid || !email || amount == null || amount <= 0) {
@@ -44,25 +51,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const siteUrl = getSiteUrl();
+    const supabase = getSupabaseAdmin();
+    const snapshot =
+      profile_snapshot && typeof profile_snapshot === "object"
+        ? {
+            method: profile_snapshot.method === "voice" || profile_snapshot.method === "chat" ? profile_snapshot.method : "form",
+            country: profile_snapshot.country ?? null,
+            job_area: profile_snapshot.job_area ?? null,
+            job_branch: profile_snapshot.job_branch ?? null,
+            answers: profile_snapshot.answers && typeof profile_snapshot.answers === "object" ? profile_snapshot.answers : {},
+            photo_url: profile_snapshot.photo_url ?? null,
+          }
+        : null;
 
-    if (profile_id) {
-      const supabase = getSupabaseAdmin();
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("id", profile_id)
-        .single();
-      await supabase.from("payments").insert({
-        profile_id,
-        user_id: profile?.user_id ?? null,
-        provider: "paytr",
-        status: "started",
-        amount: Number(amount),
-        currency: "TRY",
-        provider_ref: merchant_oid,
-      });
-    }
+    await supabase.from("payments").insert({
+      profile_id: null,
+      user_id: null,
+      provider: "paytr",
+      status: "started",
+      amount: Number(amount),
+      currency: "TRY",
+      provider_ref: merchant_oid,
+      profile_snapshot: snapshot,
+    });
 
     const token = await getPaytrToken(
       {

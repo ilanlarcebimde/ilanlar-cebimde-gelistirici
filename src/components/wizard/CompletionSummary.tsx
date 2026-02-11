@@ -17,10 +17,16 @@ const BONUS_ITEMS = [
 
 const PRICE = 549;
 
+/** Ödeme sayfasına gidecek tam profil verisi; kayıt yalnızca ödeme/kupon sonrası yapılır */
 export interface PaymentPayload {
   email: string;
   user_name?: string;
-  profile_id?: string;
+  method: "form" | "voice" | "chat";
+  country: string;
+  job_area: string;
+  job_branch: string;
+  answers: Record<string, unknown>;
+  photo_url: string | null;
 }
 
 export function CompletionSummary({
@@ -30,7 +36,9 @@ export function CompletionSummary({
   hasPhoto,
   email,
   user_name,
-  profile_id,
+  method,
+  answers,
+  photoUrl,
   onPaymentClick,
 }: {
   country: string;
@@ -39,7 +47,9 @@ export function CompletionSummary({
   hasPhoto: boolean;
   email: string;
   user_name?: string;
-  profile_id?: string | null;
+  method: "form" | "voice" | "chat";
+  answers: Record<string, unknown>;
+  photoUrl: string | null;
   onPaymentClick: (payload: PaymentPayload) => void;
 }) {
   const countryName = COUNTRIES.find((c) => c.id === country)?.name ?? country;
@@ -48,7 +58,12 @@ export function CompletionSummary({
     onPaymentClick({
       email: email?.trim() || "",
       user_name: user_name?.trim() || undefined,
-      profile_id: profile_id ?? undefined,
+      method,
+      country,
+      job_area: jobArea,
+      job_branch: jobBranch,
+      answers,
+      photo_url: photoUrl,
     });
   };
 

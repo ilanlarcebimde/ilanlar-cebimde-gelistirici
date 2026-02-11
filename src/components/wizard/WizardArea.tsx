@@ -47,7 +47,7 @@ export function WizardArea({
   userId,
 }: {
   selectedMethod: WizardMethod | null;
-  onPaymentClick: (payload: { email: string; user_name?: string; profile_id?: string }) => void;
+  onPaymentClick: (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null }) => void;
   userId?: string;
 }) {
   const [state, setState] = useState<WizardState>({ ...DEFAULT_STATE, method: selectedMethod ?? "form" });
@@ -75,7 +75,8 @@ export function WizardArea({
       job_branch: state.jobBranch,
       photo_url: state.photoUrl,
     },
-    useCallback((id: string) => setState((s) => ({ ...s, profileId: id })), [])
+    useCallback((id: string) => setState((s) => ({ ...s, profileId: id })), []),
+    { serverSaveDisabled: true }
   );
 
   const setAnswers = useCallback((answers: Record<string, unknown>) => {
@@ -96,23 +97,15 @@ export function WizardArea({
     setState((s) => ({ ...s, photoFile: null, photoUrl: null }));
   }, []);
 
-  const handleComplete = useCallback(async () => {
+  const handleComplete = useCallback(() => {
     setCompleteError(null);
-    setSaving(true);
-    try {
-      const id = await saveNow();
-      if (id) {
-        setState((s) => (s.profileId ? s : { ...s, profileId: id }));
-        setCompleted(true);
-      } else {
-        setCompleteError("Kayıt yapılamadı. Lütfen tekrar deneyin.");
-      }
-    } catch {
-      setCompleteError("Kayıt yapılamadı. Lütfen tekrar deneyin.");
-    } finally {
-      setSaving(false);
+    const email = getEmailFromAnswers(state.answers)?.trim();
+    if (!email) {
+      setCompleteError("Lütfen e-posta adresinizi girin.");
+      return;
     }
-  }, [saveNow]);
+    setCompleted(true);
+  }, [state.answers]);
 
   if (!selectedMethod) {
     return (
@@ -142,7 +135,9 @@ export function WizardArea({
               hasPhoto={!!(state.photoUrl || state.photoFile)}
               email={getEmailFromAnswers(state.answers)}
               user_name={getUserNameFromAnswers(state.answers)}
-              profile_id={state.profileId}
+              method={state.method}
+              answers={state.answers}
+              photoUrl={state.photoUrl}
               onPaymentClick={onPaymentClick}
             />
           ) : state.method === "voice" ? (

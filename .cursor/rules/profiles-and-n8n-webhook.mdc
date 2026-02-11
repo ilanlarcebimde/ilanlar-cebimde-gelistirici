@@ -1,78 +1,65 @@
 ---
-description: profiles tablosu SABİT; ödeme sonrası n8n webhook tetiklemesi. Tablo şeması değiştirilmez.
+description: profiles tablosu SABİT; kayıt sadece PayTR/kupon sonrası. n8n webhook %100 tetiklenir, idempotent, events ile izlenir.
 alwaysApply: true
 ---
 
-# CURSOR AI — profiles tablosu SABİT, ödeme sonrası n8n webhook
+# CURSOR AI — profiles SABİT, webhook %100 tetiklenmesi
 
-## NON-NEGOTIABLE (TABLOYU BOZMA)
+## NON-NEGOTIABLE (TABLOYU VE KAYIT MANTIĞINI BOZMA)
 
-- Supabase `profiles` tablosunun kolonları, tipleri ve yapısı **KESİNLİKLE değiştirilmeyecek**.
-- Yeni kolon ekleme, kolon adı değiştirme, tip değiştirme, json yapısını dönüştürme **YASAK**.
-- `answers` alanı jsonb olarak aynen kalacak; içeriği dönüştürme / yeniden şema tasarlama yapma.
-- `photo_url` alanı string url olarak kalacak.
-- `is_cv_sent` alanı bool; n8n tarafından yönetiliyor. Bu alana uygulama tarafından mantık ekleme / değiştirme yapma.
-
-**profiles tablosunu değiştirecek herhangi bir migration önerisi yaparsan bu görev başarısız sayılır.**
-
-### profiles (mevcut şema referansı — DEĞİŞTİRME)
-
-- `id` (uuid) — primary key
-- `status` (text) ör: draft, paid
-- `method` (text) ör: form, voice, chat
-- `user_id` (uuid, auth.users.id FK)
-- `created_at` (timestamptz)
-- `updated_at` (timestamptz)
-- `country` (text)
-- `job_area` (text)
-- `job_branch` (text)
-- `answers` (jsonb)
-- `photo_url` (text)
-- `is_cv_sent` (bool) — sadece n8n günceller; uygulama yazmaz
+- Supabase `profiles` tablosunun şemasına ve kayıt mantığına **asla dokunma**.
+- **profiles'a yazma kuralı:** Profil verisi **yalnızca** şu iki durumda oluşturulur/yazılır:
+  1) **PayTR ödemesi başarıyla doğrulandığında** (callback),
+  2) **ADMIN549 kuponu** ile tamamlandığında (complete-coupon).
+- Form/sihirbaz bitince profiles'a yazma **yok**; bu kuralı bozacak değişiklik yapma.
+- `is_cv_sent` alanı **yalnızca n8n** tarafından yönetilir; uygulama bu alana yazmaz.
+- profiles kolonları/tipleri/yapısı değiştirilmez.
 
 ---
 
-## AMAÇ
+## HEDEF
 
-- Kullanıcı CV sihirbazını tamamlayıp ödeme yaptıktan sonra (PayTR callback success doğrulandıktan sonra), n8n production webhook tetiklenir.
-- n8n yalnızca `profile_id` (profiles.id UUID) ile `profiles` satırını okur ve otomasyonu yürütür.
-- Uygulama n8n'nin CV üretimi / email / is_cv_sent gibi işlerine karışmaz.
-
----
-
-## N8N WEBHOOK (MEVCUT, DEĞİŞTİRME)
-
-- Method: **GET**
-- Auth: None
-- Body yok; **query param** kullan.
-
-Query param sözleşmesi (minimum):
-
-- `profile_id` = profiles.id (UUID) — **ZORUNLU**
-- `payment_id` = merchant_oid (opsiyonel ama önerilir)
-- `status` = success (opsiyonel ama önerilir)
-- `ts` = ISO timestamp (opsiyonel ama önerilir)
-
-Örnek: `GET .../webhook/<path>?profile_id=<UUID>&payment_id=<OID>&status=success&ts=<ISO>`
+- PayTR success veya kupon completion sonucu profiles'a kayıt yazıldıktan **hemen sonra** n8n production webhook **kesin** tetiklensin.
+- Webhook tetiklenmese bile olay kaybolmasın; **events** tablosunda iz bırak (n8n_webhook_failed, n8n_webhook_skipped_*).
+- PayTR callback retry/duplicate olduğunda webhook spam olmasın (**idempotent**: sadece ilk "started -> success" geçişinde webhook çağrılır).
 
 ---
 
-## UYGULAMA AKIŞI
+## N8N WEBHOOK (DEĞİŞTİRME)
 
-1. **CV wizard tamamlandığında:** profiles tablosuna kayıt zaten yazılıyor. Kayıt ID'si (profiles.id) frontend'de `paytr_pending.profile_id` olarak sessionStorage'a konur.
-2. **/api/paytr/initiate:** profile_id request ile gönderilir. payments tablosunda provider_ref (merchant_oid) ile profile_id ilişkisi kurulur.
-3. **/api/paytr/callback (kritik):** hash OK ve status === "success" ise:
-   - payments'dan merchant_oid ile profile_id alınır
-   - profiles'da **SADECE** status = 'paid' ve updated_at güncellenir
-   - n8n webhook **GET** + query param ile tetiklenir
-   - Webhook çağrısı başarısız olsa bile ödeme akışı bozulmaz; sadece log alınır.
+- **URL:** `process.env.N8N_CV_WEBHOOK_URL` (örn. https://xxx.rcld.app/webhook/xxx)
+- **Method:** GET
+- **Query params:** profile_id (UUID, zorunlu), payment_id (PayTR: merchant_oid, kupon: "coupon"), status="success", ts=ISO
+
+---
+
+## UYGULAMA KURALLARI
+
+### PayTR callback (src/app/api/paytr/callback/route.ts)
+
+- Girişte log: merchant_oid, status.
+- Success branch'te **idempotency:** Sadece `payments` tablosunda `status = 'started'` olan satırı `status = 'success'` yap; bu update **atomik** olsun ve dönen satırı kullan. Update 0 satır döndürürse (zaten işlenmiş) webhook çağırma, 200 OK dön.
+- profileId: profile_snapshot varsa profiles insert yap ve yeni id al; yoksa mevcut profile_id kullan. profileId geçerli UUID değilse events'e `n8n_webhook_skipped_invalid_profile` yaz, 200 OK dön.
+- Webhook çağrısında **response kontrolü zorunlu:** res.ok değilse veya fetch throw ederse events'e `n8n_webhook_failed` yaz (payload: merchant_oid, status/body veya error).
+- N8N_CV_WEBHOOK_URL boşsa events'e `n8n_webhook_skipped_missing_env` yaz.
+- **PayTR'ye her durumda 200 OK dön** (webhook hata verse bile retry tetiklenmesin).
+
+### Kupon (src/app/api/profile/complete-coupon/route.ts)
+
+- profiles insert başarılı olduktan sonra webhook çağır.
+- fetch response status logla; res.ok değilse veya throw ise events'e `n8n_webhook_failed` yaz (payment_id: "coupon").
+- Webhook URL boşsa events'e `n8n_webhook_skipped_missing_env` yaz.
+
+### ENV
+
+- Production'da (Vercel) **N8N_CV_WEBHOOK_URL** kesin dolu olmalı. Callback/coupon içinde boşsa events'e yazılıyor.
 
 ---
 
 ## KABUL KRİTERLERİ
 
-- profiles tablosu şeması aynen korunur (kolon isimleri/tipleri değişmez)
-- profiles.id UUID'dir; webhook'a giden profile_id her zaman UUID olur
-- Ödeme doğrulanmadan webhook tetiklenmez
-- Ödeme doğrulandıktan sonra webhook tetiklenir; uygulama kullanıcı akışını bloklamaz
-- is_cv_sent veya CV üretim mantığına uygulama tarafı karışmaz
+- PayTR success'te profiles kaydı tamamlanınca webhook çağrısı kesin çalışır (n8n executions oluşur).
+- Aynı merchant_oid tekrar gelirse webhook tekrar çağrılmaz (idempotent).
+- Kupon ile profiles insert sonrası webhook çağrısı kesin çalışır.
+- Webhook başarısızsa kaybolmaz; events tablosunda `n8n_webhook_failed` görülür.
+- profiles tablosuna/şemasına asla dokunulmaz; kayıt mantığı (sadece PayTR/kupon sonrası) korunur.
