@@ -38,6 +38,12 @@ export function PhotoUpload({
       const t1 = setTimeout(() => setUploadPhase(1), 500);
       const t2 = setTimeout(() => setUploadPhase(2), 1000);
       const t3 = setTimeout(() => setUploadPhase(3), 1500);
+      const clearAll = () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        setUploadPhase(null);
+      };
 
       if (userId && onPhotoUploaded) {
         try {
@@ -46,19 +52,31 @@ export function PhotoUpload({
         } catch {
           onPhotoChange(file);
         }
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-        setUploadPhase(null);
+        clearAll();
+        return;
+      }
+
+      if (onPhotoUploaded) {
+        try {
+          const form = new FormData();
+          form.append("file", file);
+          const res = await fetch("/api/upload/cv-photo", { method: "POST", body: form });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && typeof data?.url === "string") {
+            onPhotoUploaded(file, data.url);
+          } else {
+            onPhotoChange(file);
+          }
+        } catch {
+          onPhotoChange(file);
+        }
+        clearAll();
         return;
       }
 
       const t4 = setTimeout(() => {
         onPhotoChange(file);
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-        setUploadPhase(null);
+        clearAll();
       }, 2200);
       return () => clearTimeout(t4);
     },
