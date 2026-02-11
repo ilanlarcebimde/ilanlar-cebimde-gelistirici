@@ -28,33 +28,48 @@ export default function OdemePage() {
       return;
     }
     if (code === FREE_COUPON_CODE) {
-      setCouponMessage({ type: "success", text: "Kupon uygulandı. Ücretsiz sipariş tamamlanıyor…" });
+      setCouponMessage({ type: "success", text: "Kupon uygulandı. Sipariş tamamlanıyor…" });
       setFreeWithCoupon(true);
       const pending = sessionStorage.getItem("paytr_pending");
-      const parsed = pending ? (JSON.parse(pending) as { method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null }) : null;
-      if (parsed?.method != null && parsed?.country != null) {
-        try {
-          const res = await fetch("/api/profile/complete-coupon", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              method: parsed.method,
-              country: parsed.country,
-              job_area: parsed.job_area ?? null,
-              job_branch: parsed.job_branch ?? null,
-              answers: parsed.answers ?? {},
-              photo_url: parsed.photo_url ?? null,
-            }),
-          });
-          if (!res.ok) {
-            console.warn("complete-coupon failed", await res.text());
-          }
-        } catch (e) {
-          console.warn("complete-coupon error", e);
-        }
+      let parsed: { method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null } | null = null;
+      try {
+        parsed = pending ? (JSON.parse(pending) as typeof parsed) : null;
+      } catch {
+        setCouponMessage({ type: "error", text: "Oturum verisi okunamadı. Lütfen formu doldurup tekrar ödeme sayfasına gelin." });
+        setFreeWithCoupon(false);
+        return;
       }
-      sessionStorage.removeItem("paytr_pending");
-      router.replace("/odeme/basarili");
+      if (parsed?.method == null) {
+        setCouponMessage({ type: "error", text: "Eksik bilgi (yöntem). Lütfen formu baştan doldurup tekrar deneyin." });
+        setFreeWithCoupon(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/profile/complete-coupon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            method: parsed.method,
+            country: parsed.country ?? null,
+            job_area: parsed.job_area ?? null,
+            job_branch: parsed.job_branch ?? null,
+            answers: parsed.answers ?? {},
+            photo_url: parsed.photo_url ?? null,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setCouponMessage({ type: "error", text: (data?.error as string) || "Sipariş kaydedilemedi. Lütfen tekrar deneyin." });
+          setFreeWithCoupon(false);
+          return;
+        }
+        sessionStorage.removeItem("paytr_pending");
+        router.replace("/odeme/basarili");
+      } catch (e) {
+        console.warn("complete-coupon error", e);
+        setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
+        setFreeWithCoupon(false);
+      }
       return;
     }
     setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });

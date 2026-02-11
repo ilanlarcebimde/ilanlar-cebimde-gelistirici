@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const photo_url = body?.photo_url ?? null;
 
     const supabase = getSupabaseAdmin();
-    const { data: newProfile } = await supabase
+    const { data: newProfile, error: insertError } = await supabase
       .from("profiles")
       .insert({
         user_id: null,
@@ -32,8 +32,12 @@ export async function POST(req: Request) {
       .single();
 
     const profileId = newProfile?.id ?? null;
-    if (!profileId) {
-      return NextResponse.json({ success: false, error: "Profil oluşturulamadı" }, { status: 500 });
+    if (insertError || !profileId) {
+      console.error("[complete-coupon] profiles insert failed", insertError);
+      return NextResponse.json(
+        { success: false, error: insertError?.message || "Profil oluşturulamadı" },
+        { status: 500 }
+      );
     }
 
     await supabase.from("events").insert({
