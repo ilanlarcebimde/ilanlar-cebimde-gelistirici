@@ -101,7 +101,7 @@ export function CompletionSummary({
         Paketimi Oluştur
       </button>
       <p className="mt-3 text-sm text-slate-500 text-center">
-        Paketimi Oluştur’a tıkladığınızda oturum açmanız istenecek; giriş yaptıktan sonra ödeme ekranına yönlendirileceksiniz.
+        Ödeme ekranına yönlendirileceksiniz.
       </p>
     </motion.section>
   );
