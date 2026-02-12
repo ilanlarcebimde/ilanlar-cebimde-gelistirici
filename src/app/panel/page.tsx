@@ -46,7 +46,7 @@ export default function PanelPage() {
     ])
       .then(([p, pay, s]) => {
         const rows = (p.data as ProfileRow[]) ?? [];
-        setProfiles(rows.map((r) => normalizeProfileRow(r) as ProfileRow));
+        setProfiles(rows.map((r) => normalizeProfileRow(r) ?? r));
         setPayments((pay.data as PaymentRow[]) ?? []);
         setSessions((s.data as SessionRow[]) ?? []);
       })

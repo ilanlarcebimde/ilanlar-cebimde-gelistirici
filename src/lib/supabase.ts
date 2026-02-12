@@ -39,16 +39,17 @@ export interface Profile {
 }
 
 /** Supabase'den gelen profil satırında null yerine '' ve {} döner; tabloda null veri dönmesin. */
-export function normalizeProfileRow<T extends Partial<Profile>>(row: T | null): T | null {
+export function normalizeProfileRow<T extends object>(row: T | null): T | null {
   if (row == null) return null;
+  const r = row as Record<string, unknown>;
   return {
     ...row,
-    country: row.country ?? "",
-    job_area: row.job_area ?? "",
-    job_branch: row.job_branch ?? "",
-    answers: row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers : {},
-    photo_url: row.photo_url ?? "",
-  };
+    country: r.country ?? "",
+    job_area: r.job_area ?? "",
+    job_branch: r.job_branch ?? "",
+    answers: r.answers && typeof r.answers === "object" && !Array.isArray(r.answers) ? r.answers : {},
+    photo_url: r.photo_url ?? "",
+  } as T;
 }
 
 export interface Event {
