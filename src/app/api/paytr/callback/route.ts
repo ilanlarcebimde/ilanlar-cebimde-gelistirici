@@ -77,8 +77,9 @@ export async function POST(request: NextRequest) {
           country: snap.country ?? null,
           job_area: snap.job_area ?? null,
           job_branch: snap.job_branch ?? null,
-          answers: snap.answers ?? {},
+          answers: snap.answers && typeof snap.answers === "object" ? snap.answers : {},
           photo_url: snap.photo_url ?? null,
+          is_cv_sent: false,
         })
         .select("id")
         .single();

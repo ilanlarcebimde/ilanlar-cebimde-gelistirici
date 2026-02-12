@@ -118,6 +118,38 @@ export function getTasksForBranch(areaId: string, branchName: string): TasksResu
   };
 }
 
+/** Form meslek unvanına göre görev önerileri (ülke/dal seçilmeden önce kullanılır). */
+export function getTasksForProfessionTitle(professionTitle: string): TasksResult {
+  if (!professionTitle?.trim()) {
+    return {
+      tasks: lib.fallback.genericTasks,
+      taskRules: { minSelect: 2, maxSelect: 6, defaultSelect: lib.fallback.genericTasks.slice(0, 3) },
+      fromFallback: true,
+    };
+  }
+  const normalized = normalizeForMatch(professionTitle);
+  for (const area of lib.areas) {
+    const branch = area.branches.find(
+      (b) =>
+        normalizeForMatch(b.branchLabel) === normalized ||
+        normalizeForMatch(b.branchLabel).includes(normalized) ||
+        normalized.includes(normalizeForMatch(b.branchLabel))
+    );
+    if (branch) {
+      return {
+        tasks: branch.tasks,
+        taskRules: branch.taskRules,
+        fromFallback: false,
+      };
+    }
+  }
+  return {
+    tasks: lib.fallback.genericTasks,
+    taskRules: { minSelect: 2, maxSelect: 6, defaultSelect: lib.fallback.genericTasks.slice(0, 3) },
+    fromFallback: true,
+  };
+}
+
 /** Branch bulunursa tam veri; yoksa null (fallback ayrı çağrılır). */
 export function getLibraryBranch(areaId: string, branchName: string): BranchEntry | null {
   return findBranch(areaId, branchName);

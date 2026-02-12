@@ -22,11 +22,12 @@ export async function POST(req: Request) {
         user_id: null,
         method,
         status: "paid",
-        country,
-        job_area,
-        job_branch,
-        answers,
-        photo_url,
+        country: country ?? null,
+        job_area: job_area ?? null,
+        job_branch: job_branch ?? null,
+        answers: answers && typeof answers === "object" ? answers : {},
+        photo_url: photo_url ?? null,
+        is_cv_sent: false,
       })
       .select("id")
       .single();

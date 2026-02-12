@@ -12,18 +12,24 @@ export interface CVQuestion {
   voiceEnabled: boolean;
   chatEnabled: boolean;
   formEnabled: boolean;
-  /** Chip'ler: Sohbette yalnızca yönlendirme/ipucu; tıklanınca input'a yazılmaz. */
+  /** Chip'ler / Öneriler: Formda varsayılan kapalı; "Öneriler" ile açılır. Max 4. */
   examples: string[];
-  /** Select sorularında seçenek listesi (3–6 adet). */
+  /** Select sorularında seçenek listesi. "Seçin" placeholder olarak kullanılır, listeye eklenmez. */
   options?: string[];
   saveKey: string;
-  /** Tek cümle ipucu; sohbette 💡 ile gösterilir. */
   hint?: string;
-  /** Form yönteminde zorunlu mu (örn. e-posta formda zorunlu). */
   formRequired?: boolean;
-  /** Form yönteminde gösterilecek ipucu (yoksa hint kullanılır). */
   formHint?: string;
 }
+
+/** Form meslek sorusu: 24 meslek + Diğer (profiles.answers'a yazılır). */
+export const FORM_PROFESSION_LIST = [
+  "Boya ustası", "Çatı ustası", "Montaj ustası", "Fayans ustası", "Duvar ustası", "Elektrik ustası",
+  "Kilit taşı ustası", "İnşaat ustası", "Taş ustası", "Motor ustası", "Asansör ustası", "Ahşap doğrama ustası",
+  "Ahşap ustası", "Alüminyum doğrama ustası", "Alüminyum küpeşte ustası", "Bobinaj ustası", "Demir doğrama ustası",
+  "Duvar kağıdı ustası", "Ferforje ustası", "Börek ustası", "Pasta ustası", "Çikolata ustası", "Döner ustası",
+  "Dondurma ustası", "Diğer",
+] as const;
 
 export const CV_QUESTIONS: CVQuestion[] = [
   {
@@ -136,20 +142,16 @@ export const CV_QUESTIONS: CVQuestion[] = [
   {
     id: "job_title",
     step: 7,
-    question: "Hangi işi yapıyorsunuz? (Mesleğiniz)",
-    type: "text",
+    question: "Mesleğiniz hangisi?",
+    type: "select",
     required: true,
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    examples: [
-      "Günlük yaptığınız işi yazın",
-      "Tek cümle yeterli",
-      "Resmî unvan şart değil",
-      "Usta / yardımcı farkını yazabilirsiniz",
-      "Abartılı yazmayın",
-    ],
+    options: [...FORM_PROFESSION_LIST],
+    examples: ["Listeden seçmek daha hızlı", "Diğer ise kısa yaz", "Usta / yardımcı belirt", "Mesleğinize en yakın olanı seçin"],
     saveKey: "work.title",
+    formHint: "💡 Listeden seçin; mesleğiniz yoksa «Diğer» seçip kısa yazın.",
     hint: "💡 Günlük yaptığınız işi kısa şekilde yazın.",
   },
   {
@@ -175,7 +177,7 @@ export const CV_QUESTIONS: CVQuestion[] = [
   {
     id: "work_summary",
     step: 9,
-    question: "Bu işte genelde neler yaparsınız? (kısa maddeler)",
+    question: "İş deneyiminizi ekleyin",
     type: "multiline",
     required: false,
     voiceEnabled: true,
@@ -239,14 +241,9 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    options: ["İlkokul", "Ortaokul", "Lise", "Meslek lisesi", "Diğer"],
-    examples: [
-      "Kısa seçim yeterli",
-      "Meslek lisesi varsa seçin",
-      "Devam ediyorsanız 'Diğer' seçin",
-      "Okul adı şart değil",
-      "Boş bırakabilirsiniz",
-    ],
+    options: ["İlkokul", "Ortaokul", "Lise", "Meslek lisesi", "Ön lisans", "Lisans", "Diğer"],
+    examples: ["Okul adını yazmak avantaj", "Yıl bilinmiyorsa boş bırak", "Bölüm varsa ekle", "Kısa tut"],
+    formHint: "💡 Seviye seçin; isterseniz okul adı ve mezuniyet yılı ekleyebilirsiniz.",
     saveKey: "education.primary",
     hint: "💡 Kısa seçim yeterli.",
   },
@@ -259,14 +256,9 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    options: ["Hayır", "Biraz", "Orta", "İyi"],
-    examples: [
-      "En doğru seviyeyi seçin",
-      "Abartmayın",
-      "Biraz bile iş görür",
-      "İş bulmada avantaj sağlar",
-      "Boş bırakabilirsiniz",
-    ],
+    options: ["Hayır", "Evet"],
+    examples: ["Almanca", "İngilizce", "Orta", "Başlangıç"],
+    formHint: "💡 Evet derseniz dil ve seviye ekleyebilirsiniz.",
     saveKey: "languages",
     hint: "💡 En doğru seviyeyi seçin.",
   },
@@ -279,14 +271,9 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    options: ["Yok", "Var (B)", "Var (C)", "Var (Diğer)"],
-    examples: [
-      "Vardiyalı işler için avantaj olabilir",
-      "Bilmiyorsanız boş bırakın",
-      "Var ise mutlaka belirtin",
-      "Aktif kullanıyorsanız daha iyi",
-      "Yanlış yazmayın",
-    ],
+    options: ["Yok", "A", "B", "C", "CE", "D", "Diğer"],
+    examples: ["Birden fazla seçebilirsiniz", "Diğer seçerseniz açıklayın", "Vardiyalı işler için avantaj", "Var ise mutlaka belirtin"],
+    formHint: "💡 Birden fazla sınıf seçebilirsiniz; Diğer seçerseniz kısa açıklayın.",
     saveKey: "mobility.drivingLicense",
     hint: "💡 Varsa en yakın seçeneği seçin.",
   },
@@ -419,13 +406,8 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    examples: [
-      "Sadece adını yazın",
-      "Ustalık/kalfalık belgesi olabilir",
-      "İş güvenliği belgesi olabilir",
-      "Yoksa boş bırakın",
-      "Bilmiyorsanız boş bırakın",
-    ],
+    examples: ["MYK", "Ustalık belgesi", "Hijyen", "İSG"],
+    formHint: "💡 Sertifika adı, yıl ve kurum (isterseniz). «Örnekler» butonundan fikir alabilirsiniz.",
     saveKey: "certificates",
     hint: "💡 Varsa sadece adını yazmanız yeterli.",
   },
@@ -439,13 +421,8 @@ export const CV_QUESTIONS: CVQuestion[] = [
     chatEnabled: true,
     formEnabled: true,
     options: ["Çok dikkat ederim", "Dikkat ederim", "Geliştirmek isterim"],
-    examples: [
-      "İşverenler önem verir",
-      "Dürüst cevap verin",
-      "Geliştirmek isterim demek sorun değil",
-      "Kısa ve net",
-      "Boş bırakabilirsiniz",
-    ],
+    examples: ["Dürüst cevap verin", "Geliştirmek isterim demek sorun değil"],
+    formHint: "💡 İşverenler bu konuya önem verir.",
     saveKey: "work.safetyCompliance",
     hint: "💡 İşverenler bu konuya önem verir.",
   },
@@ -498,14 +475,9 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    options: ["Hayır", "Evet", "Görüşmede konuşmak isterim"],
-    examples: [
-      "CV'ye yazmak zorunlu değil",
-      "Görüşmede konuşmak yaygın",
-      "İsterseniz yazmayın",
-      "Ülkeye göre değişebilir",
-      "Boş bırakabilirsiniz",
-    ],
+    options: ["Yazmak istemiyorum", "Görüşmede konuşmak istiyorum", "Net maaş yazmak istiyorum", "Maaş aralığı yazmak istiyorum"],
+    examples: ["CV'ye yazmak zorunlu değil", "Görüşmede konuşmak yaygın", "Net veya aralık seçebilirsiniz"],
+    formHint: "💡 Net veya aralık seçerseniz tutar alanları açılır.",
     saveKey: "work.salaryNote",
     hint: "💡 Genelde CV'ye yazmak zorunlu değildir.",
   },
@@ -519,12 +491,14 @@ export const CV_QUESTIONS: CVQuestion[] = [
     chatEnabled: true,
     formEnabled: true,
     examples: [
-      "Önemliyse yazın",
-      "Kısa yazın",
-      "Uzun açıklama gerekmez",
-      "Boş bırakabilirsiniz",
-      "Sadece gerçekten önemli olan",
+      "Konaklama imkânı olan işleri tercih ederim.",
+      "Avans/haftalık ödeme uygunsa değerlendiririm.",
+      "Fazla mesaiye uygunum.",
+      "Vardiyalı çalışabilirim.",
+      "Şehir değişimine uygunum.",
+      "Hemen başlayabilirim.",
     ],
+    formHint: "💡 İsterseniz önerilerden birini seçip ekleyebilirsiniz.",
     saveKey: "finalNote",
     hint: "💡 Önemli bir şey yoksa boş bırakın.",
   },
@@ -538,6 +512,15 @@ export function setAnswerBySaveKey(
   answers: Record<string, unknown>,
   saveKey: string,
   value: string
+): Record<string, unknown> {
+  return setAnswerBySaveKeyValue(answers, saveKey, value);
+}
+
+/** saveKey ile herhangi bir değer yazar (string, array, object). */
+export function setAnswerBySaveKeyValue(
+  answers: Record<string, unknown>,
+  saveKey: string,
+  value: unknown
 ): Record<string, unknown> {
   const keys = saveKey.split(".");
   const out = JSON.parse(JSON.stringify(answers)) as Record<string, unknown>;
@@ -553,15 +536,33 @@ export function setAnswerBySaveKey(
   return out;
 }
 
-/** saveKey ile değer okur */
+/** saveKey ile değer okur (string). */
 export function getAnswerBySaveKey(answers: Record<string, unknown>, saveKey: string): string {
+  const v = getAnswerBySaveKeyValue(answers, saveKey);
+  return typeof v === "string" ? v : "";
+}
+
+/** saveKey ile herhangi bir değer okur (string | array | object). */
+export function getAnswerBySaveKeyValue(answers: Record<string, unknown>, saveKey: string): unknown {
   const keys = saveKey.split(".");
   let current: unknown = answers;
   for (const k of keys) {
-    if (current == null || typeof current !== "object") return "";
+    if (current == null || typeof current !== "object") return undefined;
     current = (current as Record<string, unknown>)[k];
   }
-  return typeof current === "string" ? current : "";
+  return current;
+}
+
+/** Select seçeneklerini tekrarsız yapar; boş ve "Seçin" hariç. */
+export function dedupeOptions(options: string[]): string[] {
+  const seen = new Set<string>();
+  return options.filter((o) => {
+    const t = o?.trim();
+    if (!t || t === "Seçin") return false;
+    if (seen.has(t)) return false;
+    seen.add(t);
+    return true;
+  });
 }
 
 /** Tüm sorular (fotoğraf hariç) — sesli/sohbet/form için filtreler */

@@ -34,6 +34,8 @@ export interface Profile {
   job_branch: string | null;
   answers: Record<string, unknown> | null;
   photo_url: string | null;
+  /** n8n tarafından yönetilir; uygulama sadece false yazar */
+  is_cv_sent?: boolean;
 }
 
 export interface Event {

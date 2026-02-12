@@ -46,17 +46,18 @@ export default function OdemePage() {
         return;
       }
       try {
+        const body = {
+          method: parsed.method,
+          country: parsed.country ?? null,
+          job_area: parsed.job_area ?? null,
+          job_branch: parsed.job_branch ?? null,
+          answers: typeof parsed.answers === "object" && parsed.answers !== null ? parsed.answers : {},
+          photo_url: parsed.photo_url ?? null,
+        };
         const res = await fetch("/api/profile/complete-coupon", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            method: parsed.method,
-            country: parsed.country ?? null,
-            job_area: parsed.job_area ?? null,
-            job_branch: parsed.job_branch ?? null,
-            answers: parsed.answers ?? {},
-            photo_url: parsed.photo_url ?? null,
-          }),
+          body: JSON.stringify(body),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
