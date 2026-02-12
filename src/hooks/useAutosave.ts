@@ -27,41 +27,51 @@ export function useAutosave(
   const lastSavedRef = useRef<string>("");
   const disabled = options?.serverSaveDisabled === true;
 
-  const save = useCallback(async (): Promise<string | null> => {
+  const buildPayload = useCallback((s: DraftSnapshot) => ({
+    id: s.profileId ?? undefined,
+    method: s.method ?? "form",
+    status: s.status,
+    country: (s.country ?? "").trim() || null,
+    job_area: (s.job_area ?? "").trim() || null,
+    job_branch: (s.job_branch ?? "").trim() || null,
+    answers: s.answers && typeof s.answers === "object" ? s.answers : {},
+    photo_url: s.photo_url || null,
+  }), []);
+
+  const save = useCallback(async (override?: Partial<DraftSnapshot>): Promise<string | null> => {
     if (disabled) return null;
-    const payload = {
-      id: snapshot.profileId ?? undefined,
-      method: snapshot.method ?? "form",
-      status: snapshot.status,
-      country: snapshot.country || null,
-      job_area: snapshot.job_area || null,
-      job_branch: snapshot.job_branch || null,
-      answers: snapshot.answers,
-      photo_url: snapshot.photo_url || null,
-    };
+    const s = override ? { ...snapshot, ...override } : snapshot;
+    const payload = buildPayload(s);
     const key = JSON.stringify(payload);
-    if (key === lastSavedRef.current) return snapshot.profileId ?? null;
+    if (key === lastSavedRef.current) return s.profileId ?? null;
     const id = await saveProfileDraft(payload);
     if (id) {
       lastSavedRef.current = key;
-      if (id !== snapshot.profileId) onProfileId?.(id);
-      await logEvent("answer_saved", id, { answers: snapshot.answers });
+      if (id !== s.profileId) onProfileId?.(id);
+      await logEvent("answer_saved", id, { answers: payload.answers });
       return id;
     }
     return null;
-  }, [snapshot, onProfileId, disabled]);
+  }, [snapshot, onProfileId, disabled, buildPayload]);
 
-  const saveNow = useCallback(async (): Promise<string | null> => {
+  const saveNow = useCallback(async (override?: Partial<DraftSnapshot>): Promise<string | null> => {
     if (disabled) return null;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    return save();
+    return save(override);
   }, [save, disabled]);
 
   useEffect(() => {
     if (disabled || !snapshot.method) return;
+    // İlk kayıtta boş row oluşturma: profileId yoksa ve hiç veri yoksa bekle
+    const hasData =
+      (snapshot.country ?? "").trim() !== "" ||
+      (snapshot.job_branch ?? "").trim() !== "" ||
+      (snapshot.photo_url ?? "").trim() !== "" ||
+      (snapshot.answers && typeof snapshot.answers === "object" && Object.keys(snapshot.answers).length > 0);
+    if (!snapshot.profileId && !hasData) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       save();
@@ -77,9 +87,9 @@ export function useAutosave(
     snapshot.job_area,
     snapshot.job_branch,
     snapshot.photo_url,
+    snapshot.profileId,
     save,
     snapshot.method,
-    snapshot.profileId,
   ]);
 
   return { saveNow };

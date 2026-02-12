@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { supabase, normalizeProfileRow } from "@/lib/supabase";
 
 type ProfileRow = {
   id: string;
@@ -45,7 +45,8 @@ export default function PanelPage() {
       supabase.from("assistant_sessions").select("session_id, completed, updated_at").eq("user_id", uid).order("updated_at", { ascending: false }),
     ])
       .then(([p, pay, s]) => {
-        setProfiles((p.data as ProfileRow[]) ?? []);
+        const rows = (p.data as ProfileRow[]) ?? [];
+        setProfiles(rows.map((r) => normalizeProfileRow(r) as ProfileRow));
         setPayments((pay.data as PaymentRow[]) ?? []);
         setSessions((s.data as SessionRow[]) ?? []);
       })

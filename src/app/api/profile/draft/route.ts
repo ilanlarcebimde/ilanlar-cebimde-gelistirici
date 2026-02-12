@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     } = body;
 
     const supabase = getSupabaseAdmin();
+    // Null dönmesin: opsiyonel metin alanları boş string, answers her zaman object
     const row = {
       user_id: user_id ?? null,
       method: method === "voice" || method === "chat" ? method : "form",
@@ -43,11 +44,11 @@ export async function POST(req: Request) {
         status === "failed"
           ? status
           : "draft",
-      country: country ?? null,
-      job_area: job_area ?? null,
-      job_branch: job_branch ?? null,
-      answers: answers && typeof answers === "object" ? answers : {},
-      photo_url: photo_url ?? null,
+      country: (country != null && String(country).trim()) ? String(country).trim() : "",
+      job_area: (job_area != null && String(job_area).trim()) ? String(job_area).trim() : "",
+      job_branch: (job_branch != null && String(job_branch).trim()) ? String(job_branch).trim() : "",
+      answers: answers && typeof answers === "object" && !Array.isArray(answers) ? answers : {},
+      photo_url: (photo_url != null && String(photo_url).trim()) ? String(photo_url).trim() : "",
       updated_at: new Date().toISOString(),
     };
 

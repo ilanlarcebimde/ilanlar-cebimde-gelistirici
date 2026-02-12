@@ -104,9 +104,10 @@ export function FormWizard({
     onAnswersChange(setAnswerBySaveKeyValue(answers, "work.experiences", arr));
   };
 
-  const languagesList = (getAnswerBySaveKeyValue(answers, "languages.list") as { lang: string; level: string }[] | undefined) ?? [];
+  // Dil listesi ayrı anahtarda (languagesList) tutulur; "languages" (Evet/Hayır) string kalır, setAnswerBySaveKeyValue("languages.list") ile üzerine yazılmaz.
+  const languagesList = (getAnswerBySaveKeyValue(answers, "languagesList") as { lang: string; level: string }[] | undefined) ?? [];
   const setLanguagesList = (arr: { lang: string; level: string }[]) => {
-    onAnswersChange(setAnswerBySaveKeyValue(answers, "languages.list", arr));
+    onAnswersChange(setAnswerBySaveKeyValue(answers, "languagesList", arr));
   };
 
   const drivingLicenseRaw = getAnswerBySaveKeyValue(answers, "mobility.drivingLicense");

@@ -75,8 +75,7 @@ export function WizardArea({
       job_branch: state.jobBranch,
       photo_url: state.photoUrl,
     },
-    useCallback((id: string) => setState((s) => ({ ...s, profileId: id })), []),
-    { serverSaveDisabled: true }
+    useCallback((id: string) => setState((s) => ({ ...s, profileId: id })), [])
   );
 
   const setAnswers = useCallback((answers: Record<string, unknown>) => {
@@ -97,15 +96,32 @@ export function WizardArea({
     setState((s) => ({ ...s, photoFile: null, photoUrl: null }));
   }, []);
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
     setCompleteError(null);
     const email = getEmailFromAnswers(state.answers)?.trim();
     if (!email) {
       setCompleteError("Lütfen e-posta adresinizi girin.");
       return;
     }
-    setCompleted(true);
-  }, [state.answers]);
+    setSaving(true);
+    try {
+      // Tamamla'da güncel state'i açıkça gönder; closure ile null/boş gitmesin
+      const id = await saveNow({
+        profileId: state.profileId,
+        method: selectedMethod ?? "form",
+        status: "draft",
+        answers: state.answers,
+        country: state.country,
+        job_area: state.jobArea,
+        job_branch: state.jobBranch,
+        photo_url: state.photoUrl,
+      });
+      if (id) setState((s) => ({ ...s, profileId: id }));
+      setCompleted(true);
+    } finally {
+      setSaving(false);
+    }
+  }, [state.profileId, state.answers, state.country, state.jobArea, state.jobBranch, state.photoUrl, selectedMethod, saveNow]);
 
   if (!selectedMethod) {
     return (

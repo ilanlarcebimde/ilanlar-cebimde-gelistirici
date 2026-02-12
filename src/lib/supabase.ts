@@ -38,6 +38,19 @@ export interface Profile {
   is_cv_sent?: boolean;
 }
 
+/** Supabase'den gelen profil satırında null yerine '' ve {} döner; tabloda null veri dönmesin. */
+export function normalizeProfileRow<T extends Partial<Profile>>(row: T | null): T | null {
+  if (row == null) return null;
+  return {
+    ...row,
+    country: row.country ?? "",
+    job_area: row.job_area ?? "",
+    job_branch: row.job_branch ?? "",
+    answers: row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers : {},
+    photo_url: row.photo_url ?? "",
+  };
+}
+
 export interface Event {
   id?: string;
   user_id?: string;
