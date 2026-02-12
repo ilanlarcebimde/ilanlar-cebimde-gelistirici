@@ -243,9 +243,8 @@ export function FormWizard({
                     key={ex}
                     type="button"
                     onClick={() => {
-                      if (isJobTitle) return;
+                      // Sadece "Ek not" sorunda chip metne eklenir; diğer tüm sorularda öneriler ipucu, input'a yazılmaz.
                       if (isFinalNote) setValue(value ? value + "\n" + ex : ex);
-                      else setValue(ex);
                     }}
                     className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
                   >
