@@ -61,7 +61,8 @@ export function MethodSelection({
   onSelect: (id: MethodId) => void;
 }) {
   return (
-    <section id="yontem-secimi" className="py-16 sm:py-20 bg-white">
+    <section id="yontem-secimi" className="relative py-16 sm:py-20 bg-white">
+      <span id="how-it-works" className="absolute left-0 block -top-20" aria-hidden />
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <motion.h2
           className="text-2xl font-bold text-slate-900 sm:text-3xl text-center mb-3"
