@@ -145,7 +145,6 @@ export function getFieldRulesFromWizardConfig(options: FieldRulesExtractionOptio
   const allowedKeys: string[] = [];
   const keyHints: Record<string, string> = {};
 
-  const { chatOnly = false } = options;
   for (const q of flat) {
     if (!q || typeof q !== "object") continue;
     if (voiceOnly && (q as { voiceEnabled?: boolean }).voiceEnabled !== true) continue;
