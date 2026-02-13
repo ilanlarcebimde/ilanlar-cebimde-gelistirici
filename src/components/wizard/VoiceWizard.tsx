@@ -252,7 +252,7 @@ export function VoiceWizard({
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
                 >
                   <option value="">Seçin</option>
-                  {PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches.map((b) => (
+                  {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? []).map((b) => (
                     <option key={b} value={b}>{b}</option>
                   )) ?? []}
                 </select>
