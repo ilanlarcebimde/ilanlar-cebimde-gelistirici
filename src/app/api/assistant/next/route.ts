@@ -200,15 +200,18 @@ JSON ŞEMASI:
   "debug": { "reason": "..." }
 }
 
-DAVRANIŞ:
-- Hedef kitle: Lise mezunu, mavi yaka (inşaat/elektrik/kaynak ustası vb.). Dil sade, yönlendirici, güven verici ve samimi olsun.
+DAVRANIŞ VE ÜSLUP:
+- Hedef kitle: Lise mezunu, mavi yaka (inşaat/elektrik/kaynak ustası vb.). Dil sade, yönlendirici, güven verici ve samimi olsun; sohbet ediyormuş gibi doğal ve sıcak bir ton kullan.
+- Sorular aynı konuda kalsın ama daha açıklayıcı ve yönlendirici olsun; alanın neden önemli olduğunu (doldurulmasının faydasını) tek cümleyle, kısa ve samimi şekilde vurgula. Örn: "Doğum tarihinizi yazar mısınız? Başvurularda bazen istenir, net olması iyi olur."
 - personal.hitap ASLA sorma. personal.fullName (ad soyad) zaten state.filledKeys içindeyse ASLA tekrar sorma; bir sonraki soruya geç veya tüm alanlar doluysa FINISH dön. İlk soru her zaman personal.fullName olmalı (henüz dolu değilse).
 - İsim alındıktan sonra ilk isimden cinsiyet tahmin et (Ahmet, Mehmet, Ali vb. → Bey; Ayşe, Fatma, Zeynep vb. → Hanım). Tüm sonraki sorularda speakText ve displayText'te "[İlk ad] Bey" veya "[İlk ad] Hanım" ile hitap et.
 - speakText: Parantez içi (İsim, firma, iletişim) veya (1-2 cümle yeterli) gibi ifadeleri ASLA okutma; sadece ana cümleyi yaz. "5+ yıl" yerine "5 yıldan uzun süredir" gibi doğal ifade kullan.
 - Telefon: "Bunu şöyle yazdım doğru mu?" sorma. Tarih teyidinde "15 Mart 1985 olarak kaydettim" gibi doğal ifade kullan.
+- personal.email: Kişisel (demografik) bilgiler bölümünde, telefon ve şehirden hemen sonra mutlaka sor. Zorunlu alan gibi davran; FINISH öncesi dolu olmalı. E-posta yoksa "E-posta adresinizi öğrenebilir miyim? Başvuru ve bilgilendirmeler için gerekiyor." gibi kısa ve samimi sor.
 
 DOĞAL SOHBET AKIŞI (alan başlıklarına göre):
-- Soruları bölümlere göre grupla; her bölümde kısa, doğal geçişler kullan. Sıra: Kişisel bilgiler (personal.*) → İş deneyimi (work.*) → Eğitim (education.*) → Mobilite / seyahat (mobility.*) → Dil ve sertifikalar (languages, certificates) → Ek not (finalNote).
+- Soruları bölümlere göre grupla; her bölümde kısa, doğal geçişler kullan. Sıra: Kişisel bilgiler (personal.*; içinde fullName, birthDate, phone, city, email — email zorunlu) → İş deneyimi (work.*) → Eğitim (education.*) → Mobilite / seyahat (mobility.*; ehliyet, pasaport, vize, hazırlık vb.; hedef ülke/meslek en sonda) → Dil ve sertifikalar (languages, certificates) → Ek not (finalNote; metin alanı) → Hedef ülke ve meslek (mobility.targetCountry vb.).
+- finalNote sorusundan sonra "Hedef ülke ve meslek" (mobility.targetCountry vb.) sorulmalı; yani finalNote, hedef ülkeden önce gelir.
 - Yeni bölüme geçerken tek cümlelik geçiş kullan: örn. "Şimdi iş deneyiminize geçelim.", "Eğitim bilgilerinizi alalım.", "Seyahat ve çalışma koşullarınıza bakalım.", "Sertifika ve dil bilgileriniz var mı?", "Son olarak eklemek istediğiniz bir şey var mı?"
 - Her mesajda tek bir answerKey sor; soruyu konuşma dilinde sor (form sorusu gibi değil). Örn. "Doğum tarihiniz?" yerine "[İsim] Bey, doğum tarihinizi yazar mısınız?" veya "Hangi meslekte çalışıyorsunuz?"
 - Dolu alanları tekrar sorma; sıradaki boş alanı sor veya bölüm bittiyse sonraki bölüme geç. Tüm bölümler bittiyse FINISH dön.
@@ -222,14 +225,14 @@ SORU BAZLI KURALLAR (showSuggestions / hintExamples / soru metni):
 - work.currentCompany (firma adı): Soru net olsun: "Şu an çalıştığınız veya en son çalıştığınız firma adı nedir?" (anlatım bozukluğu olmasın). showSuggestions: false. hintExamples: CV'nizi güçlendirmek için şirket adlarını belirtmeniz deneyiminizi kanıtlar gibi.
 - education.primary (eğitim): showSuggestions: false. hintExamples: Önce "Okulunuzun adı, meslek lisesi mi normal lise mi, mezuniyet yılınızı ifade etmeniz CV'nizi güçlendirir." gibi bilgi, ardından örnek: "Lise - 2010", "Meslek lisesi, Elektrik bölümü - 2005".
 - languages: showSuggestions: false. hintExamples: Türkçe, Kürtçe, Arapça ÖRNEK OLARAK VERME. İngilizce, Almanca, Hollandaca gibi diller ve seviye (başlangıç, orta, iyi) örnek ver.
-- mobility.drivingLicense (ehliyet): showSuggestions: true. examples: B, B+C1, C, C+CE, Yok gibi. hintExamples: Ehliyet sınıflarının kısa açıklaması (B: otomobil, C: kamyon vb.) ve örnek.
+- mobility.drivingLicense (ehliyet): Birden fazla seçim (dizi). İlk soruda "[İsim] Bey/Hanım, ehliyetiniz var mı? Varsa hangi sınıf?" diye sor; kullanıcı bir sınıf söyledikten sonra save.value olarak o sınıfı diziye ekle (örn. ["B"]). Hemen ardından "[İsim] Bey/Hanım, başka ehliyet sınıfı eklemek ister misiniz?" diye sor; "Evet" veya yeni sınıf (C, CE vb.) derse mevcut listeye ekleyerek save.value tam dizi döndür (örn. ["B","C"]). "Hayır" veya "Yok" derse o turda SAVE yapma, bir sonraki alana geç. showSuggestions: true. examples: B, C, CE, B+CE, Yok. hintExamples: B: otomobil, C: kamyon, CE: çekici vb. kısa açıklama.
 - mobility.passport: Soruyu "Pasaportunuz var mı? Varsa geçerli mi? Vize durumunuz?" şeklinde pasaport ve vize olarak sor. showSuggestions: true. examples: Evet geçerli, Evet süresi dolmak üzere, Hayır, Vize başvurusu yapıyorum (4 yaygın seçenek). hintExamples: Teknik bilgi ve örnek.
 - certificates (sertifikalar): hintExamples: MEB onaylı, forklift ehliyeti gibi daha ifade edici örnekler.
 - hobbies: showSuggestions: false. hintExamples: "İlgi alanlarınızı yazmanız işverenin dikkatini çeker." ve örnekler: Spor, futbol, gazete okumak, yürüyüş, kamp.
 - personal.city (şehir): showSuggestions: false. hintExamples: Örnek şehirler.
 - mobility.targetCountry (hedef ülke): showSuggestions: true. examples: Avrupa ülkeleri (Almanya, Hollanda, Fransa, Belçika, Avusturya, vb.) ve Kıbrıs, Katar, Birleşik Krallık, İsviçre, Norveç, Kanada, Avustralya vb. Tek seçim. hintExamples: Hedef ülkeyi belirtmeniz ilan eşleştirmesi için önemli.
 - work.salaryNote: "Maaş beklentinizi belirtmek ister misiniz?" Evet derse, ardından tutar (dolar), konaklama, yemek, sosyal haklar için yönlendir. hintExamples: Teknik bilgi ve örnek format.
-- finalNote (son not): Kullanıcıyı kendini daha fazla ifade etmeye yönlendir. "Uzman araçlarımız özgeçmişinizi oluştururken daha etkili sonuç almanızı sağlar." hintExamples: Referans, askerlik vb. için dolu örnekler.
+- finalNote (son not / ek bilgi): inputType: textarea. Soru: "[İsim] Bey/Hanım, eklemek istediğiniz başka bir bilgi var mı? Bu alana ekstra bilgilerinizi yazabilirsiniz. Özellikle yurt dışında çalışırken konaklama, sigorta, ulaşım, vize veya pasaport gibi taleplerinizi belirtmeniz, işverenin sizi daha iyi değerlendirmesine yardımcı olur." showSuggestions: false. hintExamples: Konaklama beklentisi, sigorta/ulaşım desteği, vize/pasaport durumu, referans, askerlik vb. için örnek cümleler. Kullanıcı serbest metin girer; öneriler sadece ipucu butonunda gösterilir, tıklanarak seçilmez.
 - references: hintExamples: "Referanslarım için [isim] ile iletişime geçebilirsiniz.", "Askerliğimi tamamladım." gibi ifade edici örnekler.
 
 GENEL:
@@ -250,7 +253,7 @@ function buildUserPrompt(state: AssistantState) {
         keyHints: state.keyHints ?? {},
         rule: "answerKey ve save.key sadece allowedKeys içinden seçilecek.",
         sectionOrder:
-          "Soru sırası (doğal sohbet): personal.* → work.* → education.* → mobility.* → languages, certificates → finalNote. Aynı bölümde boş alanları bölüm içi mantıklı sırayla sor.",
+          "Soru sırası (doğal sohbet): personal.* (fullName, birthDate, phone, city, email — email zorunlu) → work.* → education.* → mobility.* (hedef ülke en sonda) → languages, certificates → finalNote → mobility.targetCountry. finalNote sonrası hedef ülke/meslek. Aynı bölümde boş alanları bölüm içi mantıklı sırayla sor.",
       },
       now: new Date().toISOString(),
     },
@@ -354,28 +357,29 @@ export async function POST(req: Request) {
       const key = reply.save.key;
       const rule = state.fieldRules?.[key];
       const kind = rule?.semantic?.kind as string | undefined;
+      const isDrivingLicenseArray =
+        key === "mobility.drivingLicense" && Array.isArray(reply.save?.value);
 
-      const nr = normalizeBySemantic(kind, reply.save.value);
-      reply.save.value = nr.value;
-
-      const normalizedStr =
-        typeof nr.value === "string" ? nr.value : String(nr.value ?? "");
-
-      if (nr.changed) {
-        reply.review = {
-          ...(reply.review || {}),
-          needsNormalization: true,
-          normalizedValue: normalizedStr,
-          normalizedHint:
-            rule?.semantic?.normalizeHint ||
-            reply.review?.normalizedHint ||
-            "Biçimi düzelttim.",
-          confidence: reply.review?.confidence ?? 0.85,
-        };
-      }
-
-      if (nr.warning) {
-        reply.debug = { ...(reply.debug || {}), reason: nr.warning };
+      if (!isDrivingLicenseArray) {
+        const nr = normalizeBySemantic(kind, reply.save!.value);
+        reply.save!.value = nr.value;
+        const normalizedStr =
+          typeof nr.value === "string" ? nr.value : String(nr.value ?? "");
+        if (nr.changed) {
+          reply.review = {
+            ...(reply.review || {}),
+            needsNormalization: true,
+            normalizedValue: normalizedStr,
+            normalizedHint:
+              rule?.semantic?.normalizeHint ||
+              reply.review?.normalizedHint ||
+              "Biçimi düzelttim.",
+            confidence: reply.review?.confidence ?? 0.85,
+          };
+        }
+        if (nr.warning) {
+          reply.debug = { ...(reply.debug || {}), reason: nr.warning };
+        }
       }
     }
 

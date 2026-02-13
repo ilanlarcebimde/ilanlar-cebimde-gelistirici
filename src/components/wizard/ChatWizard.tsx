@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Send, Mic, MicOff, Lightbulb, X } from "lucide-react";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
-import { setAnswerBySaveKey, getAnswerBySaveKey } from "@/data/cvQuestions";
+import { setAnswerBySaveKey, setAnswerBySaveKeyValue, getAnswerBySaveKey } from "@/data/cvQuestions";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { PhotoUpload } from "./PhotoUpload";
 import { getChatFieldRulesBundle } from "@/lib/assistant/fieldRules";
@@ -209,11 +209,17 @@ export function ChatWizard({
 
       if (next) {
         if (next.save?.key && next.save?.value !== undefined) {
-          newAnswers = setAnswerBySaveKey(
-            newAnswers,
-            next.save!.key,
-            typeof next.save!.value === "string" ? next.save!.value : String(next.save!.value)
-          );
+          const sk = next.save.key;
+          const val = next.save.value;
+          if (sk === "mobility.drivingLicense" && Array.isArray(val)) {
+            newAnswers = setAnswerBySaveKeyValue(newAnswers, sk, val);
+          } else {
+            newAnswers = setAnswerBySaveKey(
+              newAnswers,
+              sk,
+              typeof val === "string" ? val : String(val)
+            );
+          }
           onAnswersChange(newAnswers);
         }
         setReply(next);
@@ -246,7 +252,6 @@ export function ChatWizard({
   const showPhotoStep = questionsDone && phase === "photo";
   const currentReply = reply;
   const progress = currentReply?.progress;
-  const showSuggestionsChips = currentReply?.showSuggestions === true && (currentReply?.examples?.length ?? 0) > 0;
   const hintExamples = currentReply?.hintExamples?.length
     ? currentReply.hintExamples
     : currentReply?.examples?.length
@@ -308,9 +313,9 @@ export function ChatWizard({
             <div className="rounded-xl bg-red-50 text-red-700 px-4 py-2 text-sm">{geminiError}</div>
           )}
 
-          {currentReply && !showCountryJob && (
+          {currentReply && !showCountryJob && !showPhotoStep && (
             <>
-              {hintExamples.length > 0 && (
+              {(hintExamples.length > 0 || (currentReply.examples?.length ?? 0) > 0) && (
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
@@ -322,7 +327,7 @@ export function ChatWizard({
                   </button>
                 </div>
               )}
-              {isTipsOpen && hintExamples.length > 0 && (
+              {isTipsOpen && (hintExamples.length > 0 || (currentReply.examples?.length ?? 0) > 0) && (
                 <>
                   <div
                     className="fixed inset-0 z-[100] bg-black/40 sm:flex sm:items-center sm:justify-center"
@@ -350,7 +355,21 @@ export function ChatWizard({
                       className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-2"
                       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
                     >
+                      {hintExamples.length > 0 && (
+                        <p className="text-xs font-medium text-slate-500 mb-2">İpuçları</p>
+                      )}
                       {hintExamples.map((c) => (
+                        <div
+                          key={c}
+                          className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                        >
+                          {c}
+                        </div>
+                      ))}
+                      {(currentReply.examples?.length ?? 0) > 0 && (
+                        <p className="text-xs font-medium text-slate-500 mt-4 mb-2">Öneriler (kopyalayıp yapıştırabilirsiniz)</p>
+                      )}
+                      {(currentReply.examples ?? []).map((c) => (
                         <div
                           key={c}
                           className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
@@ -361,21 +380,6 @@ export function ChatWizard({
                     </div>
                   </div>
                 </>
-              )}
-              {showSuggestionsChips && currentReply.examples.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {currentReply.examples.slice(0, 6).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => send(opt)}
-                      disabled={busy}
-                      className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
               )}
               {currentReply.showSkipButton && (
                 <button
@@ -392,7 +396,7 @@ export function ChatWizard({
           <div ref={bottomRef} />
         </div>
 
-        {!showCountryJob && (
+        {!showCountryJob && !showPhotoStep && (
           <div
             className="sticky bottom-0 z-10 shrink-0 bg-white border-t border-slate-200 px-3 sm:px-6 py-3 min-w-0 overflow-hidden"
             style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
@@ -523,6 +527,22 @@ export function ChatWizard({
             onClear={onPhotoClear}
             userId={userId}
           />
+          {!getAnswerBySaveKey(answers, "personal.email")?.trim() && (
+            <div className="mt-4 p-4 rounded-xl border border-amber-200 bg-amber-50">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                E-posta adresiniz (ödeme ve bilgilendirme için gerekli)
+              </label>
+              <input
+                type="email"
+                placeholder="ornek@email.com"
+                value={getAnswerBySaveKey(answers, "personal.email") || ""}
+                onChange={(e) =>
+                  onAnswersChange(setAnswerBySaveKey(answers, "personal.email", e.target.value.trim()))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+              />
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -534,7 +554,7 @@ export function ChatWizard({
             <button
               type="button"
               onClick={onComplete}
-              disabled={isCompleting}
+              disabled={isCompleting || !getAnswerBySaveKey(answers, "personal.email")?.trim()}
               className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
             >
               {isCompleting ? "Kaydediliyor…" : "Tamamla"}
