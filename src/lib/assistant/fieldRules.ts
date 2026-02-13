@@ -115,6 +115,7 @@ function resolveInputType(
 
 export type FieldRulesExtractionOptions = {
   voiceOnly?: boolean;
+  chatOnly?: boolean;
   saveKeyFieldNames?: string[];
   questionFieldNames?: string[];
   examplesFieldNames?: string[];
@@ -128,6 +129,7 @@ export type FieldRulesExtractionOptions = {
 export function getFieldRulesFromWizardConfig(options: FieldRulesExtractionOptions = {}) {
   const {
     voiceOnly = false,
+    chatOnly = false,
     saveKeyFieldNames = ["saveKey", "key", "fieldKey"],
     questionFieldNames = ["question", "label", "prompt", "title"],
     examplesFieldNames = ["examples", "chips", "suggestions"],
@@ -143,9 +145,11 @@ export function getFieldRulesFromWizardConfig(options: FieldRulesExtractionOptio
   const allowedKeys: string[] = [];
   const keyHints: Record<string, string> = {};
 
+  const { chatOnly = false } = options;
   for (const q of flat) {
     if (!q || typeof q !== "object") continue;
     if (voiceOnly && (q as { voiceEnabled?: boolean }).voiceEnabled !== true) continue;
+    if (chatOnly && (q as { chatEnabled?: boolean }).chatEnabled !== true) continue;
 
     let saveKey = "";
     for (const f of saveKeyFieldNames) {
@@ -224,6 +228,10 @@ export function getVoiceFieldRulesBundle() {
   return getFieldRulesFromWizardConfig({ voiceOnly: true });
 }
 
+export function getChatFieldRulesBundle() {
+  return getFieldRulesFromWizardConfig({ chatOnly: true });
+}
+
 export function getAllFieldRulesBundle() {
-  return getFieldRulesFromWizardConfig({ voiceOnly: false });
+  return getFieldRulesFromWizardConfig({ voiceOnly: false, chatOnly: false });
 }

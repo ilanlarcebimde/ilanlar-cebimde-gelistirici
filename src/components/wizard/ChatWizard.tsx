@@ -1,17 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Send, Mic, MicOff, Lightbulb, X } from "lucide-react";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
-import {
-  getQuestionsFor,
-  setAnswerBySaveKey,
-  getDisplayName,
-} from "@/data/cvQuestions";
+import { setAnswerBySaveKey, getAnswerBySaveKey } from "@/data/cvQuestions";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { PhotoUpload } from "./PhotoUpload";
+import { getChatFieldRulesBundle } from "@/lib/assistant/fieldRules";
 
 interface ChatMessage {
   id: string;
@@ -19,7 +16,45 @@ interface ChatMessage {
   text: string;
 }
 
-const QUESTIONS = getQuestionsFor("chat");
+type AssistantNextAction = "ASK" | "CLARIFY" | "SAVE_AND_NEXT" | "FINISH";
+
+type AssistantReply = {
+  speakText: string;
+  displayText: string;
+  answerKey: string;
+  inputType: "text" | "textarea" | "number" | "date" | "select";
+  examples: string[];
+  showSuggestions?: boolean;
+  showSkipButton?: boolean;
+  hintExamples?: string[];
+  nextAction: AssistantNextAction;
+  save?: { key: string; value: unknown };
+  progress?: { step: number; total: number };
+};
+
+type FieldRuleShape = {
+  key: string;
+  inputType: string;
+  examples?: string[];
+};
+
+type AssistantState = {
+  sessionId: string;
+  locale: "tr-TR";
+  cv: Record<string, unknown>;
+  filledKeys: string[];
+  history: Array<{ role: "user" | "assistant"; text: string }>;
+  allowedKeys: string[];
+  keyHints?: Record<string, string>;
+  fieldRules: Record<string, FieldRuleShape>;
+};
+
+function getFilledKeys(answers: Record<string, unknown>, allowedKeys: string[]): string[] {
+  return allowedKeys.filter((k) => {
+    const v = getAnswerBySaveKey(answers, k);
+    return typeof v === "string" && v.trim().length > 0;
+  });
+}
 
 export function ChatWizard({
   answers,
@@ -56,26 +91,90 @@ export function ChatWizard({
   onComplete: () => void;
   isCompleting?: boolean;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const first = QUESTIONS[0];
-    return first
-      ? [
-          { id: "0", role: "system", text: "Merhaba. CV'nizi oluşturmak için soruları tek tek soracağım. İlk olarak adınızı ve soyadınızı alalım." },
-          { id: "0q", role: "system", text: first.question },
-        ]
-      : [];
-  });
+  const { allowedKeys, keyHints, fieldRules } = useMemo(() => getChatFieldRulesBundle(), []);
+  const sessionIdRef = useRef(`chat_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [reply, setReply] = useState<AssistantReply | null>(null);
   const [input, setInput] = useState("");
-  const [qIndex, setQIndex] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [geminiError, setGeminiError] = useState("");
+  const [questionsDone, setQuestionsDone] = useState(false);
+  const [phase, setPhase] = useState<"countryJob" | "photo">("countryJob");
+  const [isTipsOpen, setIsTipsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const voice = useVoiceAssistant();
   const wasListeningRef = useRef(false);
 
+  const filledKeys = useMemo(() => getFilledKeys(answers, allowedKeys), [answers, allowedKeys]);
+
+  const buildState = useCallback(
+    (
+      history: Array<{ role: "user" | "assistant"; text: string }>,
+      cvOverride?: Record<string, unknown>
+    ): AssistantState => {
+      const cv = cvOverride ?? answers ?? {};
+      return {
+        sessionId: sessionIdRef.current,
+        locale: "tr-TR",
+        cv,
+        filledKeys: getFilledKeys(cv, allowedKeys),
+        history: history.slice(-40),
+        allowedKeys,
+        keyHints: keyHints ?? {},
+        fieldRules: fieldRules ?? {},
+      };
+    },
+    [answers, allowedKeys, keyHints, fieldRules]
+  );
+
+  const fetchNext = useCallback(
+    async (state: AssistantState): Promise<AssistantReply | null> => {
+      setBusy(true);
+      setGeminiError("");
+      try {
+        const r = await fetch("/api/assistant/next", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state }),
+        });
+        if (!r.ok) {
+          const j = (await r.json().catch(() => null)) as { error?: string; detail?: string } | null;
+          const errMsg = j?.error ?? "assistant_failed";
+          const detail = j?.detail?.trim();
+          setGeminiError(detail ? `${errMsg}: ${detail}` : errMsg);
+          return null;
+        }
+        const data = (await r.json()) as { reply: AssistantReply };
+        return data.reply;
+      } catch (e: unknown) {
+        setGeminiError(e instanceof Error ? e.message : "Bağlantı hatası.");
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    []
+  );
+
+  // İlk soruyu Gemini'den al (sadece mount'ta bir kez)
+  const initialFetchDone = useRef(false);
+  useEffect(() => {
+    if (allowedKeys.length === 0 || initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    const state = buildState([]);
+    fetchNext(state).then((next) => {
+      if (!next) return;
+      setReply(next);
+      setMessages([{ id: "0", role: "system", text: next.displayText || next.speakText }]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sadece mount'ta bir kez
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, reply]);
 
-  // Sesli giriş bittiğinde transkripti input'a yaz (düzenleyip gönderebilsin)
   useEffect(() => {
     if (wasListeningRef.current && (voice.phase === "idle" || voice.phase === "converting")) {
       const text = (voice.getTranscript?.() ?? voice.transcript ?? "").trim();
@@ -85,38 +184,74 @@ export function ChatWizard({
     if (voice.phase === "listening") wasListeningRef.current = true;
   }, [voice.phase, voice.transcript, voice.getTranscript]);
 
-  const currentQ = QUESTIONS[qIndex];
-  const nextQ = QUESTIONS[qIndex + 1];
+  const send = useCallback(
+    async (text: string) => {
+      const t = text.trim();
+      if (!t || !reply || busy) return;
 
-  const send = (text: string) => {
-    const t = text.trim();
-    if (!t || !currentQ) return;
-    const userMsg: ChatMessage = { id: `${Date.now()}`, role: "user", text: t };
-    setMessages((m) => [...m, userMsg]);
-    setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
+      const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text: t };
+      setMessages((m) => [...m, userMsg]);
+      setInput("");
+
+      const answerKey = reply.answerKey;
+      let newAnswers = setAnswerBySaveKey(answers, answerKey, t);
+      onAnswersChange(newAnswers);
+
+      const prevDisplayText = reply.displayText || reply.speakText;
+      const newHistory: Array<{ role: "user" | "assistant"; text: string }> = [
+        ...messages.map((msg) => ({ role: msg.role as "user" | "assistant", text: msg.text })),
+        { role: "assistant", text: prevDisplayText },
+        { role: "user", text: t },
+      ];
+
+      setReply(null);
+      const next = await fetchNext(buildState(newHistory, newAnswers));
+
+      if (next) {
+        if (next.save?.key && next.save?.value !== undefined) {
+          newAnswers = setAnswerBySaveKey(
+            newAnswers,
+            next.save!.key,
+            typeof next.save!.value === "string" ? next.save!.value : String(next.save!.value)
+          );
+          onAnswersChange(newAnswers);
+        }
+        setReply(next);
+        setMessages((m) => [...m, { id: `s-${Date.now()}`, role: "system", text: next.displayText || next.speakText }]);
+        if (next.nextAction === "FINISH") setQuestionsDone(true);
+      }
+    },
+    [reply, answers, messages, busy, buildState, fetchNext, onAnswersChange]
+  );
+
+  const handleSkip = useCallback(async () => {
+    if (!reply || busy) return;
+    const prevDisplayText = reply.displayText || reply.speakText;
+    const newHistory: Array<{ role: "user" | "assistant"; text: string }> = [
+      ...messages.map((msg) => ({ role: msg.role as "user" | "assistant", text: msg.text })),
+      { role: "assistant", text: prevDisplayText },
+      { role: "user", text: "[Atla]" },
+    ];
+    setMessages((m) => [...m, { id: `u-skip-${Date.now()}`, role: "user", text: "Bu adımı atladım" }]);
+    setReply(null);
+    const next = await fetchNext(buildState(newHistory));
+    if (next) {
+      setReply(next);
+      setMessages((m) => [...m, { id: `s-${Date.now()}`, role: "system", text: next.displayText || next.speakText }]);
+      if (next.nextAction === "FINISH") setQuestionsDone(true);
     }
-    const newAnswers = setAnswerBySaveKey(answers, currentQ.saveKey, t);
-    onAnswersChange(newAnswers);
+  }, [reply, messages, busy, buildState, fetchNext]);
 
-    if (nextQ) {
-      const displayName = getDisplayName(newAnswers);
-      const nextQuestionText = displayName ? `${displayName}, ${nextQ.question}` : nextQ.question;
-      setTimeout(() => {
-        setMessages((m) => [...m, { id: `s-${currentQ.id}`, role: "system", text: nextQuestionText }]);
-        setQIndex((i) => i + 1);
-      }, 400);
-    } else {
-      setQIndex((i) => i + 1);
-    }
-  };
-
-  const questionsDone = qIndex >= QUESTIONS.length;
-  const [phase, setPhase] = useState<"countryJob" | "photo">("countryJob");
   const showCountryJob = questionsDone && phase === "countryJob";
   const showPhotoStep = questionsDone && phase === "photo";
-  const [isTipsOpen, setIsTipsOpen] = useState(false);
+  const currentReply = reply;
+  const progress = currentReply?.progress;
+  const showSuggestionsChips = currentReply?.showSuggestions === true && (currentReply?.examples?.length ?? 0) > 0;
+  const hintExamples = currentReply?.hintExamples?.length
+    ? currentReply.hintExamples
+    : currentReply?.examples?.length
+      ? currentReply.examples
+      : [];
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleTextareaInput = () => {
@@ -137,20 +272,18 @@ export function ChatWizard({
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col flex-1 min-h-0 rounded-2xl border border-slate-200 bg-white shadow-soft overflow-hidden"
       >
-        {/* Header: sticky */}
         <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-slate-50 px-4 sm:px-6 py-3 flex justify-between items-center">
           <div>
             <p className="text-sm font-semibold text-slate-700">Sohbet ile CV bilgileri</p>
-            <p className="text-xs text-slate-500">Her yanıt otomatik kaydedilir.</p>
+            <p className="text-xs text-slate-500">Gemini ile sohbet edin; yanıtlar otomatik kaydedilir.</p>
           </div>
-          {currentQ && !questionsDone && (
+          {progress && !questionsDone && (
             <span className="text-xs font-medium text-slate-500">
-              Soru {qIndex + 1} / {QUESTIONS.length}
+              Soru {progress.step} / {progress.total}
             </span>
           )}
         </div>
 
-        {/* Body: scrollable */}
         <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-4 space-y-4">
           {messages.map((msg) => (
             <div
@@ -159,23 +292,26 @@ export function ChatWizard({
             >
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                  msg.role === "user"
-                    ? "bg-slate-800 text-white"
-                    : "bg-slate-100 text-slate-800"
+                  msg.role === "user" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-800"
                 }`}
               >
-                <p className="text-sm">{msg.text}</p>
+                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
               </div>
             </div>
           ))}
-          {currentQ && !showCountryJob && (
-            <div className="flex flex-col gap-2">
-              {currentQ.hint && (
-                <p className="text-xs text-slate-500">{currentQ.hint}</p>
-              )}
-              {currentQ.examples?.length > 0 && (
-                <>
-                  <p className="text-xs text-slate-500">İstersen ipuçlarını açabilirsin.</p>
+          {busy && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl px-4 py-2.5 bg-slate-100 text-slate-500 text-sm">Yazıyor…</div>
+            </div>
+          )}
+          {geminiError && (
+            <div className="rounded-xl bg-red-50 text-red-700 px-4 py-2 text-sm">{geminiError}</div>
+          )}
+
+          {currentReply && !showCountryJob && (
+            <>
+              {hintExamples.length > 0 && (
+                <div className="flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={() => setIsTipsOpen(true)}
@@ -184,75 +320,78 @@ export function ChatWizard({
                     <Lightbulb className="h-4 w-4 text-amber-500" />
                     İpuçlarını Gör
                   </button>
+                </div>
+              )}
+              {isTipsOpen && hintExamples.length > 0 && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[100] bg-black/40 sm:flex sm:items-center sm:justify-center"
+                    onClick={() => setIsTipsOpen(false)}
+                    aria-hidden
+                  />
+                  <div
+                    className="fixed z-[101] w-full left-0 right-0 bottom-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-[560px] sm:max-h-[70vh] sm:rounded-2xl sm:shadow-xl rounded-t-2xl bg-white max-h-[70vh] flex flex-col overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                    role="dialog"
+                    aria-modal="true"
+                  >
+                    <div className="shrink-0 flex items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3">
+                      <h2 className="text-base font-semibold text-slate-800">İpuçları</h2>
+                      <button
+                        type="button"
+                        onClick={() => setIsTipsOpen(false)}
+                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
+                        aria-label="Kapat"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <div
+                      className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-2"
+                      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+                    >
+                      {hintExamples.map((c) => (
+                        <div
+                          key={c}
+                          className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                        >
+                          {c}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </>
               )}
-            </div>
-          )}
-
-          {/* İpuçları bottom-sheet (mobil) / dialog (masaüstü) */}
-          {isTipsOpen && currentQ?.examples?.length > 0 && (
-            <>
-              <div
-                className="fixed inset-0 z-[100] bg-black/40 sm:flex sm:items-center sm:justify-center"
-                onClick={() => setIsTipsOpen(false)}
-                aria-hidden
-              />
-              <div
-                className="fixed z-[101] w-full left-0 right-0 bottom-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-[560px] sm:max-h-[70vh] sm:rounded-2xl sm:shadow-xl rounded-t-2xl bg-white max-h-[70vh] flex flex-col overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-                role="dialog"
-                aria-labelledby="tips-title"
-                aria-modal="true"
-              >
-                <div className="shrink-0 flex items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3">
-                  <h2 id="tips-title" className="text-base font-semibold text-slate-800">İpuçları</h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsTipsOpen(false)}
-                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
-                    aria-label="Kapat"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <p className="shrink-0 px-4 sm:px-6 pt-2 text-xs text-slate-500">
-                  Bu soruyu doğru doldurmak için kısa öneriler
-                </p>
-                <div
-                  className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-2"
-                  style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
-                >
-                  {currentQ.examples.map((c) => (
-                    <div
-                      key={c}
-                      className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              {showSuggestionsChips && currentReply.examples.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {currentReply.examples.slice(0, 6).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => send(opt)}
+                      disabled={busy}
+                      className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                     >
-                      {c}
-                    </div>
+                      {opt}
+                    </button>
                   ))}
                 </div>
-              </div>
-            </>
-          )}
-          {currentQ?.type === "select" && Array.isArray(currentQ.options) && currentQ.options.length > 0 && !showCountryJob && (
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-              <span className="w-full text-xs font-medium text-slate-500">Seçenekler</span>
-              {currentQ.options.map((opt) => (
+              )}
+              {currentReply.showSkipButton && (
                 <button
-                  key={opt}
                   type="button"
-                  onClick={() => send(opt)}
-                  className="w-full sm:w-auto text-left rounded-full border border-slate-300 bg-white px-4 py-3 sm:px-3 sm:py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                  onClick={handleSkip}
+                  disabled={busy}
+                  className="text-sm text-slate-500 underline hover:no-underline disabled:opacity-50"
                 >
-                  {opt}
+                  Bu adımı atla
                 </button>
-              ))}
-            </div>
+              )}
+            </>
           )}
           <div ref={bottomRef} />
         </div>
 
-        {/* Footer: sticky + safe-area (içerik taşmasın, mikrofon ekran içinde kalsın) */}
         {!showCountryJob && (
           <div
             className="sticky bottom-0 z-10 shrink-0 bg-white border-t border-slate-200 px-3 sm:px-6 py-3 min-w-0 overflow-hidden"
@@ -272,7 +411,7 @@ export function ChatWizard({
               <button
                 type="button"
                 onClick={() => send(input)}
-                disabled={voice.phase === "listening"}
+                disabled={busy || voice.phase === "listening"}
                 className="rounded-xl bg-slate-800 p-2.5 text-white hover:bg-slate-700 shrink-0 disabled:opacity-50"
               >
                 <Send className="h-5 w-5" />
@@ -281,11 +420,8 @@ export function ChatWizard({
                 <button
                   type="button"
                   onClick={() => {
-                    if (voice.phase === "listening") {
-                      voice.stopSTT();
-                    } else {
-                      voice.startSTT();
-                    }
+                    if (voice.phase === "listening") voice.stopSTT();
+                    else voice.startSTT();
                   }}
                   className={`rounded-xl p-2.5 shrink-0 ${
                     voice.phase === "listening"
@@ -356,9 +492,9 @@ export function ChatWizard({
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
                 >
                   <option value="">Seçin</option>
-                  {PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches.map((b) => (
+                  {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? []).map((b) => (
                     <option key={b} value={b}>{b}</option>
-                  )) ?? []}
+                  ))}
                 </select>
               </div>
             )}
@@ -377,7 +513,7 @@ export function ChatWizard({
       {showPhotoStep && (
         <>
           <p className="text-slate-600 text-center mb-4">
-            Son olarak, CV’niz için profesyonel bir fotoğraf yüklemek ister misiniz?
+            Son olarak, CV'niz için profesyonel bir fotoğraf yüklemek ister misiniz?
           </p>
           <PhotoUpload
             photoUrl={photoUrl}

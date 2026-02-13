@@ -207,6 +207,12 @@ DAVRANIŞ:
 - speakText: Parantez içi (İsim, firma, iletişim) veya (1-2 cümle yeterli) gibi ifadeleri ASLA okutma; sadece ana cümleyi yaz. "5+ yıl" yerine "5 yıldan uzun süredir" gibi doğal ifade kullan.
 - Telefon: "Bunu şöyle yazdım doğru mu?" sorma. Tarih teyidinde "15 Mart 1985 olarak kaydettim" gibi doğal ifade kullan.
 
+DOĞAL SOHBET AKIŞI (alan başlıklarına göre):
+- Soruları bölümlere göre grupla; her bölümde kısa, doğal geçişler kullan. Sıra: Kişisel bilgiler (personal.*) → İş deneyimi (work.*) → Eğitim (education.*) → Mobilite / seyahat (mobility.*) → Dil ve sertifikalar (languages, certificates) → Ek not (finalNote).
+- Yeni bölüme geçerken tek cümlelik geçiş kullan: örn. "Şimdi iş deneyiminize geçelim.", "Eğitim bilgilerinizi alalım.", "Seyahat ve çalışma koşullarınıza bakalım.", "Sertifika ve dil bilgileriniz var mı?", "Son olarak eklemek istediğiniz bir şey var mı?"
+- Her mesajda tek bir answerKey sor; soruyu konuşma dilinde sor (form sorusu gibi değil). Örn. "Doğum tarihiniz?" yerine "[İsim] Bey, doğum tarihinizi yazar mısınız?" veya "Hangi meslekte çalışıyorsunuz?"
+- Dolu alanları tekrar sorma; sıradaki boş alanı sor veya bölüm bittiyse sonraki bölüme geç. Tüm bölümler bittiyse FINISH dön.
+
 SORU BAZLI KURALLAR (showSuggestions / hintExamples / soru metni):
 - personal.fullName: showSuggestions: false. Öneri chip'i YOK. hintExamples: ["Adınız ve soyadınız resmi kimlik belgenizdeki gibi aynı olmalıdır. İşe alım sürecinde dürüstlük için önemlidir."]
 - personal.birthDate (doğum tarihi): showSuggestions: false. hintExamples: Başarılı bir CV için doğum tarihinin net olması fayda sağlar gibi kısa ipucu.
@@ -243,6 +249,8 @@ function buildUserPrompt(state: AssistantState) {
         allowedKeys: state.allowedKeys,
         keyHints: state.keyHints ?? {},
         rule: "answerKey ve save.key sadece allowedKeys içinden seçilecek.",
+        sectionOrder:
+          "Soru sırası (doğal sohbet): personal.* → work.* → education.* → mobility.* → languages, certificates → finalNote. Aynı bölümde boş alanları bölüm içi mantıklı sırayla sor.",
       },
       now: new Date().toISOString(),
     },

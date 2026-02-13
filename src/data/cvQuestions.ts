@@ -576,26 +576,49 @@ export function getQuestionsFor(mode: "voice" | "chat" | "form"): CVQuestion[] {
 
 export const TOTAL_QUESTION_STEPS = CV_QUESTIONS.length;
 
-/** Yaygın erkek isimleri (küçük harf) — cinsiyet tahmini için */
+/** Yaygın erkek isimleri (normalize edilmiş küçük harf) — cinsiyet tahmini için */
 const MALE_FIRST_NAMES = new Set([
-  "ahmet", "mehmet", "ali", "mustafa", "hüseyin", "hasan", "ibrahim", "ismail", "osman", "yusuf",
-  "ömer", "ramazan", "halil", "süleyman", "abdullah", "mahmut", "recep", "salih", "fatih", "emre",
-  "can", "burak", "serkan", "murat", "volkan", "onur", "barış", "eren", "koray", "ugur", "uğur",
-  "cem", "tolga", "oguz", "oğuz", "berk", "alp", "kaan", "burak", "eren", "yasin", "yasir",
-  "muhammet", "muhammed", "adem", "ibrahim", "enver", "celal", "nihat", "orhan", "taner", "turgut",
+  "ahmet", "mehmet", "ali", "mustafa", "huseyin", "hasan", "ibrahim", "ismail", "osman", "yusuf",
+  "omer", "ramazan", "halil", "suleyman", "abdullah", "mahmut", "recep", "salih", "fatih", "emre",
+  "can", "burak", "serkan", "murat", "volkan", "onur", "baris", "eren", "koray", "ugur",
+  "cem", "tolga", "oguz", "berk", "alp", "kaan", "yasin", "yasir",
+  "muhammet", "muhammed", "adem", "enver", "celal", "nihat", "orhan", "taner", "turgut",
+  "bugra", "kerem", "berkay", "efe", "emir", "kadir", "halil", "yasin", "yusuf", "enes",
+  "arda", "burak", "deniz", "mert", "batuhan", "berke", "kutay", "alp", "kaan", "efe",
+  "oguzhan", "gokhan", "yilmaz", "ilker", "sinan", "selim", "ferhat", "gurkan",
 ]);
+
+/** İsim karşılaştırması için normalize: ğ→g, ı→i, ö→o, ü→u, ş→s, ç→c */
+function normalizeNameForHitap(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/ğ/g, "g")
+    .replace(/ı/g, "i")
+    .replace(/i/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z]/g, "");
+}
 
 /** İlk isimden hitap tahmini (Bey/Hanım). */
 export function inferHitapFromFullName(fullName: string): "Bey" | "Hanım" {
-  const first = fullName.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-zçğıöşü]/gi, "") ?? "";
-  return MALE_FIRST_NAMES.has(first) ? "Bey" : "Hanım";
+  const first = fullName.trim().split(/\s+/)[0] ?? "";
+  const normalized = normalizeNameForHitap(first);
+  if (!normalized) return "Hanım";
+  return MALE_FIRST_NAMES.has(normalized) ? "Bey" : "Hanım";
 }
 
-/** answers'tan tam ad + tahmin edilen hitap ile görüntü ismi (örn. "Ahmet Bey"). */
+/** answers'tan tam ad + hitap ile görüntü ismi (örn. "Ahmet Bey"). Kayıtlı personal.hitap yoksa isimden tahmin edilir. */
 export function getDisplayName(answers: Record<string, unknown>): string {
   const fullName = getAnswerBySaveKey(answers, "personal.fullName").trim();
   if (!fullName) return "";
   const firstName = fullName.split(/\s+/)[0] ?? fullName;
-  const hitap = inferHitapFromFullName(fullName);
+  const savedHitap = getAnswerBySaveKey(answers, "personal.hitap").trim();
+  const hitap =
+    savedHitap === "Bey" || savedHitap === "Hanım"
+      ? savedHitap
+      : inferHitapFromFullName(fullName);
   return `${firstName} ${hitap}`;
 }
