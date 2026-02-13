@@ -24,15 +24,17 @@ interface BrowserSpeechRecognition extends EventTarget {
   stop: () => void;
   onresult: ((e: SpeechResultEvent) => void) | null;
   onend: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
 }
 
 /**
  * Tarayıcı Web Speech API ile canlı transkript.
- * MVP: sadece bu kullanılır.
+ * continuous modda tüm segmentler birleştirilerek tam metin döner.
  */
 export function createBrowserSTT(
   onResult: (r: STTResult) => void,
-  onEnd: () => void
+  onEnd: () => void,
+  onError?: (error: string) => void
 ): { start: () => void; stop: () => void } {
   if (typeof window === "undefined") {
     return { start: () => {}, stop: () => {} };
@@ -43,6 +45,7 @@ export function createBrowserSTT(
   };
   const Ctor = Win.webkitSpeechRecognition ?? Win.SpeechRecognition;
   if (!Ctor) {
+    onError?.("Tarayıcı ses tanımayı desteklemiyor.");
     return { start: () => {}, stop: () => {} };
   }
   const recognition: BrowserSpeechRecognition = new Ctor();
@@ -50,13 +53,36 @@ export function createBrowserSTT(
   recognition.interimResults = true;
   recognition.lang = "tr-TR";
   recognition.onresult = (e: SpeechResultEvent) => {
+    // continuous modda tüm segmentleri birleştir (tam metin)
+    let text = "";
+    for (let i = 0; i < e.results.length; i++) {
+      const item = e.results[i];
+      if (item?.[0]?.transcript) text += item[0].transcript;
+    }
     const last = e.results[e.results.length - 1];
-    const text = last[0].transcript;
-    onResult({ text, isFinal: last.isFinal });
+    onResult({ text, isFinal: last?.isFinal ?? false });
   };
   recognition.onend = onEnd;
+  recognition.onerror = (e: { error?: string }) => {
+    const msg = e?.error === "not-allowed"
+      ? "Mikrofon izni verilmedi."
+      : e?.error === "no-speech"
+        ? "Ses algılanamadı."
+        : e?.error
+          ? String(e.error)
+          : "Ses tanıma hatası.";
+    onError?.(msg);
+    onEnd();
+  };
   return {
-    start: () => recognition.start(),
+    start: () => {
+      try {
+        recognition.start();
+      } catch (err) {
+        onError?.(err instanceof Error ? err.message : "Mikrofon başlatılamadı.");
+        onEnd();
+      }
+    },
     stop: () => recognition.stop(),
   };
 }

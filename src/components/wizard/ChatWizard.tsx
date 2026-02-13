@@ -175,10 +175,11 @@ export function ChatWizard({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, reply]);
 
+  // Ses bittiğinde (listening → idle/converting) transkripti input'a yaz; mikrofon deaktif olur, akış devam eder
   useEffect(() => {
     if (wasListeningRef.current && (voice.phase === "idle" || voice.phase === "converting")) {
       const text = (voice.getTranscript?.() ?? voice.transcript ?? "").trim();
-      if (text) setInput(text);
+      setInput((prev) => (text ? text : prev));
       wasListeningRef.current = false;
     }
     if (voice.phase === "listening") wasListeningRef.current = true;
@@ -271,13 +272,18 @@ export function ChatWizard({
   }, [input, voice.transcript]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 space-y-6 sm:space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col flex-1 min-h-0 rounded-2xl border border-slate-200 bg-white shadow-soft overflow-hidden"
+    <div className="cv-page-wrapper flex flex-col flex-1 min-h-0">
+      {/* Chat bölümü: kendi içinde scroll; fotoğraf adımında yükseklik sınırlı */}
+      <div
+        className={`chat-section flex flex-col min-h-0 flex-1 ${showCountryJob || showPhotoStep ? "overflow-hidden" : ""}`}
+        style={showCountryJob || showPhotoStep ? { minHeight: 0 } : undefined}
       >
-        <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-slate-50 px-4 sm:px-6 py-3 flex justify-between items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col h-full min-h-0 rounded-2xl border border-slate-200 bg-white shadow-soft overflow-hidden"
+        >
+          <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-slate-50 px-4 sm:px-6 py-3 flex justify-between items-center">
           <div>
             <p className="text-sm font-semibold text-slate-700">Sohbet ile CV bilgileri</p>
             <p className="text-xs text-slate-500">Gemini ile sohbet edin; yanıtlar otomatik kaydedilir.</p>
@@ -315,7 +321,7 @@ export function ChatWizard({
 
           {currentReply && !showCountryJob && !showPhotoStep && (
             <>
-              {(hintExamples.length > 0 || (currentReply.examples?.length ?? 0) > 0) && (
+              {hintExamples.length > 0 && (
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
@@ -327,7 +333,7 @@ export function ChatWizard({
                   </button>
                 </div>
               )}
-              {isTipsOpen && (hintExamples.length > 0 || (currentReply.examples?.length ?? 0) > 0) && (
+              {isTipsOpen && hintExamples.length > 0 && (
                 <>
                   <div
                     className="fixed inset-0 z-[100] bg-black/40 sm:flex sm:items-center sm:justify-center"
@@ -355,21 +361,7 @@ export function ChatWizard({
                       className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-2"
                       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
                     >
-                      {hintExamples.length > 0 && (
-                        <p className="text-xs font-medium text-slate-500 mb-2">İpuçları</p>
-                      )}
                       {hintExamples.map((c) => (
-                        <div
-                          key={c}
-                          className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-                        >
-                          {c}
-                        </div>
-                      ))}
-                      {(currentReply.examples?.length ?? 0) > 0 && (
-                        <p className="text-xs font-medium text-slate-500 mt-4 mb-2">Öneriler (kopyalayıp yapıştırabilirsiniz)</p>
-                      )}
-                      {(currentReply.examples ?? []).map((c) => (
                         <div
                           key={c}
                           className="w-full text-left rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
@@ -427,14 +419,22 @@ export function ChatWizard({
                     if (voice.phase === "listening") voice.stopSTT();
                     else voice.startSTT();
                   }}
-                  className={`rounded-xl p-2.5 shrink-0 ${
+                  className={`relative rounded-xl p-2.5 shrink-0 transition-colors ${
                     voice.phase === "listening"
-                      ? "bg-red-100 text-red-700 hover:bg-red-200"
+                      ? "bg-red-500 text-white hover:bg-red-600"
                       : "border border-slate-300 text-slate-600 hover:bg-slate-50"
                   }`}
                   aria-label={voice.phase === "listening" ? "Dinlemeyi durdur" : "Sesli yanıt"}
                 >
-                  <Mic className="h-5 w-5" />
+                  {voice.phase === "listening" && (
+                    <span
+                      className="absolute inset-0 rounded-xl animate-ping bg-red-500 opacity-40"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="relative">
+                    <Mic className="h-5 w-5" />
+                  </span>
                 </button>
               ) : (
                 <span
@@ -446,9 +446,16 @@ export function ChatWizard({
                 </span>
               )}
             </div>
+            {voice.lastError && (
+              <p className="mt-2 text-xs text-red-600" role="alert">
+                {voice.lastError}
+              </p>
+            )}
           </div>
         )}
-      </motion.div>
+        </motion.div>
+        {(showCountryJob || showPhotoStep) && <div className="shrink-0 h-6 sm:h-8" aria-hidden />}
+      </div>
 
       {showCountryJob && (
         <motion.div
@@ -515,7 +522,7 @@ export function ChatWizard({
       )}
 
       {showPhotoStep && (
-        <>
+        <div className="photo-section mt-6 sm:mt-8 shrink-0">
           <p className="text-slate-600 text-center mb-4">
             Son olarak, CV'niz için profesyonel bir fotoğraf yüklemek ister misiniz?
           </p>
@@ -560,7 +567,7 @@ export function ChatWizard({
               {isCompleting ? "Kaydediliyor…" : "Tamamla"}
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

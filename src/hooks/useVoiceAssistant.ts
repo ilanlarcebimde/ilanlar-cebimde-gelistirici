@@ -145,8 +145,13 @@ export function useVoiceAssistant() {
           setTranscript(r.text);
           scheduleSilenceStop();
         },
-        () => setPhase("idle")
+        () => setPhase("idle"),
+        (err) => {
+          setLastError(err);
+          setPhase("idle");
+        }
       );
+      setLastError(null);
       sttRef.current.start();
       scheduleSilenceStop();
     },
