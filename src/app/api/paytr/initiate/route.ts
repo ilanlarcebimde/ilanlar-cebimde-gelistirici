@@ -44,12 +44,17 @@ export async function POST(request: NextRequest) {
       };
     };
 
-    if (!merchant_oid || !email || amount == null || amount <= 0) {
+    const emailTrimmed = typeof email === "string" ? email.trim() : "";
+    if (!merchant_oid || !emailTrimmed || amount == null || amount <= 0) {
       return NextResponse.json(
         { success: false, error: "merchant_oid, email ve amount (0'dan büyük) zorunludur." },
         { status: 400 }
       );
     }
+
+    const user_name_val = typeof user_name === "string" ? user_name.trim().slice(0, 60) : "Müşteri";
+    const user_address_val = typeof user_address === "string" && user_address.trim() ? user_address.trim().slice(0, 400) : "Adres girilmedi";
+    const user_phone_val = typeof user_phone === "string" && user_phone.trim() ? user_phone.trim().slice(0, 20) : "5550000000";
 
     const supabase = getSupabaseAdmin();
     const snapshot =
@@ -78,14 +83,14 @@ export async function POST(request: NextRequest) {
     const token = await getPaytrToken(
       {
         merchant_oid,
-        email,
+        email: emailTrimmed,
         amount: Number(amount),
-        user_name,
-        user_address,
-        user_phone,
-        merchant_ok_url: merchant_ok_url || undefined,
-        merchant_fail_url: merchant_fail_url || undefined,
-        basket_description,
+        user_name: user_name_val || "Müşteri",
+        user_address: user_address_val,
+        user_phone: user_phone_val,
+        merchant_ok_url: typeof merchant_ok_url === "string" ? merchant_ok_url.trim() : undefined,
+        merchant_fail_url: typeof merchant_fail_url === "string" ? merchant_fail_url.trim() : undefined,
+        basket_description: typeof basket_description === "string" ? basket_description : undefined,
       },
       getClientIp(request)
     );
@@ -98,6 +103,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Ödeme başlatılamadı";
+    if (typeof message === "string" && (message.includes("Gerekli") || message.includes("gerekli") || message.includes("post"))) {
+      console.warn("[PayTR initiate] PayTR API hatası:", message);
+      return NextResponse.json(
+        { success: false, error: "Ödeme sağlayıcısı gerekli bilgileri alamadı. Lütfen sayfayı yenileyip tekrar deneyin. Sorun devam ederse destek ile iletişime geçin." },
+        { status: 502 }
+      );
+    }
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -121,10 +121,10 @@ export default function OdemePage() {
 
     const body = {
       merchant_oid,
-      email,
+      email: email.trim(),
       amount: AMOUNT,
-      user_name: user_name.trim().slice(0, 100),
-      user_address: "Adres bilgisi girilmedi",
+      user_name: user_name.trim().slice(0, 60),
+      user_address: "Adres girilmedi",
       user_phone: "5550000000",
       merchant_ok_url: `${siteUrl}/odeme/basarili`,
       merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
@@ -224,6 +224,9 @@ export default function OdemePage() {
 
           {iframeUrl && (
             <div ref={paytrIframeRef} className="overflow-visible">
+              <p className="mb-2 text-xs text-slate-500">
+                Formda &quot;Gerekli değerleri post ediniz&quot; uyarısı görürseniz kart numarası, son kullanma tarihi, CVC ve kart sahibi adını eksiksiz doldurun.
+              </p>
               {showPayHint && (
                 <p className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
                   Aşağıdaki güvenli formda &quot;Ödeme Yap&quot; butonuna tıklayın.

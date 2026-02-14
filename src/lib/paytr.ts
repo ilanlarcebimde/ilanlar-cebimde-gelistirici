@@ -114,27 +114,31 @@ export async function getPaytrToken(params: InitiateParams, userIp: string): Pro
   const merchant_ok_url = params.merchant_ok_url || `${siteUrl}/odeme/basarili`;
   const merchant_fail_url = params.merchant_fail_url || `${siteUrl}/odeme/basarisiz`;
 
-  const body = new URLSearchParams({
-    merchant_id,
-    user_ip: userIp,
-    merchant_oid,
-    email: params.email,
-    payment_amount,
-    paytr_token,
-    user_basket: user_basket_base64,
-    debug_on: "1",
-    no_installment,
-    max_installment,
-    currency,
-    test_mode,
-    timeout_limit: "30",
-    lang: "tr",
-    merchant_ok_url,
-    merchant_fail_url,
-    user_name: (params.user_name && String(params.user_name).trim()) || "Müşteri",
-    user_address: params.user_address || "Adres bilgisi girilmedi",
-    user_phone: params.user_phone || "5550000000",
-  });
+  const user_name = (params.user_name && String(params.user_name).trim()) || "Müşteri";
+  const user_address = (params.user_address && String(params.user_address).trim()) || "Adres girilmedi";
+  const user_phone = (params.user_phone && String(params.user_phone).trim()) || "5550000000";
+
+  const body = new URLSearchParams();
+  body.set("merchant_id", merchant_id);
+  body.set("user_ip", userIp);
+  body.set("merchant_oid", merchant_oid);
+  body.set("email", params.email.trim());
+  body.set("payment_amount", payment_amount);
+  body.set("paytr_token", paytr_token);
+  body.set("user_basket", user_basket_base64);
+  body.set("no_installment", no_installment);
+  body.set("max_installment", max_installment);
+  body.set("currency", currency);
+  body.set("test_mode", test_mode);
+  body.set("merchant_ok_url", merchant_ok_url);
+  body.set("merchant_fail_url", merchant_fail_url);
+  body.set("user_name", user_name.slice(0, 60));
+  body.set("user_address", user_address.slice(0, 400));
+  body.set("user_phone", user_phone.slice(0, 20));
+  body.set("debug_on", "1");
+  body.set("timeout_limit", "30");
+  body.set("lang", "tr");
+  body.set("iframe_v2", "1");
 
   const res = await fetch(PAYTR_GET_TOKEN_URL, {
     method: "POST",
