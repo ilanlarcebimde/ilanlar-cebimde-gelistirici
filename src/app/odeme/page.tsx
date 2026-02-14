@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 
 const AMOUNT = 549;
+const AMOUNT_DISPLAY = "549,00 TL";
 const BASKET_DESCRIPTION = "Usta Başvuru Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
 
@@ -14,12 +15,25 @@ function generateMerchantOid(): string {
 
 export default function OdemePage() {
   const router = useRouter();
+  const paytrIframeRef = useRef<HTMLDivElement>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [freeWithCoupon, setFreeWithCoupon] = useState(false);
+  const [showPayHint, setShowPayHint] = useState(false);
+
+  const scrollToPayForm = useCallback(() => {
+    paytrIframeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    setShowPayHint(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showPayHint) return;
+    const t = setTimeout(() => setShowPayHint(false), 5000);
+    return () => clearTimeout(t);
+  }, [showPayHint]);
 
   const applyCoupon = useCallback(async () => {
     const code = couponCode.trim().toUpperCase();
@@ -171,7 +185,11 @@ export default function OdemePage() {
           }
         }}
       />
-      <div className="min-h-screen bg-slate-50 py-8 px-4">
+      {/* Tek scroll: sayfa. overflow yok, touch-action pan-y ile mobil kaydırma serbest. */}
+      <div
+        className="min-h-screen bg-slate-50 py-8 px-4 pb-28"
+        style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+      >
         <div className="mx-auto max-w-2xl">
           <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
 
@@ -205,16 +223,42 @@ export default function OdemePage() {
           </div>
 
           {iframeUrl && (
-            <iframe
-              id="paytriframe"
-              src={iframeUrl}
-              className="w-full border-0 overflow-hidden"
-              style={{ minHeight: "500px" }}
-              title="PayTR ödeme"
-            />
+            <div ref={paytrIframeRef} className="overflow-visible">
+              {showPayHint && (
+                <p className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                  Aşağıdaki güvenli formda &quot;Ödeme Yap&quot; butonuna tıklayın.
+                </p>
+              )}
+              <iframe
+                id="paytriframe"
+                src={iframeUrl}
+                className="w-full border-0"
+                style={{ minHeight: "500px" }}
+                title="PayTR ödeme"
+              />
+            </div>
           )}
         </div>
       </div>
+
+      {/* Sticky CTA: her zaman görünür, klavye açıkken de erişilebilir (safe-area). */}
+      {iframeUrl && !freeWithCoupon && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-4 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <p className="text-sm font-medium text-slate-700">
+            Ödemeniz gereken tutar: <span className="text-slate-900">{AMOUNT_DISPLAY}</span>
+          </p>
+          <button
+            type="button"
+            onClick={scrollToPayForm}
+            className="shrink-0 rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation"
+          >
+            Ödeme Yap
+          </button>
+        </div>
+      )}
     </>
   );
 }
