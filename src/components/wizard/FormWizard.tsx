@@ -119,7 +119,6 @@ export function FormWizard({
   const [certExamplesOpen, setCertExamplesOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [jobAreaSearch, setJobAreaSearch] = useState("");
-  const [jobBranchSearch, setJobBranchSearch] = useState("");
 
   const currentQ = QUESTIONS[step];
   const value = currentQ ? getAnswerBySaveKey(answers, currentQ.saveKey) : "";
@@ -211,7 +210,7 @@ export function FormWizard({
       if (isEmailStep && isFormRequired && value.trim()) return isValidEmail(value);
       if (isFormRequired) return value.trim().length > 0;
     }
-    if (phase === "countryJob") return country && jobBranch;
+    if (phase === "countryJob") return country && jobArea;
     return true;
   };
 
@@ -253,7 +252,7 @@ export function FormWizard({
         <button
           type="button"
           onClick={goNext}
-          disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobBranch : false || isCompleting}
+          disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobArea : false || isCompleting}
           className="order-1 w-full sm:w-auto rounded-lg bg-slate-800 px-5 py-3 sm:py-2.5 text-sm font-medium text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:ring-offset-1 touch-manipulation hover:bg-slate-700 transition-colors"
         >
           {nextLabel == null ? (
@@ -816,23 +815,24 @@ export function FormWizard({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft"
+            className="mx-auto w-full max-w-[540px] rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
           >
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Hedef ülke ve meslek</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 text-center sm:text-left">Hedef ülke ve meslek</h3>
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ülke</label>
+                <label className="block text-sm font-medium text-slate-600 mb-1.5">Ülke</label>
                 <input
                   type="text"
                   value={countrySearch}
                   onChange={(e) => setCountrySearch(e.target.value)}
                   placeholder="Ülke ara..."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px]"
                 />
                 <select
                   value={country}
                   onChange={(e) => onCountryChange(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                  aria-label="Ülke seçin"
+                  className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px]"
                 >
                   <option value="">Seçin</option>
                   {COUNTRIES.filter((c) =>
@@ -843,13 +843,13 @@ export function FormWizard({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Meslek alanı</label>
+                <label className="block text-sm font-medium text-slate-600 mb-1.5">Meslek alanı</label>
                 <input
                   type="text"
                   value={jobAreaSearch}
                   onChange={(e) => setJobAreaSearch(e.target.value)}
                   placeholder="Alan ara..."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px]"
                 />
                 <select
                   value={jobArea}
@@ -857,7 +857,8 @@ export function FormWizard({
                     onJobAreaChange(e.target.value);
                     onJobBranchChange("");
                   }}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                  aria-label="Meslek alanı seçin"
+                  className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px]"
                 >
                   <option value="">Seçin</option>
                   {PROFESSION_AREAS.filter((a) =>
@@ -867,30 +868,6 @@ export function FormWizard({
                   ))}
                 </select>
               </div>
-              {jobArea && (
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Meslek dalı</label>
-                  <input
-                    type="text"
-                    value={jobBranchSearch}
-                    onChange={(e) => setJobBranchSearch(e.target.value)}
-                    placeholder="Dal ara..."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
-                  />
-                  <select
-                    value={jobBranch}
-                    onChange={(e) => onJobBranchChange(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
-                  >
-                    <option value="">Seçin</option>
-                    {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? [])
-                      .filter((b) => b.toLowerCase().includes(jobBranchSearch.trim().toLowerCase()))
-                      .map((b) => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                  </select>
-                </div>
-              )}
             </div>
           </motion.div>
         )}

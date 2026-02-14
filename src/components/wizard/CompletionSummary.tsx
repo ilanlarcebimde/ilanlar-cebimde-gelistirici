@@ -79,7 +79,7 @@ export function CompletionSummary({
           <span className="font-medium text-slate-800">Ülke:</span> {countryName || "—"}
         </p>
         <p className="text-slate-600">
-          <span className="font-medium text-slate-800">Meslek:</span> {jobArea} / {jobBranch || "—"}
+          <span className="font-medium text-slate-800">Meslek:</span> {jobArea}{jobBranch ? ` / ${jobBranch}` : ""}
         </p>
         <p className="text-slate-600">
           <span className="font-medium text-slate-800">Profil fotoğrafı:</span>{" "}
