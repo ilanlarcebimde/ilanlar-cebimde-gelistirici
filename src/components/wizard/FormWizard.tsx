@@ -179,13 +179,24 @@ export function FormWizard({
   const handleQuestionCardFocus = (e: React.FocusEvent) => {
     const t = e.target;
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) {
-      questionCardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      questionCardRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
   };
 
+  const nextLabel =
+    isCompleting
+      ? "Kaydediliyor…"
+      : phase === "questions" && step < QUESTIONS.length - 1
+      ? null
+      : phase === "questions"
+      ? "Devam et"
+      : phase === "countryJob"
+      ? "Devam et — Fotoğraf"
+      : "Tamamla";
+
   const footerButtons = (
     <>
-      <p className="text-[10px] text-slate-400 text-center mb-2 sm:mb-1.5">
+      <p className="text-[10px] text-slate-400 text-center mb-1.5">
         Bilgileriniz güvenle işlenir. Eksik alanlar sorun olmaz.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
@@ -193,25 +204,25 @@ export function FormWizard({
           type="button"
           onClick={goNext}
           disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobBranch : false || isCompleting}
-          className="order-1 w-full sm:w-auto rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:ring-offset-1 touch-manipulation hover:bg-slate-700 transition-colors"
+          className="order-1 w-full sm:w-auto rounded-lg bg-slate-800 px-5 py-3 sm:py-2.5 text-sm font-medium text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:ring-offset-1 touch-manipulation hover:bg-slate-700 transition-colors"
         >
-          {isCompleting
-            ? "Kaydediliyor…"
-            : phase === "questions" && step < QUESTIONS.length - 1
-            ? "İleri"
-            : phase === "questions"
-            ? "Devam et"
-            : phase === "countryJob"
-            ? "Devam et — Fotoğraf"
-            : "Tamamla"}
+          {nextLabel == null ? (
+            <>
+              <span className="sm:hidden">Devam Et</span>
+              <span className="hidden sm:inline">İleri</span>
+            </>
+          ) : (
+            nextLabel
+          )}
         </button>
         <button
           type="button"
           onClick={goBack}
           disabled={phase === "questions" && step === 0}
-          className="order-2 w-full sm:w-auto rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 touch-manipulation transition-colors"
+          className="order-2 w-full sm:w-auto rounded-lg border border-slate-200 bg-white px-5 py-3 sm:py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 touch-manipulation transition-colors"
         >
-          Geri
+          <span className="sm:hidden">Önceki Soru</span>
+          <span className="hidden sm:inline">Geri</span>
         </button>
       </div>
     </>
@@ -839,7 +850,7 @@ export function FormWizard({
         </div>
       </div>
       <div
-        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-100/90 bg-white px-4 py-2.5 sm:py-2"
+        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-100 bg-white px-4 py-2 sm:py-2"
         style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
       >
         {footerButtons}
