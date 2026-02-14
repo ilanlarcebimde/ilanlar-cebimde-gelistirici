@@ -458,67 +458,74 @@ export function ChatWizard({
       </div>
 
       {showCountryJob && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft"
-        >
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Hedef ülke ve meslek</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Ülke</label>
-              <select
-                value={country}
-                onChange={(e) => onCountryChange(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
-              >
-                <option value="">Seçin</option>
-                {COUNTRIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.flag} {c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Meslek alanı</label>
-              <select
-                value={jobArea}
-                onChange={(e) => {
-                  onJobAreaChange(e.target.value);
-                  onJobBranchChange("");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
-              >
-                <option value="">Seçin</option>
-                {PROFESSION_AREAS.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </div>
-            {jobArea && (
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Meslek dalı</label>
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Hedef ülke ve meslek</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ülke</label>
                 <select
-                  value={jobBranch}
-                  onChange={(e) => onJobBranchChange(e.target.value)}
+                  value={country}
+                  onChange={(e) => onCountryChange(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
                 >
                   <option value="">Seçin</option>
-                  {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? []).map((b) => (
-                    <option key={b} value={b}>{b}</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.flag} {c.name}</option>
                   ))}
                 </select>
               </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setPhase("photo")}
-            disabled={!country || !jobBranch}
-            className="mt-6 rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Meslek alanı</label>
+                <select
+                  value={jobArea}
+                  onChange={(e) => {
+                    onJobAreaChange(e.target.value);
+                    onJobBranchChange("");
+                  }}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+                >
+                  <option value="">Seçin</option>
+                  {PROFESSION_AREAS.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              {jobArea && (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Meslek dalı</label>
+                  <select
+                    value={jobBranch}
+                    onChange={(e) => onJobBranchChange(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+                  >
+                    <option value="">Seçin</option>
+                    {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? []).map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </motion.div>
+          <div
+            className="sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur p-4 mt-4 -mx-4 sm:mx-0 sm:mt-6"
+            style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
           >
-            Devam et — Fotoğraf
-          </button>
-        </motion.div>
+            <button
+              type="button"
+              onClick={() => setPhase("photo")}
+              disabled={!country || !jobBranch}
+              className="w-full sm:w-auto rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
+            >
+              Devam et — Fotoğraf
+            </button>
+          </div>
+        </>
       )}
 
       {showPhotoStep && (

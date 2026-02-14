@@ -134,7 +134,7 @@ export function WizardArea({
   }
 
   return (
-    <section className="flex-1 flex flex-col min-h-0 py-4 sm:py-12 bg-slate-50/50">
+    <section className="flex-1 flex flex-col min-h-0 overflow-y-auto py-4 sm:py-12 bg-slate-50/50">
       {completeError && (
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 mb-4 p-4 rounded-xl bg-red-50 text-red-700 text-sm">
           {completeError}

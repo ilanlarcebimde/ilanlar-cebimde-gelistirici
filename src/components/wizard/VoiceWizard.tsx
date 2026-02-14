@@ -9,6 +9,7 @@ import { getVoiceFieldRulesBundle } from "@/lib/assistant/fieldRules";
 import { createSession, loadSession } from "@/lib/assistant/sessionClient";
 import { unflattenCv } from "@/lib/assistant/applyFieldRules";
 import { PhotoUpload } from "./PhotoUpload";
+import { StepShell } from "./StepShell";
 import { VoiceWizardGeminiModal } from "./VoiceWizardGeminiModal";
 
 function newSessionId() {
@@ -133,8 +134,9 @@ export function VoiceWizard({
     });
   }
 
+  const isStepLayout = !geminiModalOpen && questionsComplete && (phase2 === "countryJob" || phase2 === "photo");
   return (
-    <div className="space-y-8">
+    <div className={isStepLayout ? "flex flex-col min-h-0 flex-1" : "space-y-8"}>
       {!geminiModalOpen && !questionsComplete && (
         <>
           <motion.div
@@ -211,68 +213,95 @@ export function VoiceWizard({
       />
 
       {!geminiModalOpen && questionsComplete && phase2 === "countryJob" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Hedef ülke ve meslek</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Ülke</label>
-              <select
-                value={country}
-                onChange={(e) => onCountryChange(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+        <StepShell
+          title="Hedef ülke ve meslek"
+          footer={
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setPhase2("photo")}
+                disabled={!country || !jobBranch}
+                className="w-full sm:w-auto rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50 hover:bg-slate-700"
               >
-                <option value="">Seçin</option>
-                {COUNTRIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.flag} {c.name}</option>
-                ))}
-              </select>
+                Devam et — Fotoğraf
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Meslek alanı</label>
-              <select
-                value={jobArea}
-                onChange={(e) => {
-                  onJobAreaChange(e.target.value);
-                  onJobBranchChange("");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
-              >
-                <option value="">Seçin</option>
-                {PROFESSION_AREAS.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </div>
-            {jobArea && (
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Meslek dalı</label>
+          }
+        >
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-soft">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ülke</label>
                 <select
-                  value={jobBranch}
-                  onChange={(e) => onJobBranchChange(e.target.value)}
+                  value={country}
+                  onChange={(e) => onCountryChange(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
                 >
                   <option value="">Seçin</option>
-                  {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? []).map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  )) ?? []}
+                  {COUNTRIES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.flag} {c.name}</option>
+                  ))}
                 </select>
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Meslek alanı</label>
+                <select
+                  value={jobArea}
+                  onChange={(e) => {
+                    onJobAreaChange(e.target.value);
+                    onJobBranchChange("");
+                  }}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+                >
+                  <option value="">Seçin</option>
+                  {PROFESSION_AREAS.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              {jobArea && (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Meslek dalı</label>
+                  <select
+                    value={jobBranch}
+                    onChange={(e) => onJobBranchChange(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
+                  >
+                    <option value="">Seçin</option>
+                    {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? []).map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setPhase2("photo")}
-            disabled={!country || !jobBranch}
-            className="mt-6 rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50 hover:bg-slate-700"
-          >
-            Devam et — Fotoğraf
-          </button>
-        </div>
+        </StepShell>
       )}
 
       {!geminiModalOpen && questionsComplete && phase2 === "photo" && (
-        <>
-          <p className="text-slate-600">
+        <StepShell
+          footer={
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setPhase2("countryJob")}
+                className="order-2 sm:order-1 w-full sm:w-auto rounded-xl border border-slate-300 px-6 py-3 text-slate-700 font-medium hover:bg-slate-50"
+              >
+                Geri
+              </button>
+              <button
+                type="button"
+                onClick={onComplete}
+                disabled={isCompleting}
+                className="order-1 sm:order-2 w-full sm:w-auto rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
+              >
+                {isCompleting ? "Kaydediliyor…" : "Tamamla"}
+              </button>
+            </div>
+          }
+        >
+          <p className="text-slate-600 mb-4">
             Son olarak, CV’niz için profesyonel bir fotoğraf yüklemek ister misiniz?
           </p>
           <PhotoUpload
@@ -283,24 +312,7 @@ export function VoiceWizard({
             onClear={onPhotoClear}
             userId={userId}
           />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPhase2("countryJob")}
-              className="rounded-xl border border-slate-300 px-6 py-3 text-slate-700 font-medium hover:bg-slate-50"
-            >
-              Geri
-            </button>
-            <button
-              type="button"
-              onClick={onComplete}
-              disabled={isCompleting}
-              className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium hover:bg-slate-700 disabled:opacity-50"
-            >
-              {isCompleting ? "Kaydediliyor…" : "Tamamla"}
-            </button>
-          </div>
-        </>
+        </StepShell>
       )}
     </div>
   );

@@ -28,6 +28,16 @@ export function WizardModal({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (open && selectedMethod) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [open, selectedMethod]);
+
   return (
     <AnimatePresence>
       {open && selectedMethod && (
@@ -48,7 +58,7 @@ export function WizardModal({
             exit={{ scale: 0.96, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-[96vw] max-w-none sm:w-full sm:max-w-[680px] h-[92vh] sm:h-auto sm:max-h-[85vh] rounded-2xl bg-white shadow-xl flex flex-col overflow-hidden"
+            className="relative w-[96vw] max-w-none sm:w-full sm:max-w-[680px] max-h-[85vh] md:max-h-[80vh] h-[92vh] sm:h-[85vh] rounded-2xl bg-white shadow-xl flex flex-col overflow-hidden"
           >
             <div className="shrink-0 flex justify-end p-3 sm:p-4 border-b border-slate-100">
               <button

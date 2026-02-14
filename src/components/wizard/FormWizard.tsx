@@ -13,7 +13,7 @@ import {
   dedupeOptions,
   FORM_PROFESSION_LIST,
 } from "@/data/cvQuestions";
-import { getTasksForProfessionTitle, getSkillsForBranch } from "@/data/professionLibrary";
+import { getTasksForProfessionTitle } from "@/data/professionLibrary";
 import { PhotoUpload } from "./PhotoUpload";
 import { Lightbulb } from "lucide-react";
 
@@ -132,24 +132,6 @@ export function FormWizard({
   const salaryMax = getAnswerBySaveKey(answers, "work.salaryMax");
   const salaryCurrency = getAnswerBySaveKey(answers, "work.salaryCurrency") || "EUR";
 
-  const suggestedSkills = (getAnswerBySaveKeyValue(answers, "work.suggestedSkills") as string[] | undefined) ?? [];
-  const setSuggestedSkills = (arr: string[]) => {
-    onAnswersChange(setAnswerBySaveKeyValue(answers, "work.suggestedSkills", arr));
-  };
-  const skillsResult = jobArea && jobBranch ? getSkillsForBranch(jobArea, jobBranch) : null;
-  const toggleSkill = (skill: string) => {
-    if (suggestedSkills.includes(skill)) setSuggestedSkills(suggestedSkills.filter((s) => s !== skill));
-    else setSuggestedSkills([...suggestedSkills, skill]);
-  };
-
-  useEffect(() => {
-    if (!jobArea || !jobBranch) return;
-    const res = getSkillsForBranch(jobArea, jobBranch);
-    if (suggestedSkills.length === 0 && res.skillRules.defaultSelect.length > 0) {
-      setSuggestedSkills(res.skillRules.defaultSelect);
-    }
-  }, [jobArea, jobBranch, suggestedSkills.length]);
-
   const setValue = (v: string) => {
     if (!currentQ) return;
     onAnswersChange(setAnswerBySaveKey(answers, currentQ.saveKey, v));
@@ -193,8 +175,39 @@ export function FormWizard({
     return true;
   };
 
+  const footerButtons = (
+    <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:gap-4">
+      <button
+        type="button"
+        onClick={goBack}
+        disabled={phase === "questions" && step === 0}
+        className="order-2 sm:order-1 w-full sm:w-auto rounded-xl border border-slate-300 px-6 py-3 text-slate-700 font-medium disabled:opacity-50"
+      >
+        Geri
+      </button>
+      <button
+        type="button"
+        onClick={goNext}
+        disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobBranch : false || isCompleting}
+        className="order-1 sm:order-2 w-full sm:w-auto rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
+      >
+        {isCompleting
+          ? "Kaydediliyor…"
+          : phase === "questions" && step < QUESTIONS.length - 1
+          ? "İleri"
+          : phase === "questions"
+          ? "Devam et"
+          : phase === "countryJob"
+          ? "Devam et — Fotoğraf"
+          : "Tamamla"}
+      </button>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col min-h-0 flex-1">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
+        <div className="space-y-6 max-w-2xl mx-auto">
       {/* Progress: Soru X / 26 */}
       {phase === "questions" && (
         <div className="flex items-center justify-between text-sm text-slate-600">
@@ -783,27 +796,6 @@ export function FormWizard({
                 </div>
               )}
             </div>
-            {skillsResult && jobBranch && (
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <h4 className="text-sm font-medium text-slate-800 mb-2">Beceri önerileri (6–12 seçebilirsiniz)</h4>
-                <div className="flex flex-wrap gap-2">
-                  {skillsResult.skills.map((skill) => (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => toggleSkill(skill)}
-                      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                        suggestedSkills.includes(skill)
-                          ? "border-slate-700 bg-slate-700 text-white"
-                          : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {skill}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </motion.div>
         )}
 
@@ -829,32 +821,13 @@ export function FormWizard({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="flex justify-between gap-4">
-        <button
-          type="button"
-          onClick={goBack}
-          disabled={(phase === "questions" && step === 0)}
-          className="rounded-xl border border-slate-300 px-6 py-3 text-slate-700 font-medium disabled:opacity-50"
-        >
-          Geri
-        </button>
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobBranch : false || isCompleting}
-          className="rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50"
-        >
-          {isCompleting
-            ? "Kaydediliyor…"
-            : phase === "questions" && step < QUESTIONS.length - 1
-            ? "İleri"
-            : phase === "questions"
-            ? "Devam et"
-            : phase === "countryJob"
-            ? "Devam et — Fotoğraf"
-            : "Tamamla"}
-        </button>
+        </div>
+      </div>
+      <div
+        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur p-4"
+        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+      >
+        {footerButtons}
       </div>
     </div>
   );
