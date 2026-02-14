@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
@@ -35,6 +35,43 @@ function isValidEmail(s: string): boolean {
 }
 
 type Phase = "questions" | "countryJob" | "photo";
+
+/** Mobil (max-width 640px) mi? */
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    setIsMobile(mq.matches);
+    const fn = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  return isMobile;
+}
+
+/** Mobilde viewport küçüldü mü (klavye açık)? */
+function useViewportSmall(): boolean {
+  const [small, setSmall] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    if (!mq.matches) {
+      setSmall(false);
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const threshold = 0.6 * window.innerHeight;
+    const update = () => setSmall(vv.height < threshold);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return small;
+}
 
 export function FormWizard({
   answers,
@@ -71,8 +108,11 @@ export function FormWizard({
   onComplete: () => void;
   isCompleting?: boolean;
 }) {
+  const isMobile = useIsMobile();
+  const viewportSmall = useViewportSmall();
   const [phase, setPhase] = useState<Phase>("questions");
   const [step, setStep] = useState(0);
+  const [inputFocused, setInputFocused] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [professionSearch, setProfessionSearch] = useState("");
   const [suggestedTasksForIndex, setSuggestedTasksForIndex] = useState<number | null>(null);
@@ -176,12 +216,22 @@ export function FormWizard({
   };
 
   const questionCardRef = useRef<HTMLDivElement>(null);
+  const focusMode = isMobile && (inputFocused || viewportSmall);
+
   const handleQuestionCardFocus = (e: React.FocusEvent) => {
     const t = e.target;
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) {
+      setInputFocused(true);
       questionCardRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
   };
+
+  const handleQuestionCardBlur = useCallback((e: React.FocusEvent) => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) {
+      setTimeout(() => setInputFocused(false), 120);
+    }
+  }, []);
 
   const nextLabel =
     isCompleting
@@ -230,8 +280,18 @@ export function FormWizard({
 
   return (
     <div className="flex flex-col min-h-0 flex-1">
-      {/* Sticky header: Soru X/25 + progress bar (sol), kompakt */}
-      {phase === "questions" && (
+      {/* Focus Mode (mobil, klavye açık): mini soru çubuğu — başlık + Soru X/25 */}
+      {phase === "questions" && focusMode && currentQ && (
+        <div className="shrink-0 px-3 py-2 border-b border-slate-100 bg-white sm:hidden">
+          <p className="text-xs font-medium text-slate-500 mb-0.5">Soru {step + 1} / {QUESTIONS.length}</p>
+          <p className="text-sm font-medium text-slate-800 leading-tight line-clamp-2" title={currentQ.question}>
+            {currentQ.question}
+          </p>
+        </div>
+      )}
+
+      {/* Normal header: Soru X/25 + progress (Focus Mode değilken veya desktop) */}
+      {phase === "questions" && !focusMode && (
         <div className="shrink-0 px-4 pt-2 pb-2 sm:pb-2 border-b border-slate-100/80 bg-white">
           <span className="text-xs font-medium text-slate-500 block mb-1">Soru {step + 1} / {QUESTIONS.length}</span>
           <div className="h-0.5 w-full max-w-[160px] sm:max-w-[140px] rounded-full bg-slate-200 overflow-hidden">
@@ -252,54 +312,64 @@ export function FormWizard({
           <motion.div
             ref={questionCardRef}
             onFocusCapture={handleQuestionCardFocus}
+            onBlurCapture={handleQuestionCardBlur}
             key={currentQ.id}
             initial={{ opacity: 0, x: 6 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -6 }}
-            className="rounded-lg border border-slate-200/90 bg-white p-4 sm:p-4 shadow-[0_1px_1px_rgba(0,0,0,0.04)]"
+            className={`rounded-lg border border-slate-200/90 bg-white shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${focusMode ? "p-3 sm:p-4" : "p-4 sm:p-4"}`}
           >
-            <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug tracking-tight">{currentQ.question}</h2>
-            {(currentQ.formHint ?? currentQ.hint) && (
-              <p className="flex items-center gap-1.5 text-xs text-slate-400 sm:text-slate-400/90 mb-2.5">
-                <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500/90" aria-hidden />
-                <span>{currentQ.formHint ?? currentQ.hint}</span>
+            {!focusMode && (
+              <>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug tracking-tight">{currentQ.question}</h2>
+                {(currentQ.formHint ?? currentQ.hint) && (
+                  <p className="flex items-center gap-1.5 text-xs text-slate-400 sm:text-slate-400/90 mb-2.5">
+                    <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500/90" aria-hidden />
+                    <span>{currentQ.formHint ?? currentQ.hint}</span>
+                  </p>
+                )}
+                {(currentQ.examples?.length ?? 0) > 0 && (
+                  <div className="mb-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setSuggestionsOpen((o) => !o)}
+                      className="rounded-md border border-slate-200 bg-slate-50/70 px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100/80 hover:border-slate-200 transition-colors"
+                    >
+                      Öneriler {suggestionsOpen ? "▼" : "▶"}
+                    </button>
+                  </div>
+                )}
+                {suggestionsOpen && (currentQ.examples?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2.5 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100">
+                    {(currentQ.examples ?? []).slice(0, 4).map((ex) => (
+                      <button
+                        key={ex}
+                        type="button"
+                        onClick={() => {
+                          // Sadece "Ek not" sorunda chip metne eklenir; diğer tüm sorularda öneriler ipucu, input'a yazılmaz.
+                          if (isFinalNote) setValue(value ? value + "\n" + ex : ex);
+                        }}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                      >
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {focusMode && (currentQ.formHint ?? currentQ.hint) && (
+              <p className="text-xs text-slate-400 mb-2 line-clamp-1">
+                {currentQ.formHint ?? currentQ.hint}
               </p>
-            )}
-            {(currentQ.examples?.length ?? 0) > 0 && (
-              <div className="mb-2.5">
-                <button
-                  type="button"
-                  onClick={() => setSuggestionsOpen((o) => !o)}
-                  className="rounded-md border border-slate-200 bg-slate-50/70 px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100/80 hover:border-slate-200 transition-colors"
-                >
-                  Öneriler {suggestionsOpen ? "▼" : "▶"}
-                </button>
-              </div>
-            )}
-            {suggestionsOpen && (currentQ.examples?.length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2.5 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100">
-                {(currentQ.examples ?? []).slice(0, 4).map((ex) => (
-                  <button
-                    key={ex}
-                    type="button"
-                    onClick={() => {
-                      // Sadece "Ek not" sorunda chip metne eklenir; diğer tüm sorularda öneriler ipucu, input'a yazılmaz.
-                      if (isFinalNote) setValue(value ? value + "\n" + ex : ex);
-                    }}
-                    className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-                  >
-                    {ex}
-                  </button>
-                ))}
-              </div>
             )}
             {currentQ.type === "multiline" ? (
               <textarea
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={currentQ.examples[0] || "Yanıtınızı yazın..."}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[140px] resize-y"
-                rows={6}
+                className={`w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 resize-y ${focusMode ? "min-h-[100px]" : "min-h-[140px]"}`}
+                rows={focusMode ? 3 : 6}
               />
             ) : isJobTitle ? (
               <div className="space-y-3">
