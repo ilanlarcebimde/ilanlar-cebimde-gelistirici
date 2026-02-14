@@ -185,15 +185,15 @@ export function FormWizard({
 
   const footerButtons = (
     <>
-      <p className="text-xs text-slate-500 text-center mb-3">
+      <p className="text-[11px] text-slate-400 text-center mb-2.5">
         Bilgileriniz güvenle işlenir. Eksik alanlar sorun olmaz.
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
         <button
           type="button"
           onClick={goNext}
           disabled={phase === "questions" && isFormRequired ? (isEmailStep ? !value?.trim() || !isValidEmail(value) : !value?.trim()) : phase === "countryJob" ? !country || !jobBranch : false || isCompleting}
-          className="order-1 w-full sm:w-auto rounded-xl bg-slate-800 px-6 py-3 text-white font-medium disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 touch-manipulation"
+          className="order-1 w-full sm:w-auto rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:ring-offset-1 touch-manipulation hover:bg-slate-700 transition-colors"
         >
           {isCompleting
             ? "Kaydediliyor…"
@@ -209,7 +209,7 @@ export function FormWizard({
           type="button"
           onClick={goBack}
           disabled={phase === "questions" && step === 0}
-          className="order-2 w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-6 py-3 text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 touch-manipulation"
+          className="order-2 w-full sm:w-auto rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 touch-manipulation transition-colors"
         >
           Geri
         </button>
@@ -219,54 +219,54 @@ export function FormWizard({
 
   return (
     <div className="flex flex-col min-h-0 flex-1">
-      {/* Sticky header: progress (soru adımında) */}
+      {/* Sticky header: Soru X/25 + progress bar (sol), kompakt */}
       {phase === "questions" && (
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
-          <span className="text-sm font-medium text-slate-600 whitespace-nowrap">Soru {step + 1} / {QUESTIONS.length}</span>
-          <div className="h-1.5 flex-1 min-w-0 rounded-full bg-slate-200 overflow-hidden">
+        <div className="shrink-0 px-4 pt-2 pb-2.5 border-b border-slate-100/80 bg-white">
+          <span className="text-xs font-medium text-slate-500 block mb-1.5">Soru {step + 1} / {QUESTIONS.length}</span>
+          <div className="h-1 w-full max-w-[200px] rounded-full bg-slate-200 overflow-hidden">
             <motion.div
-              className="h-full bg-slate-700 rounded-full"
+              className="h-full bg-slate-600 rounded-full"
               initial={false}
               animate={{ width: `${QUESTIONS.length > 0 ? ((step + 1) / QUESTIONS.length) * 100 : 0}%` }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.25 }}
             />
           </div>
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom))" }}>
-        <div className="space-y-4 max-w-xl mx-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-4" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
+        <div className="space-y-3 max-w-xl mx-auto">
       <AnimatePresence mode="wait">
         {phase === "questions" && currentQ && (
           <motion.div
             ref={questionCardRef}
             onFocusCapture={handleQuestionCardFocus}
             key={currentQ.id}
-            initial={{ opacity: 0, x: 8 }}
+            initial={{ opacity: 0, x: 6 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
-            className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+            exit={{ opacity: 0, x: -6 }}
+            className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
           >
-            <h2 className="text-xl font-semibold text-slate-900 mb-1.5 leading-snug">{currentQ.question}</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug">{currentQ.question}</h2>
             {(currentQ.formHint ?? currentQ.hint) && (
-              <p className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+              <p className="flex items-center gap-1.5 text-xs text-slate-400 mb-2.5">
+                <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500/90" aria-hidden />
                 <span>{currentQ.formHint ?? currentQ.hint}</span>
               </p>
             )}
             {(currentQ.examples?.length ?? 0) > 0 && (
-              <div className="mb-3">
+              <div className="mb-2.5">
                 <button
                   type="button"
                   onClick={() => setSuggestionsOpen((o) => !o)}
-                  className="rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-colors"
+                  className="rounded-md border border-slate-200 bg-slate-50/70 px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100/80 hover:border-slate-200 transition-colors"
                 >
                   Öneriler {suggestionsOpen ? "▼" : "▶"}
                 </button>
               </div>
             )}
             {suggestionsOpen && (currentQ.examples?.length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3 p-3 rounded-lg bg-slate-50/80 border border-slate-100">
+              <div className="flex flex-wrap gap-2 mb-2.5 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100">
                 {(currentQ.examples ?? []).slice(0, 4).map((ex) => (
                   <button
                     key={ex}
@@ -287,7 +287,7 @@ export function FormWizard({
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={currentQ.examples[0] || "Yanıtınızı yazın..."}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[140px] resize-y"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[140px] resize-y"
                 rows={6}
               />
             ) : isJobTitle ? (
@@ -297,12 +297,12 @@ export function FormWizard({
                   value={professionSearch}
                   onChange={(e) => setProfessionSearch(e.target.value)}
                   placeholder="Meslek ara..."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[44px]"
                 />
                 <select
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
                   aria-label="Meslek seçin"
                 >
                   <option value="">Seçin</option>
@@ -316,7 +316,7 @@ export function FormWizard({
                     value={jobTitleOther}
                     onChange={(e) => setJobTitleOther(e.target.value)}
                     placeholder="Mesleğinizi kısa yazın"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[44px]"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[44px]"
                   />
                 )}
               </div>
@@ -337,7 +337,7 @@ export function FormWizard({
                             setExperiences(next);
                           }}
                           placeholder="Şirket yoksa Serbest"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                         />
                       </div>
                       <div>
@@ -351,7 +351,7 @@ export function FormWizard({
                             setExperiences(next);
                           }}
                           placeholder="Örn. Elektrik ustası"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                         />
                       </div>
                     </div>
@@ -364,7 +364,7 @@ export function FormWizard({
                           next[idx] = { ...next[idx], duration: e.target.value };
                           setExperiences(next);
                         }}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                       >
                         <option value="">Seçin</option>
                         {DURATION_OPTIONS.map((o) => (
@@ -412,7 +412,7 @@ export function FormWizard({
                           setExperiences(next);
                         }}
                         placeholder="Her satıra bir madde"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[100px] text-slate-800 resize-y"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[100px] text-slate-800 resize-y"
                         rows={4}
                       />
                     </div>
@@ -433,7 +433,7 @@ export function FormWizard({
                   <select
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                   >
                     <option value="">Seçin</option>
                     {EDUCATION_LEVELS.map((o) => (
@@ -448,7 +448,7 @@ export function FormWizard({
                     value={getAnswerBySaveKey(answers, "education.schoolName")}
                     onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "education.schoolName", e.target.value))}
                     placeholder="İsterseniz yazın"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                   />
                 </div>
                 <div>
@@ -458,7 +458,7 @@ export function FormWizard({
                     value={getAnswerBySaveKey(answers, "education.department")}
                     onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "education.department", e.target.value))}
                     placeholder="İsterseniz yazın"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                   />
                 </div>
                 <div>
@@ -468,7 +468,7 @@ export function FormWizard({
                     value={getAnswerBySaveKey(answers, "education.graduationYear")}
                     onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "education.graduationYear", e.target.value))}
                     placeholder="Örn. 2015"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                   />
                 </div>
               </div>
@@ -477,7 +477,7 @@ export function FormWizard({
                 <select
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                 >
                   <option value="">Seçin</option>
                   <option value="Hayır">Hayır</option>
@@ -494,7 +494,7 @@ export function FormWizard({
                             next[idx] = { ...next[idx], lang: e.target.value };
                             setLanguagesList(next);
                           }}
-                          className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800 flex-1 min-w-[120px]"
+                          className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800 flex-1 min-w-[120px]"
                         >
                           <option value="">Dil</option>
                           {COMMON_LANGUAGES.map((l) => (
@@ -508,7 +508,7 @@ export function FormWizard({
                             next[idx] = { ...next[idx], level: e.target.value };
                             setLanguagesList(next);
                           }}
-                          className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800 w-[130px]"
+                          className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800 w-[130px]"
                         >
                           <option value="">Seviye</option>
                           {LANGUAGE_LEVELS.map((l) => (
@@ -531,7 +531,7 @@ export function FormWizard({
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
                   {DRIVING_OPTIONS.map((opt) => (
-                    <label key={opt} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 cursor-pointer hover:bg-slate-50">
+                    <label key={opt} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 cursor-pointer hover:bg-slate-50">
                       <input
                         type="checkbox"
                         checked={drivingLicenses.includes(opt)}
@@ -551,7 +551,7 @@ export function FormWizard({
                     value={drivingLicenseOther}
                     onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "mobility.drivingLicenseOther", e.target.value))}
                     placeholder="Açıklayın"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                   />
                 )}
               </div>
@@ -595,7 +595,7 @@ export function FormWizard({
                         setCertificatesList(next);
                       }}
                       placeholder="Sertifika adı"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input
@@ -607,7 +607,7 @@ export function FormWizard({
                           setCertificatesList(next);
                         }}
                         placeholder="Yıl"
-                        className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800"
+                        className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800"
                       />
                       <input
                         type="text"
@@ -618,7 +618,7 @@ export function FormWizard({
                           setCertificatesList(next);
                         }}
                         placeholder="Kurum"
-                        className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800"
+                        className="rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800"
                       />
                     </div>
                   </div>
@@ -636,7 +636,7 @@ export function FormWizard({
                 <select
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                 >
                   <option value="">Seçin</option>
                   <option value="Yazmak istemiyorum">Yazmak istemiyorum</option>
@@ -652,12 +652,12 @@ export function FormWizard({
                       value={salaryAmount}
                       onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "work.salaryAmount", e.target.value))}
                       placeholder="Tutar"
-                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                     />
                     <select
                       value={salaryCurrency}
                       onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "work.salaryCurrency", e.target.value))}
-                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                     >
                       {CURRENCIES.map((c) => (
                         <option key={c} value={c}>{c}</option>
@@ -673,7 +673,7 @@ export function FormWizard({
                       value={salaryMin}
                       onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "work.salaryMin", e.target.value))}
                       placeholder="Min"
-                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                     />
                     <input
                       type="text"
@@ -681,12 +681,12 @@ export function FormWizard({
                       value={salaryMax}
                       onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "work.salaryMax", e.target.value))}
                       placeholder="Max"
-                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                     />
                     <select
                       value={salaryCurrency}
                       onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "work.salaryCurrency", e.target.value))}
-                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                     >
                       {CURRENCIES.map((c) => (
                         <option key={c} value={c}>{c}</option>
@@ -701,7 +701,7 @@ export function FormWizard({
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   placeholder="İsterseniz ekleyin"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[140px] resize-y"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[140px] resize-y"
                   rows={6}
                 />
               </>
@@ -709,7 +709,7 @@ export function FormWizard({
               <select
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
                 aria-label={currentQ.question}
               >
                 <option value="">Seçin</option>
@@ -723,7 +723,7 @@ export function FormWizard({
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={currentQ.examples[0] || ""}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[44px]"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 placeholder:text-slate-400 min-h-[44px]"
               />
             )}
           </motion.div>
@@ -746,12 +746,12 @@ export function FormWizard({
                   value={countrySearch}
                   onChange={(e) => setCountrySearch(e.target.value)}
                   placeholder="Ülke ara..."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
                 />
                 <select
                   value={country}
                   onChange={(e) => onCountryChange(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
                 >
                   <option value="">Seçin</option>
                   {COUNTRIES.filter((c) =>
@@ -768,7 +768,7 @@ export function FormWizard({
                   value={jobAreaSearch}
                   onChange={(e) => setJobAreaSearch(e.target.value)}
                   placeholder="Alan ara..."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
                 />
                 <select
                   value={jobArea}
@@ -776,7 +776,7 @@ export function FormWizard({
                     onJobAreaChange(e.target.value);
                     onJobBranchChange("");
                   }}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
                 >
                   <option value="">Seçin</option>
                   {PROFESSION_AREAS.filter((a) =>
@@ -794,12 +794,12 @@ export function FormWizard({
                     value={jobBranchSearch}
                     onChange={(e) => setJobBranchSearch(e.target.value)}
                     placeholder="Dal ara..."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 mb-1 text-slate-800 min-h-[44px]"
                   />
                   <select
                     value={jobBranch}
                     onChange={(e) => onJobBranchChange(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/50 focus:ring-offset-1 text-slate-800 min-h-[44px]"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 text-slate-800 min-h-[44px]"
                   >
                     <option value="">Seçin</option>
                     {(PROFESSION_AREAS.find((a) => a.id === jobArea)?.branches ?? [])
@@ -839,8 +839,8 @@ export function FormWizard({
         </div>
       </div>
       <div
-        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4"
-        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-100 bg-white/98 backdrop-blur-[2px] px-4 py-3"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
       >
         {footerButtons}
       </div>
