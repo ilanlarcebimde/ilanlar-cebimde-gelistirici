@@ -58,7 +58,7 @@ export function WizardModal({
             exit={{ scale: 0.96, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-[96vw] max-w-none sm:w-full sm:max-w-[540px] max-h-[80vh] h-[78vh] sm:h-[80vh] rounded-[18px] bg-white shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-slate-200/70 flex flex-col overflow-hidden"
+            className="relative w-[96vw] max-w-none sm:w-full sm:max-w-[540px] max-h-[80vh] h-[78vh] sm:max-h-[75vh] sm:h-[75vh] rounded-[18px] bg-white shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-slate-200/70 flex flex-col overflow-hidden"
           >
             <div className="shrink-0 flex justify-end items-center min-h-[44px] px-3 py-1.5 sm:px-4 border-b border-slate-100/80 bg-white">
               <button

@@ -185,7 +185,7 @@ export function FormWizard({
 
   const footerButtons = (
     <>
-      <p className="text-[11px] text-slate-400 text-center mb-2.5">
+      <p className="text-[10px] text-slate-400 text-center mb-2 sm:mb-1.5">
         Bilgileriniz güvenle işlenir. Eksik alanlar sorun olmaz.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
@@ -221,9 +221,9 @@ export function FormWizard({
     <div className="flex flex-col min-h-0 flex-1">
       {/* Sticky header: Soru X/25 + progress bar (sol), kompakt */}
       {phase === "questions" && (
-        <div className="shrink-0 px-4 pt-2 pb-2.5 border-b border-slate-100/80 bg-white">
-          <span className="text-xs font-medium text-slate-500 block mb-1.5">Soru {step + 1} / {QUESTIONS.length}</span>
-          <div className="h-1 w-full max-w-[200px] rounded-full bg-slate-200 overflow-hidden">
+        <div className="shrink-0 px-4 pt-2 pb-2 sm:pb-2 border-b border-slate-100/80 bg-white">
+          <span className="text-xs font-medium text-slate-500 block mb-1">Soru {step + 1} / {QUESTIONS.length}</span>
+          <div className="h-0.5 w-full max-w-[160px] sm:max-w-[140px] rounded-full bg-slate-200 overflow-hidden">
             <motion.div
               className="h-full bg-slate-600 rounded-full"
               initial={false}
@@ -234,8 +234,8 @@ export function FormWizard({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-4" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
-        <div className="space-y-3 max-w-xl mx-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2.5 sm:pt-2 pb-4 flex flex-col" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
+        <div className="space-y-3 max-w-xl mx-auto w-full sm:min-h-full sm:flex sm:flex-col sm:justify-center">
       <AnimatePresence mode="wait">
         {phase === "questions" && currentQ && (
           <motion.div
@@ -245,11 +245,11 @@ export function FormWizard({
             initial={{ opacity: 0, x: 6 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -6 }}
-            className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+            className="rounded-lg border border-slate-200/90 bg-white p-4 sm:p-4 shadow-[0_1px_1px_rgba(0,0,0,0.04)]"
           >
-            <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug">{currentQ.question}</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug tracking-tight">{currentQ.question}</h2>
             {(currentQ.formHint ?? currentQ.hint) && (
-              <p className="flex items-center gap-1.5 text-xs text-slate-400 mb-2.5">
+              <p className="flex items-center gap-1.5 text-xs text-slate-400 sm:text-slate-400/90 mb-2.5">
                 <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500/90" aria-hidden />
                 <span>{currentQ.formHint ?? currentQ.hint}</span>
               </p>
@@ -839,8 +839,8 @@ export function FormWizard({
         </div>
       </div>
       <div
-        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-100 bg-white/98 backdrop-blur-[2px] px-4 py-3"
-        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        className="shrink-0 sticky bottom-0 left-0 right-0 border-t border-slate-100/90 bg-white px-4 py-2.5 sm:py-2"
+        style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
       >
         {footerButtons}
       </div>
