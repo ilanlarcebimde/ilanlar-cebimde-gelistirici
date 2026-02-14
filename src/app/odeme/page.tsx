@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
+import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT = 549;
 const AMOUNT_DISPLAY = "549,00 TL";
@@ -73,17 +74,12 @@ export default function OdemePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setCouponMessage({ type: "error", text: (data?.error as string) || "Sipariş kaydedilemedi. Lütfen tekrar deneyin." });
-          setFreeWithCoupon(false);
-          return;
-        }
+        await safeParseJsonResponse(res, { logPrefix: "[complete-coupon]" });
         sessionStorage.removeItem("paytr_pending");
         router.replace("/odeme/basarili");
       } catch (e) {
-        console.warn("complete-coupon error", e);
-        setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
+        const message = e instanceof Error ? e.message : "Bağlantı hatası. Lütfen tekrar deneyin.";
+        setCouponMessage({ type: "error", text: message });
         setFreeWithCoupon(false);
       }
       return;
@@ -137,15 +133,20 @@ export default function OdemePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
-      .then((res) => res.json())
-      .then((data) => {
+      .then(async (res) => {
+        const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
+          logPrefix: "[paytr/initiate]",
+        });
         if (data.success && data.iframe_url) {
           setIframeUrl(data.iframe_url);
         } else {
           setError(data.error || "Ödeme başlatılamadı");
         }
       })
-      .catch(() => setError("Bağlantı hatası"))
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : "Ödeme sayfası yüklenemedi. Lütfen tekrar deneyin.";
+        setError(message);
+      })
       .finally(() => setLoading(false));
   }, [router]);
 

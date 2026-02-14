@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { Profile, EventType } from "./supabase";
+import { safeParseJsonResponse } from "./safeJsonResponse";
 
 export async function saveProfileDraft(profile: Partial<Profile>): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,13 +20,13 @@ export async function saveProfileDraft(profile: Partial<Profile>): Promise<strin
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    console.warn("Profile draft save failed", res.status, j);
+  try {
+    const data = await safeParseJsonResponse<{ id?: string }>(res, { logPrefix: "[profile/draft]" });
+    return data?.id ?? null;
+  } catch (e) {
+    console.warn("Profile draft save failed", res.status, e);
     return null;
   }
-  const data = await res.json();
-  return data?.id ?? null;
 }
 
 export async function logEvent(
