@@ -53,14 +53,18 @@ export function createBrowserSTT(
   recognition.interimResults = true;
   recognition.lang = "tr-TR";
   recognition.onresult = (e: SpeechResultEvent) => {
-    // continuous modda tüm segmentleri birleştir (tam metin)
+    // continuous modda tüm segmentleri birleştir; ardışık tekrar eden segmentleri atla (tarih/sayı tekrarları önlenir)
     let text = "";
+    let lastSegment = "";
     for (let i = 0; i < e.results.length; i++) {
-      const item = e.results[i];
-      if (item?.[0]?.transcript) text += item[0].transcript;
+      const segment = (e.results[i]?.[0]?.transcript ?? "").trim();
+      if (!segment) continue;
+      if (segment === lastSegment) continue;
+      lastSegment = segment;
+      text += (text ? " " : "") + segment;
     }
     const last = e.results[e.results.length - 1];
-    onResult({ text, isFinal: last?.isFinal ?? false });
+    onResult({ text: text.trim(), isFinal: last?.isFinal ?? false });
   };
   recognition.onend = onEnd;
   recognition.onerror = (e: { error?: string }) => {
