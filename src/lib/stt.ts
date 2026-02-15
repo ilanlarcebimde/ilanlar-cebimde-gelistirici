@@ -53,18 +53,25 @@ export function createBrowserSTT(
   recognition.interimResults = true;
   recognition.lang = "tr-TR";
   recognition.onresult = (e: SpeechResultEvent) => {
-    // continuous modda tüm segmentleri birleştir; ardışık tekrar eden segmentleri atla (tarih/sayı tekrarları önlenir)
-    let text = "";
-    let lastSegment = "";
+    // continuous modda kümülatif segmentler gelir: "22" → "22 Nisan" → "22 Nisan 1927". Önceki segment
+    // yeni segmentin öneki ise yerine geçir (tekrarlı kelime/sayı yazılmasın).
+    const segments: string[] = [];
     for (let i = 0; i < e.results.length; i++) {
       const segment = (e.results[i]?.[0]?.transcript ?? "").trim();
       if (!segment) continue;
-      if (segment === lastSegment) continue;
-      lastSegment = segment;
-      text += (text ? " " : "") + segment;
+      const last = segments[segments.length - 1];
+      if (segment === last) continue;
+      if (last && segment.startsWith(last)) {
+        segments[segments.length - 1] = segment;
+      } else if (last && last.startsWith(segment)) {
+        continue;
+      } else {
+        segments.push(segment);
+      }
     }
+    const text = segments.join(" ").trim();
     const last = e.results[e.results.length - 1];
-    onResult({ text: text.trim(), isFinal: last?.isFinal ?? false });
+    onResult({ text, isFinal: last?.isFinal ?? false });
   };
   recognition.onend = onEnd;
   recognition.onerror = (e: { error?: string }) => {

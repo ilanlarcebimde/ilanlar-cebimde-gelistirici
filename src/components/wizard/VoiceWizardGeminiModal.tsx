@@ -7,7 +7,7 @@ import { NormalizeConfirm } from "@/components/wizard/NormalizeConfirm";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { setAnswerBySaveKey, inferHitapFromFullName } from "@/data/cvQuestions";
 import { cleanTextForTTS } from "@/lib/ttsClean";
-import { normalizeDateTranscript } from "@/lib/dateTranscriptNormalize";
+import { normalizeVoiceTranscript } from "@/lib/dateTranscriptNormalize";
 
 type AssistantNextAction = "ASK" | "CLARIFY" | "SAVE_AND_NEXT" | "FINISH";
 
@@ -246,8 +246,8 @@ export function VoiceWizardGeminiModal({
     const spoken = (voice.getTranscript() ?? "").trim();
     const typed = (localText ?? "").trim();
     let finalText = (overrideText ?? (typed.length > 0 ? typed : spoken)).trim();
-    if (reply?.answerKey === "personal.birthDate" && finalText) {
-      finalText = normalizeDateTranscript(finalText);
+    if (!overrideText && !typed.length && finalText) {
+      finalText = normalizeVoiceTranscript(finalText);
     }
 
     if (!finalText) {
@@ -587,12 +587,7 @@ export function VoiceWizardGeminiModal({
             <textarea
               className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-800"
               rows={4}
-              value={
-                localText ||
-                (reply?.answerKey === "personal.birthDate"
-                  ? normalizeDateTranscript(voice.transcript)
-                  : voice.transcript)
-              }
+              value={localText || normalizeVoiceTranscript(voice.transcript)}
               onChange={(e) => setLocalText(e.target.value)}
               placeholder="Konuşarak veya yazarak cevap ver…"
             />

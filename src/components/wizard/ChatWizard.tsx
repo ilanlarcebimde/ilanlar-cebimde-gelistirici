@@ -7,6 +7,7 @@ import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
 import { setAnswerBySaveKey, setAnswerBySaveKeyValue, getAnswerBySaveKey } from "@/data/cvQuestions";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
+import { normalizeVoiceTranscript } from "@/lib/dateTranscriptNormalize";
 import { PhotoUpload } from "./PhotoUpload";
 import { getChatFieldRulesBundle } from "@/lib/assistant/fieldRules";
 
@@ -178,7 +179,8 @@ export function ChatWizard({
   // Ses bittiğinde (listening → idle/converting) transkripti input'a yaz; mikrofon deaktif olur, akış devam eder
   useEffect(() => {
     if (wasListeningRef.current && (voice.phase === "idle" || voice.phase === "converting")) {
-      const text = (voice.getTranscript?.() ?? voice.transcript ?? "").trim();
+      const raw = (voice.getTranscript?.() ?? voice.transcript ?? "").trim();
+      const text = raw ? normalizeVoiceTranscript(raw) : "";
       setInput((prev) => (text ? text : prev));
       wasListeningRef.current = false;
     }
@@ -396,7 +398,7 @@ export function ChatWizard({
             <div className="flex gap-2 min-w-0 items-end">
               <textarea
                 ref={textareaRef}
-                value={voice.phase === "listening" ? voice.transcript : input}
+                value={voice.phase === "listening" ? normalizeVoiceTranscript(voice.transcript) : input}
                 onChange={(e) => voice.phase !== "listening" && setInput(e.target.value)}
                 onInput={handleTextareaInput}
                 placeholder={voice.phase === "listening" ? "Dinleniyor…" : "Yanıtınızı yazın..."}
