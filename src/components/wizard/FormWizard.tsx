@@ -683,7 +683,7 @@ export function FormWizard({
                       </div>
                     )}
                   </>
-                ) : educationAddMore === "Evet" ? (
+                ) : educationAddMore === "Evet" || (educationList.length > 0 && educationAddMore === "") ? (
                   <>
                     {educationList.map((edu, idx) => (
                       <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
@@ -762,10 +762,24 @@ export function FormWizard({
                         </button>
                       </div>
                     )}
+                    {educationList.length > 0 && educationAddMore === "" && (
+                      <div className="pt-3 border-t border-slate-200">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Başka bir eğitim eklemek ister misiniz?</label>
+                        <select
+                          value={educationAddMore}
+                          onChange={(e) => setEducationAddMore(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                        >
+                          <option value="">Seçin</option>
+                          <option value="Evet">Evet</option>
+                          <option value="Hayır">Hayır</option>
+                        </select>
+                      </div>
+                    )}
                   </>
-                ) : (
+                ) : educationList.length > 0 && educationAddMore === "Hayır" ? (
                   <div className="text-sm text-slate-600">Eğitim bilgisi kaydedildi.</div>
-                )}
+                ) : null}
               </div>
             ) : isLanguages ? (
               <div className="space-y-3">
