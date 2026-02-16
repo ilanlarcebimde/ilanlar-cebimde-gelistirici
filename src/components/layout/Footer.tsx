@@ -93,11 +93,11 @@ export function Footer() {
               Politikalar
             </h3>
             <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
-            <ul className="mt-4 grid grid-cols-2 gap-x-10 gap-y-2">
+            <ul className="mt-4 flex flex-col gap-y-2">
               {POLITIKALAR_ITEMS.map((label) => (
                 <li key={label} className="min-w-0">
                   <span
-                    className="pointer-events-none cursor-default block whitespace-normal break-words text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                    className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
                     aria-hidden
                   >
                     {label}
