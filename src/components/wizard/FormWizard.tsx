@@ -133,8 +133,6 @@ export function FormWizard({
   const isCertificates = currentQ?.id === "certificates";
   const isSalaryNote = currentQ?.id === "salary_note";
   const isFinalNote = currentQ?.id === "final_note";
-  
-  const [educationAddMore, setEducationAddMore] = useState<string>("");
 
   const jobTitleOther = currentQ && isJobTitle ? getAnswerBySaveKey(answers, "work.titleOther") : "";
   const setJobTitleOther = (v: string) => {
