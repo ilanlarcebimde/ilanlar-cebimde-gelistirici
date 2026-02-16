@@ -3,11 +3,19 @@
 import { useState, useRef, useEffect } from "react";
 import { Info } from "lucide-react";
 
-const KURUMSAL_ITEMS = [
-  "Hakkımızda",
-  "İletişim",
-  "Sık Sorulan Sorular",
-  "Politikalar",
+const KURUMSAL_ITEMS = ["Hakkımızda", "İletişim", "SSS"];
+
+const POLITIKALAR_ITEMS = [
+  "Çerez Politikası",
+  "Gizlilik Politikası",
+  "Hizmet Sözleşmesi",
+  "Kullanım Koşulları",
+  "İade ve Geri Ödeme",
+  "Alışveriş Güvenliği",
+  "Müşteri Hizmetleri Politikası",
+  "Mesafeli Satış Sözleşmesi",
+  "Sorumluluk Reddi Beyanı",
+  "Uluslararası Yasal Uyum",
 ];
 
 export function Footer() {
@@ -40,8 +48,8 @@ export function Footer() {
   return (
     <footer className="border-t border-slate-200/70 bg-white">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="grid gap-10 md:grid-cols-3">
-          {/* Sol blok — Kurumsal tanım */}
+        <div className="grid gap-8 sm:gap-10 md:grid-cols-4">
+          {/* 1. Brand */}
           <div className="flex flex-col">
             <h2 className="text-base font-semibold tracking-tight text-slate-900">
               İlanlar Cebimde
@@ -60,7 +68,7 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Orta blok — Kurumsal */}
+          {/* 2. Kurumsal */}
           <div>
             <h3 className="text-sm font-semibold text-slate-800">Kurumsal</h3>
             <ul className="mt-4 space-y-2.5">
@@ -77,7 +85,24 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Sağ blok — İletişim */}
+          {/* 3. Politikalar */}
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Politikalar</h3>
+            <ul className="mt-4 grid gap-2 sm:gap-2.5 md:grid-cols-2 md:gap-x-4 md:gap-y-2">
+              {POLITIKALAR_ITEMS.map((label) => (
+                <li key={label}>
+                  <span
+                    className="cursor-default text-sm text-slate-600 transition-colors hover:text-slate-700"
+                    aria-hidden
+                  >
+                    {label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 4. İletişim */}
           <div>
             <h3 className="text-sm font-semibold text-slate-800">İletişim</h3>
             <div className="mt-4 space-y-2.5">
