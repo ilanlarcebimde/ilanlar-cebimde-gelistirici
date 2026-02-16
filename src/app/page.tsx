@@ -11,7 +11,7 @@ import { CountriesAndJobsSection } from "@/components/CountriesAndJobsSection";
 import { CvWhySection } from "@/components/CvWhySection";
 import { WhatWeSolveSection } from "@/components/WhatWeSolveSection";
 import { FinalCtaSection } from "@/components/FinalCtaSection";
-import { Footer } from "@/components/Footer";
+import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { StickyCta } from "@/components/StickyCta";
 import type { WizardMethod } from "@/components/wizard/WizardTypes";
