@@ -21,7 +21,8 @@ const DURATION_OPTIONS = ["0–6 ay", "6–12 ay", "1–3 yıl", "3–5 yıl", "
 const EDUCATION_LEVELS = ["İlkokul", "Ortaokul", "Lise", "Meslek lisesi", "Ön lisans", "Lisans", "Diğer"];
 const LANGUAGE_LEVELS = ["Başlangıç", "Orta", "İyi", "Çok iyi"];
 const COMMON_LANGUAGES = ["Almanca", "İngilizce", "Fransızca", "Arapça", "Rusça", "Hollandaca", "Diğer"];
-const DRIVING_OPTIONS = ["Yok", "A", "B", "C", "CE", "D", "Diğer"];
+const DRIVING_OPTIONS = ["Yok", "A1", "A2", "A", "B1", "B", "BE", "C1", "C1E", "C", "CE", "D1", "D1E", "D", "DE", "F", "M", "G", "Diğer"];
+const PASSPORT_TYPES = ["Umuma", "Hususi", "Hizmet", "Diplomatik"];
 const CERT_EXAMPLES = ["MYK Mesleki Yeterlilik", "Ustalık belgesi", "Hijyen belgesi", "İSG eğitimi", "Forklift belgesi"];
 const CURRENCIES = ["TRY", "EUR", "USD", "GBP"];
 
@@ -119,6 +120,7 @@ export function FormWizard({
   const [certExamplesOpen, setCertExamplesOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [jobAreaSearch, setJobAreaSearch] = useState("");
+  const [educationAddMore, setEducationAddMore] = useState<string>("");
 
   const currentQ = QUESTIONS[step];
   const value = currentQ ? getAnswerBySaveKey(answers, currentQ.saveKey) : "";
@@ -127,9 +129,12 @@ export function FormWizard({
   const isEducation = currentQ?.id === "education";
   const isLanguages = currentQ?.id === "languages";
   const isDrivingLicense = currentQ?.id === "driving_license";
+  const isPassport = currentQ?.id === "passport";
   const isCertificates = currentQ?.id === "certificates";
   const isSalaryNote = currentQ?.id === "salary_note";
   const isFinalNote = currentQ?.id === "final_note";
+  
+  const [educationAddMore, setEducationAddMore] = useState<string>("");
 
   const jobTitleOther = currentQ && isJobTitle ? getAnswerBySaveKey(answers, "work.titleOther") : "";
   const setJobTitleOther = (v: string) => {
@@ -160,11 +165,26 @@ export function FormWizard({
   };
   const drivingLicenseOther = getAnswerBySaveKey(answers, "mobility.drivingLicenseOther");
 
+  type EducationItem = { level: string; schoolName?: string; department?: string; graduationYear?: string };
+  const educationList = (getAnswerBySaveKeyValue(answers, "education.list") as EducationItem[] | undefined) ?? [];
+  const setEducationList = (arr: EducationItem[]) => {
+    onAnswersChange(setAnswerBySaveKeyValue(answers, "education.list", arr));
+  };
+  const currentEducationLevel = getAnswerBySaveKey(answers, "education.primary");
+  const currentEducationSchool = getAnswerBySaveKey(answers, "education.schoolName");
+  const currentEducationDept = getAnswerBySaveKey(answers, "education.department");
+  const currentEducationYear = getAnswerBySaveKey(answers, "education.graduationYear");
+
   type CertItem = { name: string; year?: string; org?: string };
   const certificatesList = (getAnswerBySaveKeyValue(answers, "certificates.list") as CertItem[] | undefined) ?? [];
   const setCertificatesList = (arr: CertItem[]) => {
     onAnswersChange(setAnswerBySaveKeyValue(answers, "certificates.list", arr));
   };
+  
+  const passportValue = getAnswerBySaveKey(answers, "mobility.passport");
+  const passportType = getAnswerBySaveKey(answers, "mobility.passportType");
+  const passportExpiry = getAnswerBySaveKey(answers, "mobility.passportExpiry");
+  const visaNote = getAnswerBySaveKey(answers, "mobility.visaNote");
 
   const salaryAmount = getAnswerBySaveKey(answers, "work.salaryAmount");
   const salaryMin = getAnswerBySaveKey(answers, "work.salaryMin");
@@ -178,6 +198,16 @@ export function FormWizard({
 
   const goNext = () => {
     setSuggestionsOpen(false);
+    // Eğitim adımında: İlk eğitim hem education.primary hem education.list[0]'a kaydedilmeli
+    if (isEducation && value && educationList.length === 0 && educationAddMore !== "Evet") {
+      const firstItem: EducationItem = {
+        level: value,
+        schoolName: currentEducationSchool || undefined,
+        department: currentEducationDept || undefined,
+        graduationYear: currentEducationYear || undefined,
+      };
+      setEducationList([firstItem]);
+    }
     if (phase === "questions") {
       if (step < QUESTIONS.length - 1) setStep((s) => s + 1);
       else setPhase("countryJob");
@@ -201,7 +231,12 @@ export function FormWizard({
     (p) => p.toLowerCase().includes(professionSearch.trim().toLowerCase())
   );
 
-  const isFormRequired = currentQ ? (currentQ.formRequired ?? currentQ.required) : false;
+  // Sadece kritik alanlar required: Ad Soyad, E-posta/Telefon, Ülke, Meslek alanı
+  const isCriticalRequired = currentQ?.saveKey === "personal.fullName" || 
+                              currentQ?.saveKey === "personal.email" || 
+                              currentQ?.saveKey === "personal.phone" ||
+                              currentQ?.saveKey === "work.title";
+  const isFormRequired = currentQ ? (isCriticalRequired ? (currentQ.formRequired ?? currentQ.required) : false) : false;
   const isEmailStep = currentQ?.saveKey === "personal.email";
 
   const canNext = () => {
@@ -340,19 +375,28 @@ export function FormWizard({
                 )}
                 {suggestionsOpen && (currentQ.examples?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2.5 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100">
-                    {(currentQ.examples ?? []).slice(0, 4).map((ex) => (
-                      <button
-                        key={ex}
-                        type="button"
-                        onClick={() => {
-                          // Sadece "Ek not" sorunda chip metne eklenir; diğer tüm sorularda öneriler ipucu, input'a yazılmaz.
-                          if (isFinalNote) setValue(value ? value + "\n" + ex : ex);
-                        }}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-                      >
-                        {ex}
-                      </button>
-                    ))}
+                    {(currentQ.examples ?? []).slice(0, 4).map((ex) => {
+                      const isClickable = !currentQ.examplesClickable || currentQ.examplesClickable !== false;
+                      return (
+                        <button
+                          key={ex}
+                          type="button"
+                          onClick={() => {
+                            if (!isClickable) return;
+                            if (currentQ.type === "select") {
+                              setValue(ex);
+                            } else if (currentQ.type === "multiline") {
+                              setValue(value ? value + "\n" + ex : ex);
+                            } else {
+                              setValue(ex);
+                            }
+                          }}
+                          className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                        >
+                          {ex}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </>
@@ -508,49 +552,206 @@ export function FormWizard({
               </div>
             ) : isEducation ? (
               <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Seviye</label>
-                  <select
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
-                  >
-                    <option value="">Seçin</option>
-                    {EDUCATION_LEVELS.map((o) => (
-                      <option key={o} value={o}>{o}</option>
+                {educationList.length === 0 ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Seviye</label>
+                      <select
+                        value={value}
+                        onChange={(e) => {
+                          setValue(e.target.value);
+                          if (e.target.value && currentEducationSchool) {
+                            const newItem: EducationItem = {
+                              level: e.target.value,
+                              schoolName: currentEducationSchool || undefined,
+                              department: currentEducationDept || undefined,
+                              graduationYear: currentEducationYear || undefined,
+                            };
+                            setEducationList([newItem]);
+                          }
+                        }}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      >
+                        <option value="">Seçin</option>
+                        {EDUCATION_LEVELS.map((o) => (
+                          <option key={o} value={o}>{o}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-600 mb-1">Okul adı (opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={currentEducationSchool}
+                        onChange={(e) => {
+                          onAnswersChange(setAnswerBySaveKey(answers, "education.schoolName", e.target.value));
+                          if (value) {
+                            const newItem: EducationItem = {
+                              level: value,
+                              schoolName: e.target.value || undefined,
+                              department: currentEducationDept || undefined,
+                              graduationYear: currentEducationYear || undefined,
+                            };
+                            setEducationList([newItem]);
+                          }
+                        }}
+                        placeholder="İsterseniz yazın"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-600 mb-1">Bölüm / Alan (opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={currentEducationDept}
+                        onChange={(e) => {
+                          onAnswersChange(setAnswerBySaveKey(answers, "education.department", e.target.value));
+                          if (value) {
+                            const newItem: EducationItem = {
+                              level: value,
+                              schoolName: currentEducationSchool || undefined,
+                              department: e.target.value || undefined,
+                              graduationYear: currentEducationYear || undefined,
+                            };
+                            setEducationList([newItem]);
+                          }
+                        }}
+                        placeholder="İsterseniz yazın"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-600 mb-1">Mezuniyet yılı (opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={currentEducationYear}
+                        onChange={(e) => {
+                          onAnswersChange(setAnswerBySaveKey(answers, "education.graduationYear", e.target.value));
+                          if (value) {
+                            const newItem: EducationItem = {
+                              level: value,
+                              schoolName: currentEducationSchool || undefined,
+                              department: currentEducationDept || undefined,
+                              graduationYear: e.target.value || undefined,
+                            };
+                            setEducationList([newItem]);
+                          }
+                        }}
+                        placeholder="Örn. 2015"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      />
+                    </div>
+                    {value && educationAddMore === "" && (
+                      <div className="pt-2 border-t border-slate-200">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Başka bir eğitim eklemek ister misiniz?</label>
+                        <select
+                          value={educationAddMore}
+                          onChange={(e) => {
+                            setEducationAddMore(e.target.value);
+                            const firstItem: EducationItem = {
+                              level: value,
+                              schoolName: currentEducationSchool || undefined,
+                              department: currentEducationDept || undefined,
+                              graduationYear: currentEducationYear || undefined,
+                            };
+                            if (e.target.value === "Evet") {
+                              setEducationList([firstItem]);
+                            } else if (e.target.value === "Hayır") {
+                              setEducationList([firstItem]);
+                            }
+                          }}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                        >
+                          <option value="">Seçin</option>
+                          <option value="Evet">Evet</option>
+                          <option value="Hayır">Hayır</option>
+                        </select>
+                      </div>
+                    )}
+                  </>
+                ) : educationAddMore === "Evet" ? (
+                  <>
+                    {educationList.map((edu, idx) => (
+                      <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                        <div className="text-xs font-medium text-slate-600">Eğitim {idx + 1}</div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Seviye</label>
+                          <select
+                            value={edu.level}
+                            onChange={(e) => {
+                              const next = [...educationList];
+                              next[idx] = { ...next[idx], level: e.target.value };
+                              setEducationList(next);
+                            }}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                          >
+                            <option value="">Seçin</option>
+                            {EDUCATION_LEVELS.map((o) => (
+                              <option key={o} value={o}>{o}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-600 mb-1">Okul adı (opsiyonel)</label>
+                          <input
+                            type="text"
+                            value={edu.schoolName || ""}
+                            onChange={(e) => {
+                              const next = [...educationList];
+                              next[idx] = { ...next[idx], schoolName: e.target.value || undefined };
+                              setEducationList(next);
+                            }}
+                            placeholder="İsterseniz yazın"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-600 mb-1">Bölüm / Alan (opsiyonel)</label>
+                          <input
+                            type="text"
+                            value={edu.department || ""}
+                            onChange={(e) => {
+                              const next = [...educationList];
+                              next[idx] = { ...next[idx], department: e.target.value || undefined };
+                              setEducationList(next);
+                            }}
+                            placeholder="İsterseniz yazın"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-600 mb-1">Mezuniyet yılı (opsiyonel)</label>
+                          <input
+                            type="text"
+                            value={edu.graduationYear || ""}
+                            onChange={(e) => {
+                              const next = [...educationList];
+                              next[idx] = { ...next[idx], graduationYear: e.target.value || undefined };
+                              setEducationList(next);
+                            }}
+                            placeholder="Örn. 2015"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                          />
+                        </div>
+                      </div>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">Okul adı (opsiyonel)</label>
-                  <input
-                    type="text"
-                    value={getAnswerBySaveKey(answers, "education.schoolName")}
-                    onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "education.schoolName", e.target.value))}
-                    placeholder="İsterseniz yazın"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">Bölüm / Alan (opsiyonel)</label>
-                  <input
-                    type="text"
-                    value={getAnswerBySaveKey(answers, "education.department")}
-                    onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "education.department", e.target.value))}
-                    placeholder="İsterseniz yazın"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">Mezuniyet yılı (opsiyonel)</label>
-                  <input
-                    type="text"
-                    value={getAnswerBySaveKey(answers, "education.graduationYear")}
-                    onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "education.graduationYear", e.target.value))}
-                    placeholder="Örn. 2015"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
-                  />
-                </div>
+                    {educationAddMore === "Evet" && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEducationList([...educationList, { level: "" }]);
+                          }}
+                          className="rounded-lg border border-dashed border-slate-400 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          + Eğitim ekle
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-slate-600">Eğitim bilgisi kaydedildi.</div>
+                )}
               </div>
             ) : isLanguages ? (
               <div className="space-y-3">
@@ -616,8 +817,19 @@ export function FormWizard({
                         type="checkbox"
                         checked={drivingLicenses.includes(opt)}
                         onChange={(e) => {
-                          if (e.target.checked) setDrivingLicenses([...drivingLicenses, opt]);
-                          else setDrivingLicenses(drivingLicenses.filter((x) => x !== opt));
+                          if (opt === "Yok") {
+                            if (e.target.checked) {
+                              setDrivingLicenses(["Yok"]);
+                            } else {
+                              setDrivingLicenses([]);
+                            }
+                          } else {
+                            if (e.target.checked) {
+                              setDrivingLicenses(drivingLicenses.filter((x) => x !== "Yok").concat(opt));
+                            } else {
+                              setDrivingLicenses(drivingLicenses.filter((x) => x !== opt));
+                            }
+                          }
                         }}
                         className="rounded border-slate-400"
                       />
@@ -633,6 +845,56 @@ export function FormWizard({
                     placeholder="Açıklayın"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
                   />
+                )}
+              </div>
+            ) : isPassport ? (
+              <div className="space-y-3">
+                <select
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                >
+                  <option value="">Seçin</option>
+                  <option value="Yok">Yok</option>
+                  <option value="Var (geçerli)">Var (geçerli)</option>
+                  <option value="Var (süresi dolmak üzere)">Var (süresi dolmak üzere)</option>
+                </select>
+                {(value === "Var (geçerli)" || value === "Var (süresi dolmak üzere)") && (
+                  <div className="space-y-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Pasaport türü (opsiyonel)</label>
+                      <select
+                        value={passportType}
+                        onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "mobility.passportType", e.target.value))}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      >
+                        <option value="">Seçin</option>
+                        {PASSPORT_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Son geçerlilik tarihi (opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={passportExpiry}
+                        onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "mobility.passportExpiry", e.target.value))}
+                        placeholder="AA.YYYY veya YYYY"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Vize durumu (opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={visaNote}
+                        onChange={(e) => onAnswersChange(setAnswerBySaveKey(answers, "mobility.visaNote", e.target.value))}
+                        placeholder="Örn: Schengen var, Süreçte, Yok"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300/40 focus:ring-offset-1 min-h-[44px] text-slate-800"
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
             ) : isCertificates ? (

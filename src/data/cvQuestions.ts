@@ -14,6 +14,8 @@ export interface CVQuestion {
   formEnabled: boolean;
   /** Chip'ler / Öneriler: Formda varsayılan kapalı; "Öneriler" ile açılır. Max 4. */
   examples: string[];
+  /** Öneriler chip'leri tıklanabilir mi? Default: true. false ise sadece ipucu. */
+  examplesClickable?: boolean;
   /** Select sorularında seçenek listesi. "Seçin" placeholder olarak kullanılır, listeye eklenmez. */
   options?: string[];
   saveKey: string;
@@ -271,8 +273,8 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    options: ["Yok", "A", "B", "C", "CE", "D", "Diğer"],
-    examples: ["Birden fazla seçebilirsiniz", "Diğer seçerseniz açıklayın", "Vardiyalı işler için avantaj", "Var ise mutlaka belirtin"],
+    options: ["Yok", "A1", "A2", "A", "B1", "B", "BE", "C1", "C1E", "C", "CE", "D1", "D1E", "D", "DE", "F", "M", "G", "Diğer"],
+    examples: ["Yok", "A1", "A2", "A", "B1", "B", "BE", "C1", "C1E", "C", "CE", "D1", "D1E", "D", "DE", "F", "M", "G", "Diğer"],
     formHint: "💡 Birden fazla sınıf seçebilirsiniz; Diğer seçerseniz kısa açıklayın.",
     saveKey: "mobility.drivingLicense",
     hint: "💡 Varsa en yakın seçeneği seçin.",
@@ -306,7 +308,7 @@ export const CV_QUESTIONS: CVQuestion[] = [
     voiceEnabled: true,
     chatEnabled: true,
     formEnabled: true,
-    options: ["Evet (geçerli)", "Hayır", "Yenileme/başvuru aşamasında"],
+    options: ["Yok", "Var (geçerli)", "Var (süresi dolmak üzere)"],
     examples: [
       "Varsa belirtmek avantaj",
       "Yoksa sorun değil",
