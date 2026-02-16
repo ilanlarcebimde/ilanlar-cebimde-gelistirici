@@ -550,6 +550,22 @@ export function FormWizard({
               </div>
             ) : isEducation ? (
               <div className="space-y-3">
+                {!focusMode && (
+                  <>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug tracking-tight">{currentQ.question}</h2>
+                    {(currentQ.formHint ?? currentQ.hint) && (
+                      <p className="flex items-center gap-1.5 text-xs text-slate-400 sm:text-slate-400/90 mb-2.5">
+                        <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500/90" aria-hidden />
+                        <span>{currentQ.formHint ?? currentQ.hint}</span>
+                      </p>
+                    )}
+                  </>
+                )}
+                {focusMode && (currentQ.formHint ?? currentQ.hint) && (
+                  <p className="text-xs text-slate-400 mb-2 line-clamp-1">
+                    {currentQ.formHint ?? currentQ.hint}
+                  </p>
+                )}
                 {educationList.length === 0 ? (
                   <>
                     <div>
