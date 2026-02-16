@@ -22,8 +22,8 @@ export function SorumlulukReddiBeyaniClient() {
     <>
       <Header onLoginClick={() => router.push("/")} />
       <main className="min-h-screen bg-[#f8fafc]">
-        <div className="mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-16">
-          <section className="mb-10">
+        <div className="mx-auto max-w-4xl px-4 pt-6 pb-10 md:px-6 md:py-16">
+          <section className="mb-6 md:mb-10">
             <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
               Sorumluluk Reddi Beyanı
             </h1>
@@ -33,7 +33,7 @@ export function SorumlulukReddiBeyaniClient() {
             <p className="mt-2 text-sm text-slate-500">Son güncelleme: Şubat 2026</p>
           </section>
 
-          <nav className="mb-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6" aria-label="İçindekiler">
+          <nav className="mb-6 md:mb-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6" aria-label="İçindekiler">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">İçindekiler</h2>
             <ul className="mt-3 space-y-2">
               {TOC.map((item) => (
@@ -46,7 +46,7 @@ export function SorumlulukReddiBeyaniClient() {
             </ul>
           </nav>
 
-          <article className="space-y-10 text-slate-700 [overflow-wrap:anywhere]">
+          <article className="space-y-6 md:space-y-10 text-slate-700 [overflow-wrap:anywhere]">
             <section id="genel-bilgilendirme">
               <h2 className="text-xl font-semibold text-slate-900">1. Genel Bilgilendirme Niteliği</h2>
               <p className="mt-3 leading-relaxed">
@@ -152,7 +152,7 @@ export function SorumlulukReddiBeyaniClient() {
             </section>
           </article>
 
-          <div className="mt-12">
+          <div className="mt-8 md:mt-12">
             <Link href="/" className="text-sm text-slate-600 underline hover:text-slate-900">
               ← Ana sayfaya dön
             </Link>

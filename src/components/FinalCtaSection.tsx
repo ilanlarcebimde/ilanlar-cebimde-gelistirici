@@ -18,7 +18,7 @@ export function FinalCtaSection({ onCtaClick }: { onCtaClick: () => void }) {
   };
 
   return (
-    <section className="py-16 sm:py-20 bg-[#f8f9fa]">
+    <section className="py-10 sm:py-20 bg-[#f8f9fa]">
       <div className="mx-auto max-w-2xl px-4 sm:px-6">
         <motion.div
           className="rounded-2xl border-2 border-slate-200 bg-white p-8 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.08)]"

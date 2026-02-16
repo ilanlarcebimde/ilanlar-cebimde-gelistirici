@@ -63,7 +63,7 @@ export function Hero({
   return (
     <section
       id="hero"
-      className="relative overflow-hidden bg-gradient-to-b from-slate-50/95 to-[#f1f5f9]/90 py-16 md:py-20"
+      className="relative overflow-hidden bg-gradient-to-b from-slate-50/95 to-[#f1f5f9]/90 py-10 md:py-20"
       aria-labelledby="hero-title"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">

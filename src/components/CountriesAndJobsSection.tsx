@@ -53,7 +53,7 @@ export function CountriesAndJobsSection() {
   );
 
   return (
-    <section className="py-16 sm:py-20 bg-[#f8f9fa]">
+    <section className="py-10 sm:py-20 bg-[#f8f9fa]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <motion.p
           className="text-center text-sm font-medium uppercase tracking-wider text-slate-500 mb-3"

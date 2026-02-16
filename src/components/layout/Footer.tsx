@@ -1,28 +1,33 @@
 "use client";
 
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import Link from "next/link";
 import { Info } from "lucide-react";
 
 const WHATSAPP_TOOLTIP_ID = "footer-whatsapp-tooltip";
 const POPOVER_CONTENT =
   "WhatsApp müşteri hizmetleri hattı, Yurtdışı Eleman çatısı altında yönetilmektedir.";
 
-const KURUMSAL_ITEMS = ["Hakkımızda", "İletişim", "SSS"];
-
-const POLITIKALAR_SOL = [
-  "Çerez Politikası",
-  "Gizlilik Politikası",
-  "Hizmet Sözleşmesi",
-  "Kullanım Koşulları",
-  "İade ve Geri Ödeme",
+const KURUMSAL_ITEMS: { label: string; href: string }[] = [
+  { label: "Hakkımızda", href: "/hakkimizda" },
+  { label: "İletişim", href: "/iletisim" },
+  { label: "SSS", href: "/sss" },
 ];
 
-const POLITIKALAR_SAG = [
-  "Alışveriş Güvenliği",
-  "Müşteri Hizmetleri Politikası",
-  "Mesafeli Satış Sözleşmesi",
-  "Sorumluluk Reddi Beyanı",
-  "Uluslararası Yasal Uyum",
+const POLITIKALAR_SOL: { label: string; href: string }[] = [
+  { label: "Çerez Politikası", href: "/cerez-politikasi" },
+  { label: "Gizlilik Politikası", href: "/gizlilik-politikasi" },
+  { label: "Hizmet Sözleşmesi", href: "/hizmet-sozlesmesi" },
+  { label: "Kullanım Koşulları", href: "/kullanim-kosullari" },
+  { label: "İade ve Geri Ödeme", href: "/iade-ve-geri-odeme" },
+];
+
+const POLITIKALAR_SAG: { label: string; href: string }[] = [
+  { label: "Alışveriş Güvenliği", href: "/alisveris-guvenligi" },
+  { label: "Müşteri Hizmetleri Politikası", href: "/musteri-hizmetleri-politikasi" },
+  { label: "Mesafeli Satış Sözleşmesi", href: "/mesafeli-satis-sozlesmesi" },
+  { label: "Sorumluluk Reddi Beyanı", href: "/sorumluluk-reddi-beyani" },
+  { label: "Uluslararası Yasal Uyum", href: "/uluslararasi-yasal-uyum" },
 ];
 
 type PlacementH = "right" | "left";
@@ -134,14 +139,14 @@ export function Footer() {
             </h3>
             <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
             <ul className="mt-4 space-y-2">
-              {KURUMSAL_ITEMS.map((label) => (
-                <li key={label}>
-                  <span
-                    className="pointer-events-none cursor-default text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
-                    aria-hidden
+              {KURUMSAL_ITEMS.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900 [overflow-wrap:anywhere]"
                   >
-                    {label}
-                  </span>
+                    {item.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -252,26 +257,26 @@ export function Footer() {
             <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
             <div className="mt-4 grid min-w-0 grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10 md:gap-y-2">
               <ul className="flex min-w-0 flex-col gap-y-2">
-                {POLITIKALAR_SOL.map((label) => (
-                  <li key={label} className="min-w-0">
-                    <span
-                      className="pointer-events-none cursor-default block text-sm font-normal leading-6 text-slate-600 [overflow-wrap:anywhere] transition-colors hover:text-slate-900"
-                      aria-hidden
+                {POLITIKALAR_SOL.map((item) => (
+                  <li key={item.href} className="min-w-0">
+                    <Link
+                      href={item.href}
+                      className="block text-sm font-normal leading-6 text-slate-600 [overflow-wrap:anywhere] transition-colors hover:text-slate-900"
                     >
-                      {label}
-                    </span>
+                      {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
               <ul className="flex min-w-0 flex-col gap-y-2">
-                {POLITIKALAR_SAG.map((label) => (
-                  <li key={label} className="min-w-0">
-                    <span
-                      className="pointer-events-none cursor-default block text-sm font-normal leading-6 text-slate-600 [overflow-wrap:anywhere] transition-colors hover:text-slate-900"
-                      aria-hidden
+                {POLITIKALAR_SAG.map((item) => (
+                  <li key={item.href} className="min-w-0">
+                    <Link
+                      href={item.href}
+                      className="block text-sm font-normal leading-6 text-slate-600 [overflow-wrap:anywhere] transition-colors hover:text-slate-900"
                     >
-                      {label}
-                    </span>
+                      {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
