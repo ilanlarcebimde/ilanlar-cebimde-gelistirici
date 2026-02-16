@@ -51,10 +51,10 @@ export function Footer() {
   return (
     <footer className="border-t border-slate-200/70 bg-slate-50/50">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-        {/* 4 kolon */}
-        <div className="grid grid-cols-1 gap-10 lg:gap-14 md:grid-cols-[1.35fr_0.85fr_1.7fr_1.1fr]">
-          {/* 1. Brand */}
-          <div className="min-w-0">
+        {/* 4 kolon; mobilde 2 sütun (Kurumsal | İletişim yan yana) */}
+        <div className="grid grid-cols-2 gap-10 lg:gap-14 md:grid-cols-[1.35fr_0.85fr_1.7fr_1.1fr]">
+          {/* 1. Brand - mobilde tam genişlik */}
+          <div className="min-w-0 col-span-2 md:col-span-1 md:order-1">
             <h2 className="text-base font-semibold tracking-tight text-slate-900">
               İlanlar Cebimde
             </h2>
@@ -70,8 +70,8 @@ export function Footer() {
             </p>
           </div>
 
-          {/* 2. Kurumsal */}
-          <div className="min-w-0">
+          {/* 2. Kurumsal - mobilde sol sütun */}
+          <div className="min-w-0 md:order-2">
             <h3 className="text-sm font-semibold tracking-wide text-slate-900">
               Kurumsal
             </h3>
@@ -90,42 +90,8 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* 3. Politikalar */}
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold tracking-wide text-slate-900">
-              Politikalar
-            </h3>
-            <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
-            <div className="mt-4 grid grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10 md:gap-y-2">
-              <ul className="flex flex-col gap-y-2">
-                {POLITIKALAR_SOL.map((label) => (
-                  <li key={label} className="min-w-0">
-                    <span
-                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
-                      aria-hidden
-                    >
-                      {label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <ul className="flex flex-col gap-y-2">
-                {POLITIKALAR_SAG.map((label) => (
-                  <li key={label} className="min-w-0">
-                    <span
-                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
-                      aria-hidden
-                    >
-                      {label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* 4. İletişim */}
-          <div className="min-w-0">
+          {/* 3. İletişim - mobilde sağ sütun; masaüstünde 4. sütun */}
+          <div className="min-w-0 md:order-4">
             <h3 className="text-sm font-semibold tracking-wide text-slate-900">
               İletişim
             </h3>
@@ -164,6 +130,40 @@ export function Footer() {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* 4. Politikalar - mobilde tam genişlik; masaüstünde 3. sütun */}
+          <div className="min-w-0 col-span-2 md:col-span-1 md:order-3">
+            <h3 className="text-sm font-semibold tracking-wide text-slate-900">
+              Politikalar
+            </h3>
+            <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
+            <div className="mt-4 grid grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10 md:gap-y-2">
+              <ul className="flex flex-col gap-y-2">
+                {POLITIKALAR_SOL.map((label) => (
+                  <li key={label} className="min-w-0">
+                    <span
+                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                      aria-hidden
+                    >
+                      {label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <ul className="flex flex-col gap-y-2">
+                {POLITIKALAR_SAG.map((label) => (
+                  <li key={label} className="min-w-0">
+                    <span
+                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                      aria-hidden
+                    >
+                      {label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
