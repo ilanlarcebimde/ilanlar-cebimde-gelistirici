@@ -374,7 +374,7 @@ export function FormWizard({
                 {suggestionsOpen && (currentQ.examples?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2.5 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100">
                     {(currentQ.examples ?? []).slice(0, 4).map((ex) => {
-                      const isClickable = !currentQ.examplesClickable || currentQ.examplesClickable !== false;
+                      const isClickable = currentQ.examplesClickable !== false;
                       return (
                         <button
                           key={ex}
