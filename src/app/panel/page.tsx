@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase, normalizeProfileRow } from "@/lib/supabase";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw, Info, Play } from "lucide-react";
+
+/** /assistant?session=... sayfası yoksa "Devam et" ve boş state CTA disabled gösterilir. */
+const ASSISTANT_PAGE_AVAILABLE = false;
 
 type ProfileRow = {
   id: string;
@@ -53,6 +56,11 @@ function formatDate(iso: string) {
   return `${day}.${month}.${year}`;
 }
 
+/** session_id'nin son 6-8 karakteri (ekranda ham id göstermemek için). */
+function getSessionShortId(session_id: string): string {
+  return session_id.length >= 8 ? session_id.slice(-8) : session_id;
+}
+
 function PanelSkeleton() {
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
@@ -88,6 +96,9 @@ export default function PanelPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [sessionInfoOpen, setSessionInfoOpen] = useState(false);
+  const sessionInfoRef = useRef<HTMLDivElement>(null);
+  const sessionInfoTriggerRef = useRef<HTMLButtonElement>(null);
 
   const fetchData = useCallback(() => {
     if (!user) return;
@@ -125,6 +136,26 @@ export default function PanelPage() {
     if (!user) return;
     fetchData();
   }, [user, fetchData]);
+
+  useEffect(() => {
+    if (!sessionInfoOpen) return;
+    const onEscape = (e: KeyboardEvent) => e.key === "Escape" && setSessionInfoOpen(false);
+    const onClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        sessionInfoRef.current?.contains(target) ||
+        sessionInfoTriggerRef.current?.contains(target)
+      )
+        return;
+      setSessionInfoOpen(false);
+    };
+    window.addEventListener("keydown", onEscape);
+    document.addEventListener("mousedown", onClickOutside);
+    return () => {
+      window.removeEventListener("keydown", onEscape);
+      document.removeEventListener("mousedown", onClickOutside);
+    };
+  }, [sessionInfoOpen]);
 
   if (authLoading || (!user && !authLoading)) {
     return (
@@ -329,44 +360,113 @@ export default function PanelPage() {
             </section>
 
             {/* Asistan Oturumlarım */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Asistan Oturumlarım</h2>
+            <section className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+              <div className="relative flex items-start gap-2">
+                <h2 className="text-lg font-semibold text-slate-900">Asistan Oturumlarım</h2>
+                <button
+                  ref={sessionInfoTriggerRef}
+                  type="button"
+                  onClick={() => setSessionInfoOpen((o) => !o)}
+                  className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Oturum bilgisi"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+                {sessionInfoOpen && (
+                  <div
+                    ref={sessionInfoRef}
+                    role="tooltip"
+                    className="absolute left-0 top-full z-50 mt-1 max-w-[260px] rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg"
+                  >
+                    Oturum, sesli asistan/sohbet sırasında toplanan bilgilerin kaydıdır. Devam eden
+                    oturumlar daha sonra sürdürülebilir.
+                  </div>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Sesli asistan ve sohbet üzerinden yaptığın görüşmelerin kayıtları. Kaldığın yerden
+                devam edebilirsin.
+              </p>
               {sessions.length === 0 ? (
-                <div className="py-6 text-center">
-                  <p className="font-medium text-slate-700">Henüz oturum yok</p>
+                <div className="py-5 text-center">
+                  <p className="font-medium text-slate-700">Henüz asistan oturumun yok</p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Sesli veya sohbet asistanı kullandığında oturumların burada listelenir.
+                    Sesli asistan veya sohbet ile CV&apos;ni oluşturduğunda burada görünür.
                   </p>
+                  {ASSISTANT_PAGE_AVAILABLE ? (
+                    <Link
+                      href="/assistant"
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      <Play className="h-4 w-4" />
+                      Sesli asistanı başlat
+                    </Link>
+                  ) : (
+                    <span
+                      className="mt-3 inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+                      aria-disabled
+                    >
+                      <Play className="h-4 w-4" />
+                      Sesli asistanı başlat
+                    </span>
+                  )}
                 </div>
               ) : (
-                <ul className="mt-4 space-y-0 divide-y divide-slate-100">
-                  {sessions.map((s) => (
-                    <li
-                      key={s.session_id}
-                      className="flex min-w-0 flex-wrap items-center gap-3 py-4 first:pt-0 sm:flex-nowrap"
-                    >
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                          s.completed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"
-                        }`}
+                <>
+                  <p className="mt-3 text-xs text-slate-400">Bu liste hesabınla senkronizedir.</p>
+                  <ul className="mt-2 space-y-0 divide-y divide-slate-100">
+                    {sessions.map((s) => (
+                      <li
+                        key={s.session_id}
+                        className="flex min-w-0 flex-wrap items-center gap-2 py-3 first:pt-2 sm:flex-nowrap"
                       >
-                        {s.completed ? "Tamamlandı" : "Devam ediyor"}
-                      </span>
-                      <span className="min-w-0 flex-1 font-mono text-xs text-slate-600">
-                        {s.session_id.length > 12 ? `${s.session_id.slice(0, 12)}…` : s.session_id}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(s.session_id, "Oturum ID")}
-                        className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                        aria-label="Oturum ID kopyala"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="shrink-0 text-xs text-slate-500">{formatDate(s.updated_at)}</span>
-                    </li>
-                  ))}
-                </ul>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                            s.completed
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {s.completed ? "Tamamlandı" : "Devam ediyor"}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-800">
+                            Oturum: #{getSessionShortId(s.session_id)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Son güncelleme: {formatDate(s.updated_at)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(s.session_id, "Oturum ID")}
+                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                            aria-label="Oturum ID kopyala"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          {!s.completed &&
+                            (ASSISTANT_PAGE_AVAILABLE ? (
+                              <Link
+                                href={`/assistant?session=${encodeURIComponent(s.session_id)}`}
+                                className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                              >
+                                Devam et
+                              </Link>
+                            ) : (
+                              <span
+                                className="cursor-not-allowed rounded-lg bg-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500"
+                                aria-disabled
+                              >
+                                Devam et
+                              </span>
+                            ))}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </section>
           </div>
