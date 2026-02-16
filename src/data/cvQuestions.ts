@@ -75,7 +75,7 @@ export const CV_QUESTIONS: CVQuestion[] = [
     chatEnabled: true,
     formEnabled: true,
     examples: [
-      "Sadece yıl yazabilirsiniz",
+      "Örn: 1978 veya 03.04.1978",
       "Gün.ay.yıl da olur",
       "Yaklaşık yazmayın",
       "Yanlış tarih sorun çıkarabilir",
