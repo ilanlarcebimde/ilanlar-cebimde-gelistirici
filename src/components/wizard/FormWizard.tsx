@@ -338,7 +338,7 @@ export function FormWizard({
       )}
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2.5 sm:pt-2 pb-4 flex flex-col" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
-        <div className="space-y-3 max-w-xl mx-auto w-full sm:min-h-full sm:flex sm:flex-col sm:justify-center">
+        <div className="space-y-3 max-w-2xl mx-auto w-full sm:min-h-full sm:flex sm:flex-col sm:justify-center">
       <AnimatePresence mode="wait">
         {phase === "questions" && currentQ && (
           <motion.div
@@ -349,7 +349,7 @@ export function FormWizard({
             initial={{ opacity: 0, x: 6 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -6 }}
-            className={`rounded-lg border border-slate-200/90 bg-white shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${focusMode ? "p-3 sm:p-4" : "p-4 sm:p-4"}`}
+            className={`rounded-lg border border-slate-200/90 bg-white shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${focusMode ? "p-3 sm:p-4" : "p-4 sm:p-6"}`}
           >
             {!focusMode && (
               <>
@@ -1091,7 +1091,7 @@ export function FormWizard({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mx-auto w-full max-w-[540px] rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+            className="mx-auto w-full max-w-2xl rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
           >
             <h3 className="text-lg font-semibold text-slate-900 mb-4 text-center sm:text-left">Hedef ülke ve meslek</h3>
             <div className="space-y-4">
