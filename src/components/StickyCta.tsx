@@ -41,10 +41,13 @@ export function StickyCta({ onCtaClick }: { onCtaClick: () => void }) {
       <button
         type="button"
         onClick={onCtaClick}
-        className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-800 py-4 px-6 text-white font-semibold shadow-soft hover:bg-slate-700 active:scale-[0.98] transition"
+        className="w-full flex items-center justify-center gap-3 rounded-xl bg-slate-800 py-3.5 px-5 text-white shadow-soft hover:bg-slate-700 active:scale-[0.98] transition"
       >
-        CV Bilgilerini Tamamla → Ödeme Yap
-        <ChevronRight className="h-5 w-5" />
+        <span className="flex flex-col items-center text-center">
+          <span className="font-semibold leading-tight">CV bilgilerini tamamla</span>
+          <span className="text-xs font-normal text-white/85 leading-tight mt-0.5">İş ilanları cebine gelsin</span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0" />
       </button>
     </motion.div>
   );
