@@ -337,8 +337,8 @@ export function FormWizard({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2.5 sm:pt-2 pb-4 flex flex-col" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
-        <div className="space-y-3 max-w-2xl mx-auto w-full sm:min-h-full sm:flex sm:flex-col sm:justify-center">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2.5 sm:pt-3 sm:px-6 pb-4 flex flex-col" style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
+        <div className="space-y-3 max-w-2xl mx-auto w-full sm:flex sm:flex-col">
       <AnimatePresence mode="wait">
         {phase === "questions" && currentQ && (
           <motion.div
@@ -349,19 +349,19 @@ export function FormWizard({
             initial={{ opacity: 0, x: 6 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -6 }}
-            className={`rounded-lg border border-slate-200/90 bg-white shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${focusMode ? "p-3 sm:p-4" : "p-4 sm:p-6"}`}
+            className={`rounded-lg border border-slate-200/90 bg-white shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${focusMode ? "p-3 sm:p-4" : "p-4 sm:p-6 lg:p-7"}`}
           >
             {!focusMode && (
               <>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1 leading-snug tracking-tight">{currentQ.question}</h2>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1.5 sm:mb-2 leading-snug tracking-tight">{currentQ.question}</h2>
                 {(currentQ.formHint ?? currentQ.hint) && (
-                  <p className="flex items-center gap-1.5 text-xs text-slate-400 sm:text-slate-400/90 mb-2.5">
+                  <p className="flex items-center gap-1.5 text-xs text-slate-400 sm:text-slate-400/90 mb-3 sm:mb-3.5">
                     <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500/90" aria-hidden />
                     <span>{currentQ.formHint ?? currentQ.hint}</span>
                   </p>
                 )}
                 {(currentQ.examples?.length ?? 0) > 0 && (
-                  <div className="mb-2.5">
+                  <div className="mb-3 sm:mb-3.5">
                     <button
                       type="button"
                       onClick={() => setSuggestionsOpen((o) => !o)}
@@ -372,7 +372,7 @@ export function FormWizard({
                   </div>
                 )}
                 {suggestionsOpen && (currentQ.examples?.length ?? 0) > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2.5 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100">
+                  <div className="flex flex-wrap gap-2.5 sm:gap-3 mb-2.5 p-2.5 sm:p-3 rounded-lg bg-slate-50/70 border border-slate-100">
                     {(currentQ.examples ?? []).slice(0, 4).map((ex) => {
                       const isClickable = currentQ.examplesClickable !== false;
                       return (
