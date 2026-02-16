@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { Info } from "lucide-react";
+
+const WHATSAPP_TOOLTIP_ID = "footer-whatsapp-tooltip";
+const POPOVER_CONTENT =
+  "WhatsApp müşteri hizmetleri hattı, Yurtdışı Eleman çatısı altında yönetilmektedir.";
 
 const KURUMSAL_ITEMS = ["Hakkımızda", "İletişim", "SSS"];
 
@@ -21,11 +25,19 @@ const POLITIKALAR_SAG = [
   "Uluslararası Yasal Uyum",
 ];
 
+type PlacementH = "right" | "left";
+type PlacementV = "below" | "above";
+
 export function Footer() {
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [placement, setPlacement] = useState<{
+    h: PlacementH;
+    v: PlacementV;
+  }>({ h: "right", v: "below" });
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  // Click outside + ESC
   useEffect(() => {
     if (!popoverOpen) return;
     const handleEscape = (e: KeyboardEvent) => {
@@ -46,6 +58,29 @@ export function Footer() {
       window.removeEventListener("keydown", handleEscape);
       document.removeEventListener("mousedown", handleClickOutside);
     };
+  }, [popoverOpen]);
+
+  // Auto-flip: keep popover inside viewport (no horizontal scroll)
+  useLayoutEffect(() => {
+    if (!popoverOpen || !triggerRef.current || !popoverRef.current) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 16;
+    const gap = 8;
+    const maxW = Math.min(280, vw - 32);
+    const tr = triggerRef.current.getBoundingClientRect();
+    const pr = popoverRef.current.getBoundingClientRect();
+
+    let h: PlacementH = "right";
+    let v: PlacementV = "below";
+
+    if (tr.right + gap + maxW > vw - pad) h = "left";
+    else if (tr.left - gap - maxW < pad) h = "right";
+
+    if (tr.bottom + gap + pr.height > vh - pad) v = "above";
+    else if (tr.top - gap - pr.height < pad) v = "below";
+
+    setPlacement({ h, v });
   }, [popoverOpen]);
 
   return (
@@ -112,20 +147,66 @@ export function Footer() {
                     ref={triggerRef}
                     type="button"
                     onClick={() => setPopoverOpen((o) => !o)}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-700"
-                    aria-label="WhatsApp hattı hakkında bilgi"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1"
+                    aria-label="WhatsApp hakkında bilgi"
+                    aria-expanded={popoverOpen}
+                    aria-controls={WHATSAPP_TOOLTIP_ID}
                   >
-                    <Info className="h-3.5 w-3.5" />
+                    <Info className="h-3.5 w-3.5" aria-hidden />
                   </button>
                   {popoverOpen && (
                     <div
                       ref={popoverRef}
-                      role="dialog"
-                      aria-label="WhatsApp hattı bilgisi"
-                      className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg"
+                      id={WHATSAPP_TOOLTIP_ID}
+                      role="tooltip"
+                      aria-hidden={false}
+                      className={[
+                        "absolute z-50 flex max-w-[min(280px,calc(100vw-2rem))] rounded-[12px] border border-slate-200 bg-white p-3 shadow-[0_4px_12px_rgba(0,0,0,0.08)]",
+                        placement.h === "right" && placement.v === "below" && "left-full top-full ml-2 mt-2",
+                        placement.h === "left" && placement.v === "below" && "right-full left-auto top-full mr-2 mt-2",
+                        placement.h === "right" && placement.v === "above" && "left-full bottom-full top-auto ml-2 mb-2",
+                        placement.h === "left" && placement.v === "above" && "right-full left-auto bottom-full top-auto mr-2 mb-2",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={{
+                        animation: "footerTooltipIn 140ms ease-out both",
+                      }}
                     >
-                      WhatsApp müşteri hizmetleri hattı Yurtdışı Eleman çatısı
-                      altında yönetilmektedir.
+                      {/* Caret: points toward the icon */}
+                      <span
+                        className="absolute h-0 w-0 border-[6px] border-transparent"
+                        aria-hidden
+                        style={
+                          placement.v === "below"
+                            ? {
+                                ...(placement.h === "right"
+                                  ? { left: 8 }
+                                  : { right: 8, left: "auto" }),
+                                top: 0,
+                                transform: "translateY(-100%)",
+                                borderBottomColor: "white",
+                                borderLeftColor: "transparent",
+                                borderRightColor: "transparent",
+                                filter: "drop-shadow(0 -1px 0 rgb(226 232 240))",
+                              }
+                            : {
+                                ...(placement.h === "right"
+                                  ? { left: 8 }
+                                  : { right: 8, left: "auto" }),
+                                bottom: 0,
+                                top: "auto",
+                                transform: "translateY(100%)",
+                                borderTopColor: "white",
+                                borderLeftColor: "transparent",
+                                borderRightColor: "transparent",
+                                filter: "drop-shadow(0 1px 0 rgb(226 232 240))",
+                              }
+                        }
+                      />
+                      <p className="relative text-sm leading-relaxed text-slate-600 [overflow-wrap:anywhere] [word-break:break-word]">
+                        {POPOVER_CONTENT}
+                      </p>
                     </div>
                   )}
                 </div>
