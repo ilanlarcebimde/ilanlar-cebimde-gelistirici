@@ -5,12 +5,15 @@ import { Info } from "lucide-react";
 
 const KURUMSAL_ITEMS = ["Hakkımızda", "İletişim", "SSS"];
 
-const POLITIKALAR_ITEMS = [
+const POLITIKALAR_SOL = [
   "Çerez Politikası",
   "Gizlilik Politikası",
   "Hizmet Sözleşmesi",
   "Kullanım Koşulları",
   "İade ve Geri Ödeme",
+];
+
+const POLITIKALAR_SAG = [
   "Alışveriş Güvenliği",
   "Müşteri Hizmetleri Politikası",
   "Mesafeli Satış Sözleşmesi",
@@ -93,18 +96,32 @@ export function Footer() {
               Politikalar
             </h3>
             <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
-            <ul className="mt-4 flex flex-col gap-y-2">
-              {POLITIKALAR_ITEMS.map((label) => (
-                <li key={label} className="min-w-0">
-                  <span
-                    className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
-                    aria-hidden
-                  >
-                    {label}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4 grid grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10 md:gap-y-2">
+              <ul className="flex flex-col gap-y-2">
+                {POLITIKALAR_SOL.map((label) => (
+                  <li key={label} className="min-w-0">
+                    <span
+                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                      aria-hidden
+                    >
+                      {label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <ul className="flex flex-col gap-y-2">
+                {POLITIKALAR_SAG.map((label) => (
+                  <li key={label} className="min-w-0">
+                    <span
+                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                      aria-hidden
+                    >
+                      {label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* 4. İletişim */}
