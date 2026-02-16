@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
-      <body className="antialiased font-sans bg-[var(--background)] text-[var(--foreground)]">
+      <body className="antialiased font-sans bg-[var(--background)] text-[var(--foreground)] overflow-x-hidden">
         <AuthHashHandler />
         {children}
       </body>

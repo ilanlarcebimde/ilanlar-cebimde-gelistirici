@@ -49,12 +49,12 @@ export function Footer() {
   }, [popoverOpen]);
 
   return (
-    <footer className="border-t border-slate-200/70 bg-slate-50/50">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-        {/* 4 kolon; mobilde 2 sütun (Kurumsal | İletişim yan yana) */}
-        <div className="grid grid-cols-2 gap-10 lg:gap-14 md:grid-cols-[1.35fr_0.85fr_1.7fr_1.1fr]">
-          {/* 1. Brand - mobilde tam genişlik */}
-          <div className="min-w-0 col-span-2 md:col-span-1 md:order-1">
+    <footer className="w-full max-w-full overflow-x-hidden border-t border-slate-200/70 bg-slate-50/50">
+      <div className="mx-auto min-w-0 max-w-6xl px-4 py-10 md:px-10 md:py-12">
+        {/* Mobil: tek kolon (Brand → Kurumsal → İletişim → Politikalar); md+: 4 kolon */}
+        <div className="grid min-w-0 grid-cols-1 gap-10 lg:gap-14 md:grid-cols-[1.35fr_0.85fr_1.7fr_1.1fr]">
+          {/* 1. Brand */}
+          <div className="min-w-0 md:order-1">
             <h2 className="text-base font-semibold tracking-tight text-slate-900">
               İlanlar Cebimde
             </h2>
@@ -96,15 +96,15 @@ export function Footer() {
               İletişim
             </h3>
             <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
-            <div className="mt-4 space-y-3">
-              <p className="select-text text-sm font-medium text-slate-700">
+            <div className="mt-4 w-full space-y-3 text-left">
+              <p className="select-text text-sm font-medium leading-6 text-slate-700 [overflow-wrap:anywhere]">
                 destek@ilanlarcebimde.com
               </p>
-              <p className="select-text text-sm font-medium text-slate-700">
+              <p className="select-text text-sm font-medium leading-6 text-slate-700 [overflow-wrap:anywhere]">
                 destek@yurtdisieleman.net
               </p>
-              <div className="inline-flex items-center gap-2">
-                <span className="select-text whitespace-nowrap text-sm font-medium text-slate-700">
+              <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+                <span className="select-text text-sm font-medium leading-6 text-slate-700 [overflow-wrap:anywhere]">
                   WhatsApp: +90 501 142 10 52
                 </span>
                 <div className="relative shrink-0">
@@ -133,18 +133,18 @@ export function Footer() {
             </div>
           </div>
 
-          {/* 4. Politikalar - mobilde tam genişlik; masaüstünde 3. sütun */}
-          <div className="min-w-0 col-span-2 md:col-span-1 md:order-3">
+          {/* 4. Politikalar; masaüstünde 3. sütun */}
+          <div className="min-w-0 md:order-3">
             <h3 className="text-sm font-semibold tracking-wide text-slate-900">
               Politikalar
             </h3>
             <div className="mt-3 h-px w-8 bg-slate-200" aria-hidden />
-            <div className="mt-4 grid grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10 md:gap-y-2">
-              <ul className="flex flex-col gap-y-2">
+            <div className="mt-4 grid min-w-0 grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10 md:gap-y-2">
+              <ul className="flex min-w-0 flex-col gap-y-2">
                 {POLITIKALAR_SOL.map((label) => (
                   <li key={label} className="min-w-0">
                     <span
-                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                      className="pointer-events-none cursor-default block text-sm font-normal leading-6 text-slate-600 [overflow-wrap:anywhere] transition-colors hover:text-slate-900"
                       aria-hidden
                     >
                       {label}
@@ -152,11 +152,11 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-              <ul className="flex flex-col gap-y-2">
+              <ul className="flex min-w-0 flex-col gap-y-2">
                 {POLITIKALAR_SAG.map((label) => (
                   <li key={label} className="min-w-0">
                     <span
-                      className="pointer-events-none cursor-default block whitespace-nowrap text-sm font-normal leading-6 text-slate-600 transition-colors hover:text-slate-900"
+                      className="pointer-events-none cursor-default block text-sm font-normal leading-6 text-slate-600 [overflow-wrap:anywhere] transition-colors hover:text-slate-900"
                       aria-hidden
                     >
                       {label}
