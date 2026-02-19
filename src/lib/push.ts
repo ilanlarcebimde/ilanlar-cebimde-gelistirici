@@ -42,11 +42,12 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 export async function subscribeToPush(
   registration: ServiceWorkerRegistration
 ): Promise<PushSubscriptionData> {
+  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+  const appServerKey = urlBase64ToUint8Array(vapidKey);
+  
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
-    ),
+    applicationServerKey: appServerKey,
   });
 
   const key = subscription.getKey('p256dh');
@@ -93,10 +94,12 @@ export async function getExistingSubscription(): Promise<PushSubscriptionData | 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+  const rawData = atob(base64);
+  // Açıkça ArrayBuffer yaratıyoruz (SharedArrayBuffer ihtimali yok)
+  const arrayBuffer = new ArrayBuffer(rawData.length);
+  const outputArray = new Uint8Array(arrayBuffer);
 
-  for (let i = 0; i < rawData.length; ++i) {
+  for (let i = 0; i < rawData.length; i++) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
