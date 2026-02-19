@@ -27,9 +27,11 @@ type Subscription = {
 type ChannelsSidebarProps = {
   selectedSlug: string | null;
   onChannelSelect: (slug: string) => void;
+  /** Base path for redirects (e.g. /yurtdisi-is-ilanlari or /aboneliklerim) */
+  basePath?: string;
 };
 
-export function ChannelsSidebar({ selectedSlug, onChannelSelect }: ChannelsSidebarProps) {
+export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/aboneliklerim" }: ChannelsSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -87,7 +89,10 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect }: ChannelsSideb
   const handleSubscribe = useCallback(
     async (channel: Channel) => {
       if (!user) {
-        router.push(`/giris?next=${encodeURIComponent(`/aboneliklerim?kanal=${channel.slug}`)}&subscribe=${encodeURIComponent(channel.slug)}`);
+        const next = basePath === "/yurtdisi-is-ilanlari"
+          ? `/yurtdisi-is-ilanlari?c=${channel.slug}`
+          : `${basePath}?kanal=${channel.slug}`;
+        router.push(`/giris?next=${encodeURIComponent(next)}&subscribe=${encodeURIComponent(channel.slug)}`);
         return;
       }
 
@@ -121,7 +126,7 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect }: ChannelsSideb
         setSubscribing(null);
       }
     },
-    [user, router, onChannelSelect, loadData]
+    [user, router, onChannelSelect, loadData, basePath]
   );
 
   const handleUnsubscribe = useCallback(
@@ -173,7 +178,10 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect }: ChannelsSideb
           Aboneliklerim
         </h2>
         {subscribed.length === 0 ? (
-          <p className="text-xs text-slate-400">Henüz abone değilsiniz</p>
+          <div className="text-xs text-slate-500">
+            <p>Henüz hiçbir kanala abone değilsiniz.</p>
+            <p className="mt-1">Aşağıdaki Keşfet bölümünden bir ülke seçin.</p>
+          </div>
         ) : (
           <ul className="space-y-1">
             {subscribed.map((sub) => {

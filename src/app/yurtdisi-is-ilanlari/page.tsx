@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { IlanlarPageClient } from "@/app/ilanlar/IlanlarPageClient";
+import { Suspense } from "react";
+import { YurtdisiPanelClient } from "./YurtdisiPanelClient";
 
 export const metadata: Metadata = {
   title: "Yurtdışı İş İlanları | İlanlar Cebimde",
@@ -13,5 +14,9 @@ export const metadata: Metadata = {
 };
 
 export default function YurtdisiIsIlanlariPage() {
-  return <IlanlarPageClient />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">Yükleniyor…</div>}>
+      <YurtdisiPanelClient />
+    </Suspense>
+  );
 }

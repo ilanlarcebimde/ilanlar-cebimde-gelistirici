@@ -14,6 +14,7 @@ import { FinalCtaSection } from "@/components/FinalCtaSection";
 import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { StickyCta } from "@/components/StickyCta";
+import { YurtdisiIlanlariSection } from "@/components/home/YurtdisiIlanlariSection";
 import type { WizardMethod } from "@/components/wizard/WizardTypes";
 
 export default function Home() {
@@ -83,6 +84,7 @@ export default function Home() {
       <Header onLoginClick={handleLoginClick} />
       <main>
         <Hero onCtaClick={scrollToMethods} />
+        <YurtdisiIlanlariSection />
         <MethodSelection selectedMethod={method} onSelect={handleMethodSelect} />
         <CountriesAndJobsSection />
         <CvWhySection />
