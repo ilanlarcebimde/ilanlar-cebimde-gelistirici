@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ChannelsLayout } from "@/components/kanallar/ChannelsLayout";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AboneliklerimPage() {
-  return <ChannelsLayout />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">Yükleniyor…</div>}>
+      <ChannelsLayout />
+    </Suspense>
+  );
 }
