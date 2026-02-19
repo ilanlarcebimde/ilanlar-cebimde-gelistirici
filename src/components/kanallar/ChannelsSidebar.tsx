@@ -66,7 +66,12 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect }: ChannelsSideb
         .order("name"),
     ]);
 
-    const subs = (subsRes.data ?? []) as Subscription[];
+    // Supabase relation query returns channels as object or array - normalize it
+    const subs = (subsRes.data ?? []).map((item: any) => ({
+      id: item.id,
+      channel_id: item.channel_id,
+      channels: Array.isArray(item.channels) ? item.channels[0] : item.channels,
+    })) as Subscription[];
     const all = (allRes.data ?? []) as Channel[];
     const subIds = new Set(subs.map((s) => s.channels?.id).filter(Boolean));
 
