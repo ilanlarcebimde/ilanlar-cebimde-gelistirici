@@ -35,7 +35,13 @@ export function AboneliklerimClient() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        setList((data ?? []) as SubWithChannel[]);
+        // Supabase relation query returns channels as object, not array
+        const mapped = (data ?? []).map((item: any) => ({
+          id: item.id,
+          channel_id: item.channel_id,
+          channels: Array.isArray(item.channels) ? item.channels[0] : item.channels,
+        }));
+        setList(mapped as SubWithChannel[]);
         setLoading(false);
       });
   }, [user, authLoading, router]);
