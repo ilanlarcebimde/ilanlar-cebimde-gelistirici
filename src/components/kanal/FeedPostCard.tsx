@@ -36,15 +36,7 @@ export function FeedPostCard({ post, brandColor }: { post: FeedPost; brandColor?
   return (
     <article
       className="group rounded-[16px] border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] sm:p-6 relative"
-      style={{
-        borderLeft: "3px solid transparent",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderLeftColor = color;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderLeftColor = "transparent";
-      }}
+      style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h2 className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900 sm:text-lg">

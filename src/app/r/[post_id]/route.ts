@@ -13,7 +13,7 @@ export async function GET(
 ) {
   const { post_id } = await params;
   if (!post_id) {
-    return NextResponse.redirect(new URL("/yurtdisi-is-ilanlari", _req.url), 302);
+    return NextResponse.redirect(new URL("/ucretsiz-yurtdisi-is-ilanlari", _req.url), 302);
   }
 
   const supabase = getSupabaseAdmin();
@@ -28,5 +28,5 @@ export async function GET(
     return NextResponse.redirect(url, 302);
   }
 
-  return NextResponse.redirect(new URL("/yurtdisi-is-ilanlari", _req.url), 302);
+  return NextResponse.redirect(new URL("/ucretsiz-yurtdisi-is-ilanlari", _req.url), 302);
 }

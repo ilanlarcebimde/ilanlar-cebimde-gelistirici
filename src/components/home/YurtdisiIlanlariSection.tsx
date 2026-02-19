@@ -24,7 +24,7 @@ export function YurtdisiIlanlariSection() {
         </p>
         <div className="mt-6 flex justify-center">
           <Link
-            href="/yurtdisi-is-ilanlari"
+            href="/ucretsiz-yurtdisi-is-ilanlari"
             className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
           >
             Akışı Aç
@@ -35,7 +35,7 @@ export function YurtdisiIlanlariSection() {
           {COUNTRIES.map((c) => (
             <Link
               key={c.slug}
-              href={`/yurtdisi-is-ilanlari?c=${c.slug}`}
+              href={`/ucretsiz-yurtdisi-is-ilanlari?c=${c.slug}`}
               className="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
             >
               <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg">

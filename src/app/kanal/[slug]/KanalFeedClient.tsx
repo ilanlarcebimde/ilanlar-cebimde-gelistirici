@@ -203,7 +203,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <p className="text-red-600 font-medium">{error ?? "Kanal bulunamadı."}</p>
-        <Link href="/yurtdisi-is-ilanlari" className="mt-4 text-brand-600 hover:underline">
+        <Link href="/ucretsiz-yurtdisi-is-ilanlari" className="mt-4 text-brand-600 hover:underline">
           Ülke kanallarına dön
         </Link>
       </div>
@@ -217,7 +217,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
       <div className="min-h-screen bg-slate-50">
         <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-            <Link href="/yurtdisi-is-ilanlari" className="text-sm text-slate-500 hover:text-slate-700">
+            <Link href="/ucretsiz-yurtdisi-is-ilanlari" className="text-sm text-slate-500 hover:text-slate-700">
               ← Kanallar
             </Link>
             <span className="font-semibold text-slate-900">{channel.name}</span>
@@ -261,7 +261,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
 
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-          <Link href="/yurtdisi-is-ilanlari" className="text-sm text-slate-500 hover:text-slate-700">
+          <Link href="/ucretsiz-yurtdisi-is-ilanlari" className="text-sm text-slate-500 hover:text-slate-700">
             ← Kanallar
           </Link>
           <span className="font-semibold text-slate-900">{channel.name}</span>
@@ -310,7 +310,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
             <p className="text-slate-600">Bu kanalda henüz ilan yok.</p>
             <p className="mt-1 text-sm text-slate-500">Günlük olarak güncellenir.</p>
             <Link
-              href="/yurtdisi-is-ilanlari#ulkeler"
+              href="/ucretsiz-yurtdisi-is-ilanlari#ulkeler"
               className="mt-6 inline-block rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
             >
               Diğer Kanalları Gör

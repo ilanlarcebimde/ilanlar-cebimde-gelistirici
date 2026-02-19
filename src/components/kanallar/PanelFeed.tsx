@@ -10,21 +10,23 @@ const PAGE_SIZE = 15;
 type ChannelInfo = { id: string; slug: string; name: string; brand_color: string | null };
 
 type PanelFeedProps = {
-  subscribedChannels: ChannelInfo[];
+  /** Tüm kanallar (chip filtre + channel map). Public feed için tüm aktif kanallar; abonelik modunda abone olunanlar. */
+  channels: ChannelInfo[];
   selectedChip: string | null;
   searchQuery: string;
+  /** true: abonelik modu – kanal yoksa "Akışınız boş". false: public – boş durumlar farklı. */
+  subscribedOnlyEmpty?: boolean;
 };
 
-export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: PanelFeedProps) {
+export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyEmpty = false }: PanelFeedProps) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [channelMap, setChannelMap] = useState<Record<string, ChannelInfo>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const oldestPublishedAt = useRef<string | null>(null);
 
-  const channelIds = subscribedChannels.map((c) => c.id);
-  const channelIdForFilter = selectedChip && selectedChip !== "all"
-    ? subscribedChannels.find((c) => c.slug === selectedChip)?.id
+  const channelIdForFilter = selectedChip
+    ? channels.find((c) => c.slug === selectedChip)?.id ?? null
     : null;
 
   const fetchPosts = useCallback(
@@ -34,7 +36,6 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
         .from("job_posts")
         .select(select)
         .eq("status", "published")
-        .in("channel_id", channelIds.length ? channelIds : ["00000000-0000-0000-0000-000000000000"])
         .order("published_at", { ascending: false })
         .limit(PAGE_SIZE);
 
@@ -58,18 +59,18 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
       const { data } = await q;
       return (data ?? []) as (FeedPost & { channel_id: string })[];
     },
-    [channelIds, channelIdForFilter, searchQuery]
+    [channelIdForFilter, searchQuery]
   );
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
     const map: Record<string, ChannelInfo> = {};
-    subscribedChannels.forEach((c) => {
+    channels.forEach((c) => {
       map[c.id] = c;
     });
     setChannelMap(map);
 
-    if (subscribedChannels.length === 0) {
+    if (subscribedOnlyEmpty && channels.length === 0) {
       setPosts([]);
       setLoading(false);
       return;
@@ -79,14 +80,14 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
     setPosts(first);
     oldestPublishedAt.current = first.length > 0 ? first[first.length - 1].published_at : null;
     setLoading(false);
-  }, [subscribedChannels, fetchPosts]);
+  }, [channels, fetchPosts, subscribedOnlyEmpty]);
 
   useEffect(() => {
     loadInitial();
   }, [loadInitial]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !oldestPublishedAt.current || subscribedChannels.length === 0) return;
+    if (loadingMore || !oldestPublishedAt.current) return;
     setLoadingMore(true);
     const next = await fetchPosts(oldestPublishedAt.current);
     if (next.length > 0) {
@@ -96,7 +97,7 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
       oldestPublishedAt.current = null;
     }
     setLoadingMore(false);
-  }, [loadingMore, fetchPosts, subscribedChannels.length]);
+  }, [loadingMore, fetchPosts]);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -112,7 +113,7 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
     return () => observer.disconnect();
   }, [loadMore, loadingMore]);
 
-  if (subscribedChannels.length === 0) {
+  if (subscribedOnlyEmpty && channels.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -127,8 +128,8 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
 
   if (loading) {
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <div className="flex-1 overflow-y-auto bg-[#f8fafc]">
+        <div className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6">
           <div className="space-y-4">
             <FeedSkeleton />
             <FeedSkeleton />
@@ -142,28 +143,31 @@ export function PanelFeed({ subscribedChannels, selectedChip, searchQuery }: Pan
   const hasSearch = searchQuery.trim().length > 0;
 
   if (posts.length === 0) {
+    let emptyTitle: string;
+    let emptySub: string;
+    if (hasSearch) {
+      emptyTitle = "Sonuç bulunamadı";
+      emptySub = "Farklı bir meslek veya anahtar kelime deneyin.";
+    } else if (selectedChip) {
+      emptyTitle = "Bu kanalda henüz ilan yok";
+      emptySub = "Günlük olarak güncellenir.";
+    } else {
+      emptyTitle = "Henüz yayın yok";
+      emptySub = "İlanlar eklendiğinde burada görünecek.";
+    }
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          {hasSearch ? (
-            <>
-              <p className="text-lg font-medium text-slate-800">Aradığınız kriterlere uygun ilan bulunamadı.</p>
-              <p className="mt-2 text-sm text-slate-500">Farklı bir meslek adı deneyin.</p>
-            </>
-          ) : (
-            <>
-              <p className="text-slate-600">Bu kanalda henüz ilan yok.</p>
-              <p className="mt-1 text-sm text-slate-500">Günlük olarak güncellenir.</p>
-            </>
-          )}
+          <p className="text-lg font-medium text-slate-800">{emptyTitle}</p>
+          <p className="mt-2 text-sm text-slate-500">{emptySub}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+    <div className="flex-1 overflow-y-auto bg-[#f8fafc]">
+      <div className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6">
         <ul className="space-y-4">
           {posts.map((post) => {
             const p = post as FeedPost & { channel_id: string };

@@ -63,7 +63,7 @@ export function YurtdisiPanelClient() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      const current = `/yurtdisi-is-ilanlari${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+      const current = `/ucretsiz-yurtdisi-is-ilanlari${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
       router.replace(`/giris?next=${encodeURIComponent(current)}`);
     }
   }, [user, authLoading, router, searchParams]);
@@ -75,7 +75,7 @@ export function YurtdisiPanelClient() {
       const params = new URLSearchParams(searchParams.toString());
       if (newChip === "all") params.delete("c");
       else params.set("c", newChip);
-      router.push(`/yurtdisi-is-ilanlari?${params.toString()}`, { scroll: false });
+      router.push(`/ucretsiz-yurtdisi-is-ilanlari?${params.toString()}`, { scroll: false });
       setSidebarOpen(false);
     },
     [router, searchParams]
@@ -90,7 +90,7 @@ export function YurtdisiPanelClient() {
       if (searchInput.trim()) params.set("q", searchInput.trim());
       else params.delete("q");
       const qs = params.toString();
-      router.replace(qs ? `/yurtdisi-is-ilanlari?${qs}` : "/yurtdisi-is-ilanlari", { scroll: false });
+      router.replace(qs ? `/ucretsiz-yurtdisi-is-ilanlari?${qs}` : "/ucretsiz-yurtdisi-is-ilanlari", { scroll: false });
       debounceRef.current = null;
     }, DEBOUNCE_MS);
     return () => {
@@ -104,7 +104,7 @@ export function YurtdisiPanelClient() {
       const params = new URLSearchParams(searchParams.toString());
       if (c === "all") params.delete("c");
       else params.set("c", c);
-      router.push(`/yurtdisi-is-ilanlari?${params.toString()}`, { scroll: false });
+      router.push(`/ucretsiz-yurtdisi-is-ilanlari?${params.toString()}`, { scroll: false });
     },
     [router, searchParams]
   );
@@ -135,7 +135,7 @@ export function YurtdisiPanelClient() {
         <ChannelsSidebar
           selectedSlug={chip === "all" ? null : chip}
           onChannelSelect={handleChannelSelect}
-          basePath="/yurtdisi-is-ilanlari"
+          basePath="/ucretsiz-yurtdisi-is-ilanlari"
         />
       </div>
 
@@ -194,9 +194,10 @@ export function YurtdisiPanelClient() {
         </header>
 
         <PanelFeed
-          subscribedChannels={subscribedChannels}
+          channels={subscribedChannels}
           selectedChip={chip === "all" ? null : chip}
           searchQuery={searchQuery}
+          subscribedOnlyEmpty
         />
       </div>
     </div>

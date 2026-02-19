@@ -24,14 +24,18 @@ type Subscription = {
   channels: Channel | null;
 };
 
+const UCRETSIZ_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
+
 type ChannelsSidebarProps = {
   selectedSlug: string | null;
   onChannelSelect: (slug: string) => void;
-  /** Base path for redirects (e.g. /yurtdisi-is-ilanlari or /aboneliklerim) */
+  /** Base path for redirects (e.g. /ucretsiz-yurtdisi-is-ilanlari or /aboneliklerim) */
   basePath?: string;
+  /** Public sayfada giriş yapmamış kullanıcıya "Aboneliklerim" altında info + Giriş Yap CTA göster */
+  showLoginCta?: boolean;
 };
 
-export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/aboneliklerim" }: ChannelsSidebarProps) {
+export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/aboneliklerim", showLoginCta = false }: ChannelsSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -89,8 +93,8 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
   const handleSubscribe = useCallback(
     async (channel: Channel) => {
       if (!user) {
-        const next = basePath === "/yurtdisi-is-ilanlari"
-          ? `/yurtdisi-is-ilanlari?c=${channel.slug}`
+        const next = basePath === UCRETSIZ_PATH
+          ? `${UCRETSIZ_PATH}?c=${channel.slug}`
           : `${basePath}?kanal=${channel.slug}`;
         router.push(`/giris?next=${encodeURIComponent(next)}&subscribe=${encodeURIComponent(channel.slug)}`);
         return;
@@ -177,7 +181,19 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
           Aboneliklerim
         </h2>
-        {subscribed.length === 0 ? (
+        {!user && showLoginCta ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-600">
+              Giriş yaparak aboneliklerini yönetebilir ve ilanları kişiselleştirebilirsin.
+            </p>
+            <Link
+              href={`/giris?next=${encodeURIComponent(pathname || UCRETSIZ_PATH)}`}
+              className="mt-3 flex w-full items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Giriş Yap
+            </Link>
+          </div>
+        ) : subscribed.length === 0 ? (
           <div className="text-xs text-slate-500">
             <p>Henüz hiçbir kanala abone değilsiniz.</p>
             <p className="mt-1">Aşağıdaki Keşfet bölümünden bir ülke seçin.</p>

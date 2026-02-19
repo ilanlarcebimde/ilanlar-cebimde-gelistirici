@@ -82,7 +82,7 @@ export function ChannelsHeader() {
           </Link>
         ) : (
           <Link
-            href="/yurtdisi-is-ilanlari#ulkeler"
+            href="/ucretsiz-yurtdisi-is-ilanlari#ulkeler"
             className={`flex shrink-0 items-center gap-2 ${ctaClass}`}
             aria-label="Kanallara abone ol - ülke seçimi"
           >

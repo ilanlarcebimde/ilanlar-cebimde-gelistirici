@@ -72,7 +72,7 @@ export function AboneliklerimClient() {
             ← Ana sayfa
           </Link>
           <span className="font-semibold text-slate-900">Aboneliklerim</span>
-          <Link href="/yurtdisi-is-ilanlari" className="text-sm text-brand-600 hover:underline">
+          <Link href="/ucretsiz-yurtdisi-is-ilanlari" className="text-sm text-brand-600 hover:underline">
             Kanallar
           </Link>
         </div>
@@ -84,7 +84,7 @@ export function AboneliklerimClient() {
         {list.length === 0 ? (
           <p className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-slate-600">
             Henüz abone olduğunuz kanal yok.{" "}
-            <Link href="/yurtdisi-is-ilanlari#ulkeler" className="text-brand-600 hover:underline">
+            <Link href="/ucretsiz-yurtdisi-is-ilanlari#ulkeler" className="text-brand-600 hover:underline">
               Ülke kanallarına göz atın
             </Link>
             .
