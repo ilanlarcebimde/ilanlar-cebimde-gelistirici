@@ -33,7 +33,9 @@ export function ChannelsLayout() {
         .order("created_at", { ascending: false })
         .limit(1)
         .then(({ data }) => {
-          const firstSlug = data?.[0]?.channels?.slug;
+          const row = data?.[0];
+          const channels = row?.channels;
+          const firstSlug = Array.isArray(channels) ? channels[0]?.slug : (channels as { slug?: string } | null)?.slug;
           if (firstSlug && typeof firstSlug === "string") {
             setSelectedSlug(firstSlug);
             router.replace(`/aboneliklerim?kanal=${firstSlug}`, { scroll: false });
