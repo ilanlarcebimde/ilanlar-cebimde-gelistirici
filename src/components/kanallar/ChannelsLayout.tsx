@@ -34,8 +34,17 @@ export function ChannelsLayout() {
         .limit(1)
         .then(({ data }) => {
           const row = data?.[0];
-          const channels = row?.channels;
-          const firstSlug = Array.isArray(channels) ? channels[0]?.slug : (channels as { slug?: string } | null)?.slug;
+          if (!row) {
+            setInitialized(true);
+            return;
+          }
+          const channels = row.channels;
+          let firstSlug: string | undefined;
+          if (Array.isArray(channels)) {
+            firstSlug = channels[0]?.slug;
+          } else if (channels && typeof channels === 'object' && 'slug' in channels) {
+            firstSlug = (channels as { slug?: string }).slug;
+          }
           if (firstSlug && typeof firstSlug === "string") {
             setSelectedSlug(firstSlug);
             router.replace(`/aboneliklerim?kanal=${firstSlug}`, { scroll: false });
