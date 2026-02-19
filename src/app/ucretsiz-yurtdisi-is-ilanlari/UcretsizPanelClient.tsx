@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { ChannelsSidebar } from "@/components/kanallar/ChannelsSidebar";
 import { PanelFeed } from "@/components/kanallar/PanelFeed";
+import { FeedHeader } from "@/components/FeedHeader";
 
 const BASE_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const DEBOUNCE_MS = 300;
@@ -125,79 +126,36 @@ export function UcretsizPanelClient() {
       </div>
 
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md">
-          <div className="mx-auto max-w-[1100px] w-full px-4 lg:px-6">
-            <div className="flex h-14 items-center gap-2 lg:hidden">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 text-slate-600 hover:text-slate-900"
-                aria-label="Menüyü aç"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <span className="font-semibold text-slate-900">Ücretsiz Yurtdışı İş İlanları</span>
-            </div>
-
-            <div className="border-t border-slate-100 py-4 lg:border-t-0">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Ücretsiz akış • Günlük güncellenir
-              </p>
-              <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
-                Ücretsiz Yurtdışı İş İlanları
-              </h1>
-              <p className="mt-0.5 text-sm text-slate-600">
-                Güncel ilanları ücretsiz takip edin. Resmi duyurular ve güvenli yönlendirmeler tek akışta.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 pb-4">
-              <input
-                type="search"
-                placeholder="Meslek ara… örn: Forklift operatörü"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-thin sm:mx-0 sm:px-0">
-                <button
-                  type="button"
-                  onClick={() => handleChipClick("all")}
-                  className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                    chip === "all"
-                      ? "bg-brand-600 text-white shadow-sm"
-                      : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                  }`}
-                >
-                  Tümü
-                </button>
-                {allChannels.map((ch) => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    onClick={() => handleChipClick(ch.slug)}
-                    className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                      chip === ch.slug
-                        ? "bg-brand-600 text-white shadow-sm"
-                        : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                    }`}
-                  >
-                    {ch.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <PanelFeed
+        <FeedHeader
+          onMenuClick={() => setSidebarOpen(true)}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          selectedChip={chip}
+          onChipClick={handleChipClick}
           channels={allChannels}
-          selectedChip={chip === "all" ? null : chip}
-          searchQuery={searchQuery}
-          subscribedOnlyEmpty={false}
+          basePath={BASE_PATH}
         />
+
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="mx-auto w-full max-w-[1100px] shrink-0 px-4 py-3 sm:px-6">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Ücretsiz akış • Günlük güncellenir
+            </p>
+            <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
+              Ücretsiz Yurtdışı İş İlanları
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Güncel ilanları ücretsiz takip edin. Resmi duyurular ve güvenli yönlendirmeler tek akışta.
+            </p>
+          </div>
+
+          <PanelFeed
+            channels={allChannels}
+            selectedChip={chip === "all" ? null : chip}
+            searchQuery={searchQuery}
+            subscribedOnlyEmpty={false}
+          />
+        </div>
       </div>
     </div>
   );
