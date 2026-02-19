@@ -10,13 +10,17 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get("code");
-    // URL'deki next bazen OAuth redirect'te kayboluyor; sessionStorage'dan yedekle
     const nextFromUrl = searchParams.get("next");
+    const subscribeFromUrl = searchParams.get("subscribe");
     const nextFromStorage =
       typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_next") : null;
+    const subscribeFromStorage =
+      typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_subscribe") : null;
     const next = nextFromUrl ?? nextFromStorage ?? "/panel";
-    if (typeof window !== "undefined" && nextFromStorage) {
+    const subscribe = subscribeFromUrl ?? subscribeFromStorage ?? "";
+    if (typeof window !== "undefined") {
       sessionStorage.removeItem("auth_redirect_next");
+      sessionStorage.removeItem("auth_redirect_subscribe");
     }
 
     if (!code) {
@@ -27,6 +31,24 @@ function AuthCallbackContent() {
     supabase.auth
       .exchangeCodeForSession(code)
       .then(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (subscribe && session?.access_token) {
+          try {
+            const res = await fetch("/api/subscriptions/ensure", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ channelSlug: subscribe }),
+            });
+            if (!res.ok) {
+              console.warn("ensure subscription failed", await res.text());
+            }
+          } catch (e) {
+            console.warn("ensure subscription error", e);
+          }
+        }
         if (next === "/odeme") {
           const { data: { user } } = await supabase.auth.getUser();
           if (user?.email) {
