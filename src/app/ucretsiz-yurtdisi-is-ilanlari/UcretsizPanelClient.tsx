@@ -11,7 +11,19 @@ import { FeedHeader } from "@/components/FeedHeader";
 const BASE_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const DEBOUNCE_MS = 300;
 
-type ChannelInfo = { id: string; slug: string; name: string; brand_color: string | null };
+type ChannelInfo = { id: string; slug: string; name: string; brand_color: string | null; page_url: string | null };
+
+function getFeedPathFromChannel(channel: { page_url?: string | null; slug: string }): string {
+  if (channel?.page_url?.trim()) {
+    try {
+      const u = new URL(channel.page_url);
+      return u.pathname + u.search;
+    } catch {
+      return `${BASE_PATH}?c=${channel.slug}`;
+    }
+  }
+  return `${BASE_PATH}?c=${channel.slug}`;
+}
 
 export function UcretsizPanelClient() {
   const router = useRouter();
@@ -38,7 +50,7 @@ export function UcretsizPanelClient() {
   const loadChannels = useCallback(async () => {
     const { data } = await supabase
       .from("channels")
-      .select("id, slug, name, brand_color")
+      .select("id, slug, name, brand_color, page_url")
       .eq("is_active", true)
       .order("name");
     const list: ChannelInfo[] = (data ?? []).map((row: any) => ({
@@ -46,6 +58,7 @@ export function UcretsizPanelClient() {
       slug: row.slug,
       name: row.name,
       brand_color: row.brand_color ?? null,
+      page_url: row.page_url ?? null,
     }));
     setAllChannels(list);
     setLoading(false);
@@ -59,13 +72,18 @@ export function UcretsizPanelClient() {
     (slug: string) => {
       const newChip = slug || "all";
       setChip(newChip);
-      const params = new URLSearchParams(searchParams.toString());
-      if (newChip === "all") params.delete("c");
-      else params.set("c", newChip);
-      router.push(`${BASE_PATH}?${params.toString()}`, { scroll: false });
+      if (newChip === "all") {
+        router.push(BASE_PATH + (searchParams.get("q") ? `?q=${encodeURIComponent(searchParams.get("q")!)}` : ""), { scroll: false });
+      } else {
+        const ch = allChannels.find((c) => c.slug === newChip);
+        const path = ch ? getFeedPathFromChannel(ch) : `${BASE_PATH}?c=${newChip}`;
+        const q = searchParams.get("q");
+        const pathWithQ = q ? (path.includes("?") ? `${path}&q=${encodeURIComponent(q)}` : `${path}?q=${encodeURIComponent(q)}`) : path;
+        router.push(pathWithQ, { scroll: false });
+      }
       setSidebarOpen(false);
     },
-    [router, searchParams]
+    [router, searchParams, allChannels]
   );
 
   useEffect(() => {
@@ -87,12 +105,18 @@ export function UcretsizPanelClient() {
   const handleChipClick = useCallback(
     (c: string) => {
       setChip(c);
-      const params = new URLSearchParams(searchParams.toString());
-      if (c === "all") params.delete("c");
-      else params.set("c", c);
-      router.push(`${BASE_PATH}?${params.toString()}`, { scroll: false });
+      if (c === "all") {
+        const q = searchParams.get("q");
+        router.push(q ? `${BASE_PATH}?q=${encodeURIComponent(q)}` : BASE_PATH, { scroll: false });
+      } else {
+        const ch = allChannels.find((x) => x.slug === c);
+        const path = ch ? getFeedPathFromChannel(ch) : `${BASE_PATH}?c=${c}`;
+        const q = searchParams.get("q");
+        const pathWithQ = q ? (path.includes("?") ? `${path}&q=${encodeURIComponent(q)}` : `${path}?q=${encodeURIComponent(q)}`) : path;
+        router.push(pathWithQ, { scroll: false });
+      }
     },
-    [router, searchParams]
+    [router, searchParams, allChannels]
   );
 
   if (authLoading || loading) {

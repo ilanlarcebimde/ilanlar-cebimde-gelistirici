@@ -132,7 +132,7 @@ export function NotificationPopover({
                         </p>
                       )}
                       <Link
-                        href={`${FEED_PATH}?c=${ch.slug}`}
+                        href={ch.page_url || `${FEED_PATH}?c=${ch.slug}`}
                         onClick={onClose}
                         className="mt-2 inline-block text-sm font-medium text-brand-600 hover:text-brand-700"
                       >

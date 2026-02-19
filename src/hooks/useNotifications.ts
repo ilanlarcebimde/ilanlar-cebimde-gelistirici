@@ -8,6 +8,7 @@ export type NotificationChannel = {
   slug: string;
   name: string;
   country_code: string;
+  page_url: string | null;
   newCount: number;
   published_seq: number;
   published_last_at: string | null;
@@ -31,7 +32,7 @@ export function useNotifications(userId: string | undefined) {
     setLoading(true);
     const { data: subs } = await supabase
       .from("channel_subscriptions")
-      .select("channel_id, channels(id, slug, name, country_code)")
+      .select("channel_id, channels(id, slug, name, country_code, page_url)")
       .eq("user_id", userId);
     const subList = (subs ?? []).map((r: any) => ({
       channel_id: r.channel_id,
@@ -63,6 +64,7 @@ export function useNotifications(userId: string | undefined) {
         slug: ch?.slug ?? "",
         name: ch?.name ?? "",
         country_code: ch?.country_code ?? "XX",
+        page_url: ch?.page_url ?? null,
         newCount,
         published_seq: publishedSeq,
         published_last_at: stat?.published_last_at ?? null,
