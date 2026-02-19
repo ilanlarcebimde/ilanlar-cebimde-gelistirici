@@ -77,7 +77,7 @@ export function IlanlarPageClient() {
   const handleSubscribe = useCallback(
     async (slug: string) => {
       if (!user) {
-        router.push(`/kanal/${slug}`);
+        router.push(`/giris?next=${encodeURIComponent(`/kanal/${slug}`)}&subscribe=${encodeURIComponent(slug)}`);
         return;
       }
       setSubmitting(slug);
@@ -85,7 +85,7 @@ export function IlanlarPageClient() {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) {
-          router.push(`/kanal/${slug}`);
+          router.push(`/giris?next=${encodeURIComponent(`/kanal/${slug}`)}&subscribe=${encodeURIComponent(slug)}`);
           return;
         }
         const res = await fetch("/api/subscriptions/ensure", {

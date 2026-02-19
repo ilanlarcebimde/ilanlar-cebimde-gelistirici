@@ -87,7 +87,7 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect }: ChannelsSideb
   const handleSubscribe = useCallback(
     async (channel: Channel) => {
       if (!user) {
-        router.push(`/giris?next=${encodeURIComponent(`/aboneliklerim?kanal=${channel.slug}`)}`);
+        router.push(`/giris?next=${encodeURIComponent(`/aboneliklerim?kanal=${channel.slug}`)}&subscribe=${encodeURIComponent(channel.slug)}`);
         return;
       }
 

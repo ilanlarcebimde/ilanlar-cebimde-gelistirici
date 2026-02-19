@@ -81,6 +81,11 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   );
 
   const loadInitial = useCallback(async () => {
+    if (!user) {
+      router.replace(`/giris?next=${encodeURIComponent(`/kanal/${slug}`)}&subscribe=${encodeURIComponent(slug)}`);
+      return;
+    }
+
     const ch = await fetchChannel();
     if (!ch) {
       setError("Kanal bulunamadı.");
@@ -89,19 +94,15 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     }
     setChannel(ch);
 
-    if (user) {
-      const sub = await fetchSubscription(ch.id);
-      setSubscription(sub);
-      if (!sub) {
-        const first = await fetchPosts(null, false);
-        setPosts(first);
-        if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
-        else oldestPublishedAt.current = null;
-        setLoading(false);
-        return;
-      }
-    } else {
-      setSubscription(null);
+    const sub = await fetchSubscription(ch.id);
+    setSubscription(sub);
+    if (!sub) {
+      const first = await fetchPosts(null, false);
+      setPosts(first);
+      if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
+      else oldestPublishedAt.current = null;
+      setLoading(false);
+      return;
     }
 
     const first = await fetchPosts(null, false);
@@ -109,7 +110,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
     else oldestPublishedAt.current = null;
     setLoading(false);
-  }, [user, slug, fetchChannel, fetchSubscription, fetchPosts]);
+  }, [user, slug, router, fetchChannel, fetchSubscription, fetchPosts]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -183,6 +184,8 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
     else oldestPublishedAt.current = null;
   }, [channel, fetchPosts]);
+
+  if (!user) return null;
 
   if (authLoading || (loading && !channel && !error)) {
     return (
