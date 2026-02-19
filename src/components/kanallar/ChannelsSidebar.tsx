@@ -227,8 +227,10 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
                           : {}
                       }
                     >
-                      <img src={flagSrc} alt="" className="h-5 w-auto shrink-0 rounded" />
-                      <span className="flex-1 text-left truncate">{ch.name}</span>
+                      <span className="flex h-6 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100">
+                        <img src={flagSrc} alt="" className="h-full w-full object-contain object-center" />
+                      </span>
+                      <span className="flex-1 min-w-0 text-left truncate">{ch.name}</span>
                       {isSelected && (
                         <span className="shrink-0 text-xs text-slate-400">●</span>
                       )}
@@ -273,8 +275,10 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
               return (
                 <li key={ch.id}>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg group hover:bg-slate-50">
-                    <img src={flagSrc} alt="" className="h-5 w-auto shrink-0 rounded" />
-                    <span className="flex-1 text-sm text-slate-600 truncate">{ch.name}</span>
+                    <span className="flex h-6 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100">
+                      <img src={flagSrc} alt="" className="h-full w-full object-contain object-center" />
+                    </span>
+                    <span className="flex-1 min-w-0 text-sm text-slate-600 truncate">{ch.name}</span>
                     <button
                       type="button"
                       onClick={() => handleSubscribe(ch)}
