@@ -18,8 +18,14 @@ export function useMySubscriptionSlugs(userId: string | undefined): Set<string> 
       .then(({ data }) => {
         const set = new Set<string>();
         for (const row of data ?? []) {
-          const slug = (row as { channels: { slug: string } | null }).channels?.slug;
-          if (slug) set.add(slug);
+          const channels = (row as any).channels;
+          let slug: string | undefined;
+          if (Array.isArray(channels)) {
+            slug = channels[0]?.slug;
+          } else if (channels && typeof channels === 'object' && 'slug' in channels) {
+            slug = channels.slug;
+          }
+          if (slug && typeof slug === 'string') set.add(slug);
         }
         setSlugs(set);
       });
