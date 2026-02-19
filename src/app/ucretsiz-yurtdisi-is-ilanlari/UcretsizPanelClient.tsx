@@ -128,7 +128,7 @@ export function UcretsizPanelClient() {
 
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <FeedHeader
-          onMenuClick={() => setSidebarOpen(true)}
+          onMenuClick={() => setSidebarOpen((prev) => !prev)}
           searchValue={searchInput}
           onSearchChange={setSearchInput}
           selectedChip={chip}
