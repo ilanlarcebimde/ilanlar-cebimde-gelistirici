@@ -90,6 +90,21 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel("sidebar-subscriptions-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "channel_subscriptions", filter: `user_id=eq.${user.id}` },
+        () => loadData()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, loadData]);
+
   const handleSubscribe = useCallback(
     async (channel: Channel) => {
       if (!user) {

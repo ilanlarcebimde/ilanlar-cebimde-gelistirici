@@ -21,7 +21,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur-md transition-shadow duration-200 ${
+      className={`sticky top-0 z-[1000] w-full border-b bg-white/85 backdrop-blur-md transition-shadow duration-200 ${
         scrolled ? "border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "border-transparent"
       }`}
     >
@@ -48,11 +48,14 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               <PushNotificationButton />
               <Link
                 href="/aboneliklerim"
-                className="flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:rounded-2xl sm:px-4"
-                aria-label="Aboneliklerim"
+                className="relative flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:rounded-2xl sm:px-4"
+                aria-label={`Aboneliklerim (${subscriptionCount} kanal)`}
               >
                 <Bell className="h-4 w-4 shrink-0" aria-hidden />
                 <span>Aboneliklerim</span>
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-xs font-bold text-brand-600 shadow-sm">
+                  {subscriptionCount}
+                </span>
               </Link>
             </>
           ) : (
@@ -68,7 +71,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
           {!loading && user ? (
             <Link
               href="/panel"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 sm:rounded-2xl sm:px-4"
+              className="rounded-xl border-2 border-slate-800 px-3 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-100 sm:rounded-2xl sm:px-4"
             >
               Hesabım
             </Link>

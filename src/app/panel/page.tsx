@@ -31,6 +31,13 @@ type SessionRow = {
   completed: boolean;
   updated_at: string;
 };
+type SubWithChannel = {
+  id: string;
+  channel_id: string;
+  created_at: string;
+  channels: { slug: string; name: string; country_code: string } | null;
+};
+const FLAG_CDN = "https://flagcdn.com";
 
 const PROFILE_STATUS_LABELS: Record<string, string> = {
   draft: "Taslak",
@@ -94,7 +101,9 @@ export default function PanelPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubWithChannel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unsubscribing, setUnsubscribing] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [sessionInfoOpen, setSessionInfoOpen] = useState(false);
   const sessionInfoRef = useRef<HTMLDivElement>(null);
@@ -121,12 +130,24 @@ export default function PanelPage() {
         .select("session_id, completed, updated_at")
         .eq("user_id", uid)
         .order("updated_at", { ascending: false }),
+      supabase
+        .from("channel_subscriptions")
+        .select("id, channel_id, created_at, channels(slug, name, country_code)")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false }),
     ])
-      .then(([p, pay, s]) => {
+      .then(([p, pay, s, sub]) => {
         const rows = (p.data as ProfileRow[]) ?? [];
         setProfiles(rows.map((r) => normalizeProfileRow(r) ?? r));
         setPayments((pay.data as PaymentRow[]) ?? []);
         setSessions((s.data as SessionRow[]) ?? []);
+        const subData = (sub.data ?? []).map((item: any) => ({
+          id: item.id,
+          channel_id: item.channel_id,
+          created_at: item.created_at,
+          channels: Array.isArray(item.channels) ? item.channels[0] : item.channels,
+        })) as SubWithChannel[];
+        setSubscriptions(subData);
       })
       .catch(() => setFetchError("Veriler yüklenirken bir hata oluştu."))
       .finally(() => setLoading(false));
@@ -185,6 +206,14 @@ export default function PanelPage() {
     navigator.clipboard?.writeText(text).then(() => {
       // Basit geri bildirim; isteğe bağlı toast eklenebilir
     });
+  };
+
+  const handleUnsubscribe = async (subId: string) => {
+    if (!confirm("Bu kanalı aboneliklerinizden kaldırmak istediğinize emin misiniz?")) return;
+    setUnsubscribing(subId);
+    await supabase.from("channel_subscriptions").delete().eq("id", subId);
+    setSubscriptions((prev) => prev.filter((s) => s.id !== subId));
+    setUnsubscribing(null);
   };
 
   return (
@@ -270,6 +299,71 @@ export default function PanelPage() {
                 )}
               </div>
             </div>
+
+            {/* Aboneliklerim */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-slate-900">Aboneliklerim</h2>
+                <Link
+                  href="/aboneliklerim"
+                  className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  Tümünü yönet →
+                </Link>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Yurtdışı iş ilanı kanallarına abonelikleriniz. Abonelikten çıkmak istediğiniz kanalı buradan kaldırabilirsiniz.
+              </p>
+              {subscriptions.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="font-medium text-slate-700">Henüz kanal aboneliğiniz yok</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    <Link href="/ucretsiz-yurtdisi-is-ilanlari" className="text-brand-600 hover:underline">
+                      Ücretsiz ilan akışından
+                    </Link>{" "}
+                    kanallara abone olabilirsiniz.
+                  </p>
+                </div>
+              ) : (
+                <ul className="mt-4 space-y-0 divide-y divide-slate-100">
+                  {subscriptions.map((sub) => {
+                    const ch = sub.channels;
+                    if (!ch) return null;
+                    const flagSrc = `${FLAG_CDN}/w80/${ch.country_code.toLowerCase()}.png`;
+                    return (
+                      <li
+                        key={sub.id}
+                        className="flex min-w-0 flex-wrap items-center gap-3 py-4 first:pt-0 sm:flex-nowrap"
+                      >
+                        <span className="flex h-8 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100">
+                          <img src={flagSrc} alt="" className="h-full w-full object-contain object-center" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-slate-800">{ch.name}</p>
+                          <p className="text-xs text-slate-500">Abone olma: {formatDate(sub.created_at)}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Link
+                            href={`/kanal/${ch.slug}`}
+                            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+                          >
+                            Akışı Aç
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleUnsubscribe(sub.id)}
+                            disabled={unsubscribing === sub.id}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            {unsubscribing === sub.id ? "Çıkılıyor…" : "Abonelikten Çık"}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
 
             {/* Başvurularım */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
