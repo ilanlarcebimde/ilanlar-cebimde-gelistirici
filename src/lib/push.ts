@@ -44,16 +44,17 @@ export async function subscribeToPush(
 ): Promise<PushSubscriptionData> {
   const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
   const appServerKey = urlBase64ToUint8Array(vapidKey);
-  
-  // ArrayBuffer'a normalize et (slice ile gerçek ArrayBuffer üret)
-  const appServerKeyBuffer = appServerKey.buffer.slice(
-    appServerKey.byteOffset,
-    appServerKey.byteOffset + appServerKey.byteLength
-  );
-  
+
+  // Kesin ArrayBuffer üret (SharedArrayBuffer ihtimali yok)
+  const appServerKeyAB: ArrayBuffer = (() => {
+    const ab = new ArrayBuffer(appServerKey.byteLength);
+    new Uint8Array(ab).set(appServerKey);
+    return ab;
+  })();
+
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: appServerKeyBuffer,
+    applicationServerKey: appServerKeyAB,
   });
 
   const key = subscription.getKey('p256dh');
