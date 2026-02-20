@@ -56,7 +56,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
         }`}
       >
         <div className="mx-auto flex h-14 min-h-14 max-h-14 flex-nowrap items-center gap-2 px-3 sm:gap-3 sm:px-4 md:px-5 max-w-[1200px]">
-          {/* Sol: Logo + Başlık (hamburger yok, alan serbest) */}
+          {/* Sol: Logo + Başlık — mobilde oturum kapalıyken büyük, açıkken kompakt */}
           <Link
             href="/"
             className="flex min-w-0 shrink items-center gap-2 text-slate-900"
@@ -65,15 +65,23 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
             <Image
               src="/logo.png"
               alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
+              width={40}
+              height={40}
+              className={`shrink-0 object-contain sm:h-9 sm:w-9 ${
+                loggedIn ? "h-7 w-7 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-9 sm:w-9"
+              }`}
               priority
             />
             <span className="hidden truncate text-base font-bold tracking-tight sm:block sm:text-lg min-w-0">
               İlanlar Cebimde
             </span>
-            <span className="truncate text-sm font-bold sm:hidden min-w-0">İlanlar Cebimde</span>
+            <span
+              className={`truncate font-bold tracking-tight min-w-0 sm:hidden ${
+                loggedIn ? "text-sm" : "text-base"
+              }`}
+            >
+              İlanlar Cebimde
+            </span>
           </Link>
 
           {/* Sağ: Duruma göre Aboneliklerim + Bildirim + Menü veya Giriş Yap + Abone Ol + Menü */}
