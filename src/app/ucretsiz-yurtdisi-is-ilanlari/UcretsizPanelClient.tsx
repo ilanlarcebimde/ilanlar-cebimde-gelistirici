@@ -127,32 +127,55 @@ export function UcretsizPanelClient() {
     );
   }
 
+  const handleSignOut = useCallback(async () => {
+    setSidebarOpen(false);
+    await supabase.auth.signOut();
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+      {/* Mobil: hafif backdrop, panel header altında popup */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/25 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden
         />
       )}
 
+      {/* Sol panel: masaüstünde statik, mobilde header altında popup (tam ekran değil) */}
       <div
-        className={`fixed left-0 top-[6rem] bottom-0 z-50 w-[280px] transform border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out lg:static lg:top-0 lg:translate-x-0 ${
+        className={`fixed left-4 top-[5.25rem] z-50 w-[280px] max-h-[calc(100vh-6rem)] rounded-xl border border-slate-200 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.12)] transition-transform duration-200 lg:static lg:left-0 lg:top-0 lg:max-h-none lg:rounded-none lg:border-r lg:border-slate-200 lg:shadow-none lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        style={{ maxHeight: "calc(100vh - 6rem)" }}
       >
-        <ChannelsSidebar
-          selectedSlug={chip === "all" ? null : chip}
-          onChannelSelect={handleChannelSelect}
-          basePath={BASE_PATH}
-          showLoginCta
-        />
+        <div className="flex h-full max-h-[calc(100vh-6rem)] flex-col overflow-hidden lg:max-h-none">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <ChannelsSidebar
+              selectedSlug={chip === "all" ? null : chip}
+              onChannelSelect={handleChannelSelect}
+              basePath={BASE_PATH}
+              showLoginCta
+            />
+          </div>
+          {user && (
+            <div className="shrink-0 border-t border-slate-200 p-3">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Oturumu Sonlandır
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <FeedHeader
           onMenuClick={() => setSidebarOpen((prev) => !prev)}
+          onAboneliklerimClick={() => setSidebarOpen((prev) => !prev)}
           searchValue={searchInput}
           onSearchChange={setSearchInput}
           selectedChip={chip}

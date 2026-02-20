@@ -3,36 +3,35 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bell, Search, User, Menu, LayoutList } from "lucide-react";
+import { Bell, Search, User, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionCount } from "@/hooks/useSubscriptionCount";
 import { useNotifications } from "@/hooks/useNotifications";
-import { PushNotificationButton } from "@/components/push/PushNotificationButton";
-import { NotificationPopover } from "@/components/notifications/NotificationPopover";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { NotificationBellPopover } from "@/components/notifications/NotificationBellPopover";
 
 const FEED_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 
 export type ChannelChip = { id: string; slug: string; name: string };
 
 type FeedHeaderProps = {
-  /** Mobil: sidebar drawer açmak için */
+  /** Mobil: sol panel (abonelikler) açmak için */
   onMenuClick?: () => void;
+  /** Feed sayfasında Aboneliklerim tıklanınca sol paneli aç/kapat (verilirse buton paneli toggle eder) */
+  onAboneliklerimClick?: () => void;
   /** Arama input (controlled) */
   searchValue: string;
   onSearchChange: (value: string) => void;
-  /** Enter ile arama tetiklenir (opsiyonel, zaten debounce varsa boş bırakılabilir) */
   onSearchSubmit?: () => void;
-  /** Chip seçimi */
   selectedChip: string;
   onChipClick: (slug: string) => void;
-  /** Tümü + kanal listesi */
   channels: ChannelChip[];
-  /** Base path for links (e.g. /ucretsiz-yurtdisi-is-ilanlari) */
   basePath?: string;
 };
 
 export function FeedHeader({
   onMenuClick,
+  onAboneliklerimClick,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -44,22 +43,23 @@ export function FeedHeader({
   const { user, loading: authLoading } = useAuth();
   const subscriptionCount = useSubscriptionCount(user?.id);
   const { channels: notificationChannels, totalBadge, loading: notificationsLoading, markAllSeen } = useNotifications(user?.id);
+  const { isSubscribed } = usePushSubscription();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const notificationAnchorRef = useRef<HTMLButtonElement>(null);
 
   const loginUrl = `/giris?next=${encodeURIComponent(basePath)}`;
+  const loggedIn = !authLoading && !!user;
+  const notificationActive = loggedIn && isSubscribed;
 
   return (
     <header
-      className="sticky top-0 z-[1000] w-full border-b border-[#e5e7eb] bg-white/[0.92] backdrop-blur-[10px]"
-      style={{
-        boxShadow: "0 1px 0 rgba(0,0,0,0.05)",
-      }}
+      className="sticky top-0 z-[1000] w-full border-b border-slate-200 bg-white/[0.92] backdrop-blur-[10px]"
+      style={{ boxShadow: "0 1px 0 rgba(0,0,0,0.05)" }}
     >
-      {/* Primary bar: Logo | Search | Actions */}
+      {/* Primary bar */}
       <div className="flex h-12 min-h-12 items-center gap-2 px-3 sm:gap-3 sm:px-4 md:px-5">
-        {/* Left: Hamburger (mobile) or Logo */}
+        {/* Sol: Hamburger (mobil) + Logo */}
         <div className="flex shrink-0 items-center gap-2">
           {onMenuClick && (
             <button
@@ -91,7 +91,7 @@ export function FeedHeader({
           </Link>
         </div>
 
-        {/* Center: Search (hidden on mobile when collapsed) */}
+        {/* Orta: Arama (masaüstü) */}
         <div className="hidden flex-1 justify-center md:flex md:max-w-[480px] lg:max-w-[680px]">
           <div className="relative w-full">
             <input
@@ -108,9 +108,9 @@ export function FeedHeader({
           </div>
         </div>
 
-        {/* Right: Actions */}
+        {/* Sağ: Zil + (Aboneliklerim masaüstü auth) + Abone Ol (guest) + Hesabım / Giriş Yap */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          {/* Mobile: search icon (toggle expand) */}
+          {/* Mobil: arama ikonu */}
           <button
             type="button"
             onClick={() => setMobileSearchOpen((o) => !o)}
@@ -120,69 +120,86 @@ export function FeedHeader({
             <Search className="h-5 w-5" />
           </button>
 
-          {/* Bildirim ikonu (ayrı buton, badge = yeni ilan sayısı) */}
+          {/* Tek bildirim ikonu: tıklanınca popover (guest = giriş CTA, auth = toggle + liste) */}
           <div className="relative">
-            {!authLoading && !user ? (
-              <Link
-                href={loginUrl}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:h-10 sm:w-10"
-                aria-label="Bildirimler (giriş yap)"
-              >
-                <Bell className="h-5 w-5" />
-              </Link>
-            ) : (
-              <button
-                ref={notificationAnchorRef}
-                type="button"
-                onClick={() => setNotificationOpen((o) => !o)}
-                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 hover:shadow-sm sm:h-10 sm:w-10"
-                aria-label={totalBadge > 0 ? `${totalBadge} yeni bildirim` : "Bildirimler"}
-              >
-                <Bell className="h-5 w-5" />
-                {totalBadge > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-600 px-1 text-[10px] font-bold text-white shadow sm:-right-1 sm:-top-1">
-                    {totalBadge > 99 ? "99+" : totalBadge}
-                  </span>
-                )}
-              </button>
-            )}
-            <NotificationPopover
+            <button
+              ref={notificationAnchorRef}
+              type="button"
+              onClick={() => setNotificationOpen((o) => !o)}
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-[0.98] sm:h-10 sm:w-10 ${
+                notificationActive
+                  ? "text-brand-600 bg-brand-50 hover:bg-brand-100 active:bg-brand-100"
+                  : "text-slate-600 bg-slate-100 hover:bg-slate-200 hover:text-slate-800 active:bg-slate-200 active:text-slate-800"
+              }`}
+              aria-label={totalBadge > 0 ? `${totalBadge} yeni bildirim` : "Bildirimler"}
+            >
+              <Bell className="h-5 w-5 shrink-0" strokeWidth={2.25} />
+              {loggedIn && totalBadge > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-600 px-1 text-[10px] font-bold text-white sm:-right-1 sm:-top-1">
+                  {totalBadge > 99 ? "99+" : totalBadge}
+                </span>
+              )}
+            </button>
+            <NotificationBellPopover
               open={notificationOpen}
               onClose={() => setNotificationOpen(false)}
               anchorRef={notificationAnchorRef}
               channels={notificationChannels}
               totalBadge={totalBadge}
-              loading={notificationsLoading}
+              loadingChannels={notificationsLoading}
               onMarkAllSeen={markAllSeen}
+              isAuth={loggedIn}
+              loginUrl={loginUrl}
             />
           </div>
 
-          {!authLoading && user && subscriptionCount > 0 ? (
+          {/* Masaüstü auth: Aboneliklerim (feed’de panel toggle, değilse link) */}
+          {loggedIn && (
             <>
-              <PushNotificationButton />
-              <Link
-                href="/aboneliklerim"
-                className="relative flex items-center gap-1.5 rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 sm:px-3 sm:py-2 sm:text-sm"
-                aria-label={`Aboneliklerim (${subscriptionCount})`}
-              >
-                <LayoutList className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Aboneliklerim</span>
-                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-white px-0.5 text-[10px] font-bold text-brand-600 sm:-right-1 sm:-top-1 sm:h-4 sm:min-w-4 sm:text-xs">
-                  {subscriptionCount}
-                </span>
-              </Link>
+              {onAboneliklerimClick ? (
+                <button
+                  type="button"
+                  onClick={onAboneliklerimClick}
+                  className="hidden lg:flex relative items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+                  aria-label={`Aboneliklerim (${subscriptionCount})`}
+                >
+                  Aboneliklerim
+                  {subscriptionCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-brand-600">
+                      {subscriptionCount}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <Link
+                  href="/aboneliklerim"
+                  className="hidden lg:flex relative items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+                  aria-label={`Aboneliklerim (${subscriptionCount})`}
+                >
+                  Aboneliklerim
+                  {subscriptionCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-brand-600">
+                      {subscriptionCount}
+                    </span>
+                  )}
+                </Link>
+              )}
             </>
-          ) : (
+          )}
+
+          {/* Guest: Abone Ol (sadece metin, ikon yok) — masaüstü ve mobil */}
+          {!loggedIn && (
             <Link
               href={basePath}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 sm:px-3 sm:py-2 sm:text-sm"
+              className="flex items-center rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 sm:px-3 sm:py-2 sm:text-sm"
               aria-label="Abone Ol"
             >
-              <Bell className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">Abone Ol</span>
+              Abone Ol
             </Link>
           )}
-          {!authLoading && user ? (
+
+          {/* Hesabım / Giriş Yap */}
+          {loggedIn ? (
             <Link
               href="/panel"
               className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:px-3 sm:py-2 sm:text-sm"
@@ -203,12 +220,12 @@ export function FeedHeader({
         </div>
       </div>
 
-      {/* Mobile: expandable search row */}
+      {/* Mobil: açılır arama satırı */}
       {mobileSearchOpen && (
         <div className="border-t border-slate-100 px-3 py-2 md:hidden">
           <input
             type="search"
-            placeholder="Meslek ara… örn: Forklift operatörü"
+            placeholder="Meslek ara…"
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (onSearchSubmit?.(), setMobileSearchOpen(false))}
@@ -218,16 +235,14 @@ export function FeedHeader({
         </div>
       )}
 
-      {/* Secondary bar: Chips */}
+      {/* Chips */}
       <div className="border-t border-slate-100">
         <div className="flex gap-2 overflow-x-auto px-3 py-2 scrollbar-thin sm:px-4 md:px-5">
           <button
             type="button"
             onClick={() => onChipClick("all")}
             className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-              selectedChip === "all"
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              selectedChip === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             Tümü
@@ -238,9 +253,7 @@ export function FeedHeader({
               type="button"
               onClick={() => onChipClick(ch.slug)}
               className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                selectedChip === ch.slug
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                selectedChip === ch.slug ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
               {ch.name}
