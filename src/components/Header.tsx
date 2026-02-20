@@ -68,18 +68,14 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               width={40}
               height={40}
               className={`shrink-0 object-contain sm:h-9 sm:w-9 ${
-                loggedIn ? "h-7 w-7 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-9 sm:w-9"
+                loggedIn ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-9 sm:w-9"
               }`}
               priority
             />
             <span className="hidden truncate text-base font-bold tracking-tight sm:block sm:text-lg min-w-0">
               İlanlar Cebimde
             </span>
-            <span
-              className={`truncate font-bold tracking-tight min-w-0 sm:hidden ${
-                loggedIn ? "text-sm" : "text-base"
-              }`}
-            >
+            <span className="truncate text-base font-bold tracking-tight min-w-0 sm:hidden">
               İlanlar Cebimde
             </span>
           </Link>
@@ -91,7 +87,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                 {/* Aboneliklerim (ikon yok) → Feed */}
                 <Link
                   href={FEED_PATH}
-                  className="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:px-4 min-h-[40px] min-w-[40px] flex items-center justify-center"
+                  className="shrink-0 rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:rounded-xl sm:px-3 sm:py-2 sm:text-sm min-h-[36px] flex items-center justify-center sm:min-h-[40px]"
                   aria-label="Aboneliklerim"
                 >
                   Aboneliklerim
