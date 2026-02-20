@@ -121,7 +121,8 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               </>
             )}
 
-            {/* Hamburger sağda */}
+            {/* Hamburger sadece oturum açıkken */}
+            {loggedIn && (
             <div className="relative flex shrink-0" ref={menuRef}>
               <button
                 ref={hamburgerRef}
@@ -189,6 +190,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                 </>
               )}
             </div>
+            )}
           </div>
         </div>
       </header>
