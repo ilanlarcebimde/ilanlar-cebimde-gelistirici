@@ -119,6 +119,11 @@ export function UcretsizPanelClient() {
     [router, searchParams, allChannels]
   );
 
+  const handleSignOut = useCallback(async () => {
+    setSidebarOpen(false);
+    await supabase.auth.signOut();
+  }, []);
+
   if (authLoading || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-4">
@@ -126,11 +131,6 @@ export function UcretsizPanelClient() {
       </div>
     );
   }
-
-  const handleSignOut = useCallback(async () => {
-    setSidebarOpen(false);
-    await supabase.auth.signOut();
-  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
