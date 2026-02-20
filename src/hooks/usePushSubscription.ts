@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase';
 export function usePushSubscription() {
   const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [permission, setPermission] = useState<'default' | 'granted' | 'denied'>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,15 +22,19 @@ export function usePushSubscription() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const supported = 'Notification' in window && 'serviceWorker' in navigator;
-    setIsSupported(supported);
+    let supported = false;
     try {
+      supported = !!(window && 'Notification' in window && navigator && 'serviceWorker' in navigator);
       if (supported) {
-        setPermission(Notification.permission);
+        const NotificationApi = (window as unknown as { Notification?: { permission: string } }).Notification;
+        if (NotificationApi && typeof NotificationApi.permission === 'string') {
+          setPermission(NotificationApi.permission as 'default' | 'granted' | 'denied');
+        }
       }
     } catch (_) {
       setPermission('denied');
     }
+    setIsSupported(supported);
     checkSubscription();
   }, [user]);
 
@@ -177,7 +181,10 @@ export function usePushSubscription() {
 
       setIsSubscribed(false);
       try {
-        if (typeof Notification !== 'undefined') setPermission(Notification.permission);
+        const NotificationApi = typeof window !== 'undefined' && (window as unknown as { Notification?: { permission: string } }).Notification;
+        if (NotificationApi && typeof NotificationApi.permission === 'string') {
+          setPermission(NotificationApi.permission as 'default' | 'granted' | 'denied');
+        }
       } catch (_) {}
       return true;
     } catch (err: any) {

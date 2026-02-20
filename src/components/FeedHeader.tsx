@@ -247,7 +247,7 @@ export function FeedHeader({
           >
             Tümü
           </button>
-          {channels.map((ch) => (
+          {(channels || []).map((ch) => (
             <button
               key={ch.id}
               type="button"
