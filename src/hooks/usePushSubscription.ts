@@ -22,8 +22,15 @@ export function usePushSubscription() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    setIsSupported('Notification' in window && 'serviceWorker' in navigator);
-    setPermission(Notification.permission);
+    const supported = 'Notification' in window && 'serviceWorker' in navigator;
+    setIsSupported(supported);
+    try {
+      if (supported) {
+        setPermission(Notification.permission);
+      }
+    } catch (_) {
+      setPermission('denied');
+    }
     checkSubscription();
   }, [user]);
 
@@ -169,7 +176,9 @@ export function usePushSubscription() {
         .eq('user_id', user.id);
 
       setIsSubscribed(false);
-      setPermission(Notification.permission);
+      try {
+        if (typeof Notification !== 'undefined') setPermission(Notification.permission);
+      } catch (_) {}
       return true;
     } catch (err: any) {
       console.error('Unsubscribe error:', err);

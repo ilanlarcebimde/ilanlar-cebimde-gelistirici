@@ -148,8 +148,8 @@ export function NotificationBellPopover({
               </div>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {channels.map((ch) => {
-                  const flagSrc = `${FLAG_CDN}/w40/${ch.country_code.toLowerCase()}.png`;
+                {(channels || []).map((ch) => {
+                  const flagSrc = `${FLAG_CDN}/w40/${(ch.country_code || 'xx').toLowerCase()}.png`;
                   return (
                     <li key={ch.channel_id} className="px-4 py-2 hover:bg-slate-50">
                       <div className="flex items-start gap-2">
