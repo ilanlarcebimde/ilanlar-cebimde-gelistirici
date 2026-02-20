@@ -143,10 +143,10 @@ export function UcretsizPanelClient() {
         />
       )}
 
-      {/* Sol panel: masaüstünde statik, mobilde header altında popup (tam ekran değil) */}
+      {/* Sol panel: masaüstünde statik, mobilde header altında popup — kapalıyken tamamen sola taşır (sağ kenar görünmez) */}
       <div
-        className={`fixed left-4 top-[5.25rem] z-50 w-[280px] max-h-[calc(100vh-6rem)] rounded-xl border border-slate-200 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.12)] transition-transform duration-200 lg:static lg:left-0 lg:top-0 lg:max-h-none lg:rounded-none lg:border-r lg:border-slate-200 lg:shadow-none lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed left-4 top-[5.25rem] z-50 w-[280px] max-h-[calc(100vh-6rem)] rounded-xl border border-slate-200 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out lg:static lg:left-0 lg:top-0 lg:max-h-none lg:rounded-none lg:border-r lg:border-slate-200 lg:shadow-none lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "translate-x-[calc(-100%-1rem)]"
         }`}
       >
         <div className="flex h-full max-h-[calc(100vh-6rem)] flex-col overflow-hidden lg:max-h-none">
