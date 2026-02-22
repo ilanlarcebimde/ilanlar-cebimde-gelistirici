@@ -18,9 +18,10 @@ export function YurtdisiPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [applyToast, setApplyToast] = useState<string | null>(null);
   const [subscribedChannels, setSubscribedChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
@@ -30,13 +31,25 @@ export function YurtdisiPanelClient() {
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
-      if (!subscriptionActive) {
-        setPremiumOpen(true);
-        return;
+      setApplyToast("Kontrol ediliyor…");
+      const clearToast = () => {
+        setTimeout(() => setApplyToast(null), 2000);
+      };
+      try {
+        if (!subscriptionLoading && !subscriptionActive) {
+          setPremiumOpen(true);
+          clearToast();
+          return;
+        }
+        router.push("/premium/job-guide/" + post.id);
+        clearToast();
+      } catch (err) {
+        console.error("[YurtdisiPanel] applyGuide error", err);
+        setApplyToast("Bir hata oluştu. Tekrar deneyin.");
+        clearToast();
       }
-      router.push("/premium/job-guide/" + post.id);
     },
-    [subscriptionActive, router]
+    [subscriptionActive, subscriptionLoading, router]
   );
 
   // URL'den c ve q oku
@@ -219,6 +232,12 @@ export function YurtdisiPanelClient() {
       </div>
 
       <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+
+      {applyToast && (
+        <div className="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg">
+          {applyToast}
+        </div>
+      )}
     </div>
   );
 }

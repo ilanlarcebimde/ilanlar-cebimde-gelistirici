@@ -27,7 +27,7 @@ type SubscriptionRow = { id: string; channel_id: string };
 export function KanalFeedClient({ slug }: { slug: string }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -40,16 +40,29 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   const [unsubscribing, setUnsubscribing] = useState(false);
   const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [applyToast, setApplyToast] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
-      if (!subscriptionActive) {
-        setPremiumOpen(true);
-        return;
+      setApplyToast("Kontrol ediliyor…");
+      const clearToast = () => {
+        setTimeout(() => setApplyToast(null), 2000);
+      };
+      try {
+        if (!subscriptionLoading && !subscriptionActive) {
+          setPremiumOpen(true);
+          clearToast();
+          return;
+        }
+        router.push("/premium/job-guide/" + post.id);
+        clearToast();
+      } catch (err) {
+        console.error("[KanalFeedClient] applyGuide error", err);
+        setApplyToast("Bir hata oluştu. Tekrar deneyin.");
+        clearToast();
       }
-      router.push("/premium/job-guide/" + post.id);
     },
-    [subscriptionActive, router]
+    [subscriptionActive, subscriptionLoading, router]
   );
 
   const fetchChannel = useCallback(async () => {
@@ -374,6 +387,12 @@ export function KanalFeedClient({ slug }: { slug: string }) {
       <Footer />
 
       <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+
+      {applyToast && (
+        <div className="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg">
+          {applyToast}
+        </div>
+      )}
     </div>
   );
 }

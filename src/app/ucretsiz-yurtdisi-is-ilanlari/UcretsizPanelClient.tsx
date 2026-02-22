@@ -34,10 +34,11 @@ export function UcretsizPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [applyToast, setApplyToast] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
@@ -47,17 +48,31 @@ export function UcretsizPanelClient() {
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
-      if (!user) {
-        setAuthOpen(true);
-        return;
+      setApplyToast("Kontrol ediliyor…");
+      const clearToast = () => {
+        const t = setTimeout(() => setApplyToast(null), 2000);
+        return () => clearTimeout(t);
+      };
+      try {
+        if (!user) {
+          setAuthOpen(true);
+          clearToast();
+          return;
+        }
+        if (!subscriptionLoading && !subscriptionActive) {
+          setPremiumOpen(true);
+          clearToast();
+          return;
+        }
+        router.push("/premium/job-guide/" + post.id);
+        clearToast();
+      } catch (err) {
+        console.error("[UcretsizPanel] applyGuide error", err);
+        setApplyToast("Bir hata oluştu. Tekrar deneyin.");
+        clearToast();
       }
-      if (!subscriptionActive) {
-        setPremiumOpen(true);
-        return;
-      }
-      router.push("/premium/job-guide/" + post.id);
     },
-    [user, subscriptionActive, router]
+    [user, subscriptionActive, subscriptionLoading, router]
   );
 
   useEffect(() => {
@@ -242,6 +257,12 @@ export function UcretsizPanelClient() {
       <AnimatePresence>
         <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
       </AnimatePresence>
+
+      {applyToast && (
+        <div className="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg">
+          {applyToast}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle } from "lucide-react";
 
 export default function OdemeBasariliPage() {
+  const router = useRouter();
+
   useEffect(() => {
     sessionStorage.removeItem("paytr_pending");
-  }, []);
+    router.refresh();
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">

@@ -16,26 +16,40 @@ export function ChannelsLayout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [applyToast, setApplyToast] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
-      if (!user) {
-        setAuthOpen(true);
-        return;
+      setApplyToast("Kontrol ediliyor…");
+      const clearToast = () => {
+        setTimeout(() => setApplyToast(null), 2000);
+      };
+      try {
+        if (!user) {
+          setAuthOpen(true);
+          clearToast();
+          return;
+        }
+        if (!subscriptionLoading && !subscriptionActive) {
+          setPremiumOpen(true);
+          clearToast();
+          return;
+        }
+        router.push("/premium/job-guide/" + post.id);
+        clearToast();
+      } catch (err) {
+        console.error("[ChannelsLayout] applyGuide error", err);
+        setApplyToast("Bir hata oluştu. Tekrar deneyin.");
+        clearToast();
       }
-      if (!subscriptionActive) {
-        setPremiumOpen(true);
-        return;
-      }
-      router.push("/premium/job-guide/" + post.id);
     },
-    [user, subscriptionActive, router]
+    [user, subscriptionActive, subscriptionLoading, router]
   );
 
   // URL'den kanal slug'ını oku veya ilk abone olunan kanalı seç
@@ -143,6 +157,12 @@ export function ChannelsLayout() {
         />
       </AnimatePresence>
       <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+
+      {applyToast && (
+        <div className="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg">
+          {applyToast}
+        </div>
+      )}
     </div>
   );
 }

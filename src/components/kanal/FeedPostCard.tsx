@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatPublishedAt } from "@/lib/formatTime";
 import { isHiddenSourceName } from "@/lib/feedHiddenSources";
 
+
 const SNIPPET_MAX_LINES = 3;
 const SNIPPET_LINE_HEIGHT = 1.45;
 
@@ -47,12 +48,29 @@ export function FeedPostCard({
   post,
   brandColor,
   onHowToApplyClick,
+  onApplyGuideError,
 }: {
   post: FeedPost;
   brandColor?: string;
   /** Verilirse "Nasıl Başvururum?" butonu gösterilir; tıklanınca bu çağrılır. */
   onHowToApplyClick?: (post: FeedPost) => void;
+  /** Tıklama sırasında hata olursa çağrılır (toast göstermek için). */
+  onApplyGuideError?: (err: unknown) => void;
 }) {
+  const handleApplyClick = () => {
+    console.log("[FeedPostCard] applyGuide clicked", post.id);
+    try {
+      if (onHowToApplyClick) {
+        onHowToApplyClick(post);
+      } else {
+        console.warn("[FeedPostCard] onHowToApplyClick not provided");
+      }
+    } catch (err) {
+      console.error("[FeedPostCard] applyGuide error", err);
+      onApplyGuideError?.(err);
+    }
+  };
+
   const snippet = post.snippet
     ? truncateSnippet(post.snippet, SNIPPET_MAX_LINES)
     : null;
@@ -74,15 +92,16 @@ export function FeedPostCard({
           <span className="text-xs text-slate-500 sm:text-sm order-last sm:order-none" aria-label="Yayın tarihi">
             {formatPublishedAt(post.published_at)}
           </span>
-          {onHowToApplyClick && (
+          {onHowToApplyClick ? (
             <button
               type="button"
-              onClick={() => onHowToApplyClick(post)}
+              onClick={handleApplyClick}
               className="rounded-xl border-2 font-semibold min-h-[44px] px-4 py-2.5 text-sm w-full sm:w-auto shrink-0 border-brand-600 text-brand-600 bg-transparent hover:bg-brand-50 transition"
+              aria-label="Nasıl başvurulur rehberini aç"
             >
               Nasıl Başvururum?
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
