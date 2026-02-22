@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatPublishedAt } from "@/lib/formatTime";
+import { isHiddenSourceName } from "@/lib/feedHiddenSources";
 
 const SNIPPET_MAX_LINES = 3;
 const SNIPPET_LINE_HEIGHT = 1.45;
@@ -36,7 +37,9 @@ function metaParts(post: FeedPost): string[] {
     }
   }
   if (post.location_text?.trim()) parts.push(post.location_text.trim());
-  if (post.source_name?.trim()) parts.push(post.source_name.trim());
+  if (post.source_name?.trim() && !isHiddenSourceName(post.source_name)) {
+    parts.push(post.source_name.trim());
+  }
   return parts;
 }
 
@@ -87,7 +90,7 @@ export function FeedPostCard({ post, brandColor }: { post: FeedPost; brandColor?
       {/* Footer: kaynak solda, buton sağda; mobilde buton full-width */}
       <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
         <span className="text-xs font-medium text-slate-500 shrink-0">
-          {post.source_name || "Kaynak"}
+          {isHiddenSourceName(post.source_name) ? "Kaynak" : (post.source_name || "Kaynak")}
         </span>
         {detailHref ? (
           <Link
