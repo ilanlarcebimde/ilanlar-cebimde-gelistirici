@@ -18,18 +18,19 @@ export function useSubscriptionActive(userId: string | undefined): boolean {
 
     let cancelled = false;
 
-    supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("status", "paid")
-      .limit(1)
-      .then(({ data }) => {
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("status", "paid")
+          .limit(1);
         if (!cancelled) setActive((data?.length ?? 0) > 0);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setActive(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
