@@ -57,8 +57,16 @@ export default function PremiumJobGuidePage({ params }: { params: Promise<{ jobI
     return session?.access_token ?? null;
   }, []);
 
+  // jobId değişince state sıfırla; aynı sayfa farklı ilan açıldığında eski ilan verisi kalmasın
   useEffect(() => {
     if (!guideJobId) return;
+
+    setJob(null);
+    setGuide(null);
+    setLoading(true);
+    setNextQuestions([]);
+    setChatMessages([]);
+    setActiveTab("report");
 
     let cancelled = false;
 
@@ -79,7 +87,7 @@ export default function PremiumJobGuidePage({ params }: { params: Promise<{ jobI
         return;
       }
       const jobData = (await jobRes.json()) as JobSummary;
-      setJob(jobData);
+      if (!cancelled) setJob(jobData);
 
       if (guideRes.status === 404 || !guideRes.ok) {
         const createRes = await fetch("/api/job-guide", {
@@ -89,19 +97,23 @@ export default function PremiumJobGuidePage({ params }: { params: Promise<{ jobI
         });
         if (!createRes.ok || cancelled) return;
         const created = (await createRes.json()) as JobGuide;
-        setGuide(created);
-        if (created.report_json) {
-          setNextQuestions((created.report_json as { next_questions?: string[] }).next_questions ?? []);
+        if (!cancelled) {
+          setGuide(created);
+          if (created.report_json) {
+            setNextQuestions((created.report_json as { next_questions?: string[] }).next_questions ?? []);
+          }
         }
       } else {
         const guideData = (await guideRes.json()) as JobGuide;
-        setGuide(guideData);
-        if (guideData.report_json) {
-          const r = guideData.report_json as { next_questions?: string[] };
-          setNextQuestions(r.next_questions ?? []);
+        if (!cancelled) {
+          setGuide(guideData);
+          if (guideData.report_json) {
+            const r = guideData.report_json as { next_questions?: string[] };
+            setNextQuestions(r.next_questions ?? []);
+          }
         }
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     }
 
     run();
