@@ -14,12 +14,13 @@ export async function POST(req: Request) {
     const job_branch = body?.job_branch ?? null;
     const answers = body?.answers && typeof body.answers === "object" ? body.answers : {};
     const photo_url = body?.photo_url ?? null;
+    const userId = typeof body?.user_id === "string" && body.user_id.trim() ? body.user_id.trim() : null;
 
     const supabase = getSupabaseAdmin();
     const { data: newProfile, error: insertError } = await supabase
       .from("profiles")
       .insert({
-        user_id: null,
+        user_id: userId ?? null,
         method,
         status: "paid",
         country: country ?? null,
@@ -83,6 +84,17 @@ export async function POST(req: Request) {
           payload: { payment_id: "coupon", error: String(err) },
         });
       }
+    }
+
+    // Haftalık premium: kuponla tamamlanan kullanıcı (user_id gönderilmişse) 7 gün abonelik alır
+    if (userId) {
+      const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from("premium_subscriptions").insert({
+        user_id: userId,
+        profile_id: profileId,
+        payment_id: null,
+        ends_at: endsAt,
+      });
     }
 
     return NextResponse.json({ success: true, profile_id: profileId });

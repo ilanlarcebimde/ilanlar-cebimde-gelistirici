@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       .eq("provider_ref", merchant_oid)
       .eq("provider", "paytr")
       .eq("status", "started")
-      .select("profile_id, profile_snapshot, user_id");
+      .select("id, profile_id, profile_snapshot, user_id");
 
     if (!updatedRows || updatedRows.length === 0) {
       console.log("[PAYTR] already processed, skip webhook", merchant_oid);
@@ -56,8 +56,20 @@ export async function POST(request: NextRequest) {
     }
 
     const payment = updatedRows[0];
+    const paymentId = payment?.id ?? null;
     let profileId: string | null = payment?.profile_id ?? null;
     const userId = payment?.user_id ?? null;
+
+    // Haftalık premium: 7 gün sonra abonelik otomatik sonlanır
+    if (userId && paymentId) {
+      const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from("premium_subscriptions").insert({
+        user_id: userId,
+        profile_id: profileId,
+        payment_id: paymentId,
+        ends_at: endsAt,
+      });
+    }
 
     if (!profileId && payment?.profile_snapshot && typeof payment.profile_snapshot === "object") {
       const snap = payment.profile_snapshot as {

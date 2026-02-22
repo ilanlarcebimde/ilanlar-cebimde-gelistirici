@@ -53,7 +53,7 @@ export function PremiumIntroModal({
             </button>
           </div>
 
-          <p className="text-base font-semibold text-brand-600 mb-4">Aylık sadece 89 TL</p>
+          <p className="text-base font-semibold text-brand-600 mb-4">Haftalık sadece 89 TL</p>
 
           <ul className="space-y-2 mb-4">
             {BULLETS.map((label, i) => (
@@ -64,7 +64,7 @@ export function PremiumIntroModal({
             ))}
           </ul>
 
-          <p className="text-sm text-slate-500">Günlük 3 TL'den az bir ücretle süreci öğrenin.</p>
+          <p className="text-sm text-slate-500">1 hafta boyunca tüm rehberlere erişin; süre sonunda abonelik otomatik sonlanır.</p>
         </div>
 
         <div className="p-5 sm:p-6 pt-0 flex flex-col sm:flex-row gap-3 border-t border-slate-100">
@@ -72,7 +72,7 @@ export function PremiumIntroModal({
             href="/odeme"
             className="flex min-h-[44px] items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
-            Premium'a Geç – 89 TL
+            Haftalık Premium – 89 TL
           </Link>
           <button
             type="button"

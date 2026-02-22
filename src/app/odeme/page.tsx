@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
+import { useAuth } from "@/hooks/useAuth";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT = 549;
@@ -16,6 +17,7 @@ function generateMerchantOid(): string {
 
 export default function OdemePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const paytrIframeRef = useRef<HTMLDivElement>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +70,7 @@ export default function OdemePage() {
           job_branch: parsed.job_branch ?? null,
           answers: typeof parsed.answers === "object" && parsed.answers !== null ? parsed.answers : {},
           photo_url: parsed.photo_url ?? null,
+          ...(user?.id && { user_id: user.id }),
         };
         const res = await fetch("/api/profile/complete-coupon", {
           method: "POST",
@@ -85,7 +88,7 @@ export default function OdemePage() {
       return;
     }
     setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
-  }, [couponCode, router]);
+  }, [couponCode, router, user]);
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
