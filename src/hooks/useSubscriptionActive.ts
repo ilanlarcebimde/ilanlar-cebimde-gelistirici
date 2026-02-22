@@ -16,6 +16,13 @@ async function fetchSubscriptionActive(userId: string): Promise<boolean> {
     .gt("ends_at", now)
     .limit(1);
 
+  console.log("SUBSCRIPTION RESULT", {
+    userId,
+    rowCount: premium?.length ?? 0,
+    error: error?.message ?? null,
+    active: !error && (premium?.length ?? 0) > 0,
+  });
+
   if (error) {
     console.error("[useSubscriptionActive] premium_subscriptions query error", error.message, { userId });
     return false;

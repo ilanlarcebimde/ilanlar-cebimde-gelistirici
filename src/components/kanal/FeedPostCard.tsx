@@ -8,6 +8,7 @@ import { isHiddenSourceName } from "@/lib/feedHiddenSources";
 const SNIPPET_MAX_LINES = 3;
 const SNIPPET_LINE_HEIGHT = 1.45;
 
+/** Feed'deki ilan; id = job_posts.id (PanelFeed/KanalFeed job_posts'tan çeker). */
 export type FeedPost = {
   id: string;
   title: string;

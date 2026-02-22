@@ -119,6 +119,7 @@ Kurallar:
 {
   "report_json": {
     "summary": "...",
+    "score": 0-100,
     "top_actions": ["...", "...", "..."],
     "rehber": "...",
     "belgeler": "...",
@@ -130,7 +131,8 @@ Kurallar:
   },
   "progress_step": 1,
   "next_questions": ["...", "..."]
-}`;
+}
+score: Başvuruya uygunluk skoru (0-100), report_json içinde.`;
 
     const userPrompt = `İlan metni:\n${jobContent}\n\nKullanıcı cevapları (answers_json):\n${JSON.stringify(answersJson, null, 2)}`;
 
@@ -143,8 +145,10 @@ Kurallar:
       ? parsed.next_questions.filter((q) => typeof q === "string").slice(0, 3)
       : [];
 
+    const score = typeof reportJson.score === "number" ? reportJson.score : null;
     const reportMd = [
       "# 🔒 Bu İlan İçin Başvuru Rehberi\n",
+      score != null ? `## 🎯 Uygunluk Skoru: ${score}/100\n` : "",
       `## 📌 Özet\n${String(reportJson.summary ?? "")}\n`,
       `## 🎯 Öncelikli 3 Aksiyon\n${(reportJson.top_actions as string[] ?? []).map((a, i) => `${i + 1}. ${a}`).join("\n")}\n`,
       "## Bu İşe Nasıl Başvurulur?\n" + String(reportJson.rehber ?? ""),

@@ -26,6 +26,12 @@ export function ChannelsLayout() {
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
+      console.log("APPLY FLOW", {
+        user: !!user,
+        subscriptionLoading,
+        subscriptionActive,
+        postId: post.id,
+      });
       setApplyToast("Kontrol ediliyor…");
       const clearToast = () => {
         setTimeout(() => setApplyToast(null), 2000);

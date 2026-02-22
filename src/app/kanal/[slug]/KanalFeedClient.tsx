@@ -44,6 +44,12 @@ export function KanalFeedClient({ slug }: { slug: string }) {
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
+      console.log("APPLY FLOW", {
+        user: !!user,
+        subscriptionLoading,
+        subscriptionActive,
+        postId: post.id,
+      });
       setApplyToast("Kontrol ediliyor…");
       const clearToast = () => {
         setTimeout(() => setApplyToast(null), 2000);
@@ -66,7 +72,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
         clearToast();
       }
     },
-    [subscriptionActive, subscriptionLoading, router]
+    [user, subscriptionActive, subscriptionLoading, router]
   );
 
   const fetchChannel = useCallback(async () => {

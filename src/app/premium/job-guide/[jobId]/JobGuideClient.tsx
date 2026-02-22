@@ -94,6 +94,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       const token = await getSession();
       if (!token || cancelled) return;
 
+      console.log("API job-posts GET", jobId);
       const [jobRes, guideRes] = await Promise.all([
         fetch(`/api/job-posts/${jobId}`),
         fetch(`/api/job-guide?jobPostId=${jobId}`, {
@@ -101,8 +102,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }),
       ]);
 
+      console.log("API job-posts result", jobId, jobRes.status);
+      console.log("API job-guide GET result", jobId, guideRes.status);
+
       if (cancelled) return;
       if (!jobRes.ok) {
+        console.warn("API job-posts 404 or error", jobId, jobRes.status);
         router.replace("/premium/job-guides");
         return;
       }
@@ -110,18 +115,26 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       if (!cancelled) setJob(jobData);
 
       if (guideRes.status === 404 || !guideRes.ok) {
+        console.log("API job-guide POST (draft create)", jobId);
         const createRes = await fetch("/api/job-guide", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ jobPostId: jobId }),
         });
-        if (!createRes.ok || cancelled) return;
-        const created = (await createRes.json()) as JobGuide;
-        if (!cancelled) {
-          setGuide(created);
-          if (created.report_json) {
-            setNextQuestions((created.report_json as { next_questions?: string[] }).next_questions ?? []);
+        console.log("API job-guide POST result", jobId, createRes.status);
+        if (!createRes.ok) {
+          if (!cancelled) {
+            const errBody = await createRes.text();
+            console.error("API job-guide POST failed", jobId, createRes.status, errBody);
           }
+          if (!cancelled) setLoading(false);
+          return;
+        }
+        if (cancelled) return;
+        const created = (await createRes.json()) as JobGuide;
+        setGuide(created);
+        if (created.report_json) {
+          setNextQuestions((created.report_json as { next_questions?: string[] }).next_questions ?? []);
         }
       } else {
         const guideData = (await guideRes.json()) as JobGuide;
@@ -167,6 +180,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     if (!token) return;
 
     setReportUpdating(true);
+    console.log("API job-guide/update POST", { jobGuideId: guide.id, jobPostId: jobId });
     try {
       const res = await fetch("/api/job-guide/update", {
         method: "POST",
@@ -178,6 +192,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }),
       });
       const data = await res.json();
+      console.log("API job-guide/update result", res.status, data?.error ?? "ok");
       if (!res.ok) throw new Error(data.error || "Güncelleme başarısız");
 
       setGuide((g) =>

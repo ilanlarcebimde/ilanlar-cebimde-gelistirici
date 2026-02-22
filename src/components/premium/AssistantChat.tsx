@@ -41,7 +41,7 @@ export function AssistantChat({
     setInput("");
   };
 
-  const displayQuestions = nextQuestions.length > 0 ? nextQuestions : (messages.length === 0 ? INITIAL_QUESTIONS.slice(0, 2) : []);
+  const displayQuestions = nextQuestions.length > 0 ? nextQuestions : (messages.length === 0 ? INITIAL_QUESTIONS : []);
 
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm h-[600px] overflow-hidden">
