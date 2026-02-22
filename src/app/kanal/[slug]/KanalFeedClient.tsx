@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,7 @@ import { FeedPostCard, type FeedPost } from "@/components/kanal/FeedPostCard";
 import { FeedSkeleton } from "@/components/kanal/FeedSkeleton";
 
 const FLAG_CDN = "https://flagcdn.com";
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 30;
 
 type Channel = {
   id: string;
@@ -29,13 +29,13 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
   const [unsubscribing, setUnsubscribing] = useState(false);
   const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const oldestPublishedAt = useRef<string | null>(null);
 
   const fetchChannel = useCallback(async () => {
     const { data } = await supabase
@@ -61,23 +61,20 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     [user]
   );
 
-  const fetchPosts = useCallback(
-    async (cursor: string | null, append: boolean) => {
-      if (!channel) return [];
-      let q = supabase
+  const fetchPage = useCallback(
+    async (channelId: string, page: number) => {
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count } = await supabase
         .from("job_posts")
-        .select("id, title, position_text, location_text, source_name, source_url, snippet, published_at")
-        .eq("channel_id", channel.id)
+        .select("id, title, position_text, location_text, source_name, source_url, snippet, published_at", { count: "exact" })
+        .eq("channel_id", channelId)
         .eq("status", "published")
         .order("published_at", { ascending: false })
-        .limit(PAGE_SIZE);
-      if (cursor) {
-        q = q.lt("published_at", cursor);
-      }
-      const { data } = await q;
-      return (data ?? []) as FeedPost[];
+        .range(from, to);
+      return { data: (data ?? []) as FeedPost[], count: count ?? 0 };
     },
-    [channel]
+    []
   );
 
   const loadInitial = useCallback(async () => {
@@ -97,20 +94,20 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     const sub = await fetchSubscription(ch.id);
     setSubscription(sub);
     if (!sub) {
-      const first = await fetchPosts(null, false);
-      setPosts(first);
-      if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
-      else oldestPublishedAt.current = null;
+      const { data, count } = await fetchPage(ch.id, 1);
+      setPosts(data);
+      setTotalCount(count);
+      setCurrentPage(1);
       setLoading(false);
       return;
     }
 
-    const first = await fetchPosts(null, false);
-    setPosts(first);
-    if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
-    else oldestPublishedAt.current = null;
+    const { data, count } = await fetchPage(ch.id, 1);
+    setPosts(data);
+    setTotalCount(count);
+    setCurrentPage(1);
     setLoading(false);
-  }, [user, slug, router, fetchChannel, fetchSubscription, fetchPosts]);
+  }, [user, slug, router, fetchChannel, fetchSubscription, fetchPage]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -132,14 +129,15 @@ export function KanalFeedClient({ slug }: { slug: string }) {
       if (res.ok) {
         const sub = await fetchSubscription(channel.id);
         setSubscription(sub ?? { id: "", channel_id: channel.id });
-        const first = await fetchPosts(null, false);
-        setPosts(first);
-        if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
+        const { data, count } = await fetchPage(channel.id, 1);
+        setPosts(data);
+        setTotalCount(count);
+        setCurrentPage(1);
       }
     } finally {
       setSubscribing(false);
     }
-  }, [user, channel, slug, fetchSubscription, fetchPosts]);
+  }, [user, channel, slug, fetchSubscription, fetchPage]);
 
   const handleUnsubscribe = useCallback(async () => {
     if (!subscription?.id || !channel) return;
@@ -151,39 +149,31 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     setUnsubscribing(false);
   }, [subscription, channel]);
 
-  const loadMore = useCallback(async () => {
-    if (!channel || loadingMore || !oldestPublishedAt.current) return;
-    setLoadingMore(true);
-    const next = await fetchPosts(oldestPublishedAt.current, true);
-    if (next.length > 0) {
-      setPosts((prev) => [...prev, ...next]);
-      oldestPublishedAt.current = next[next.length - 1].published_at;
-    }
-    if (next.length < PAGE_SIZE) oldestPublishedAt.current = null;
-    setLoadingMore(false);
-  }, [channel, loadingMore, fetchPosts]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el || !subscription || loading) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMore();
-      },
-      { rootMargin: "200px", threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [subscription, loading, loadMore]);
+  const goToPage = useCallback(
+    (page: number) => {
+      if (!channel || page < 1 || page > totalPages || pageLoading) return;
+      setPageLoading(true);
+      fetchPage(channel.id, page).then(({ data, count }) => {
+        setPosts(data);
+        setTotalCount(count);
+        setCurrentPage(page);
+        setPageLoading(false);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [channel, totalPages, pageLoading, fetchPage]
+  );
 
   const handleRefresh = useCallback(async () => {
     if (!channel) return;
     setShowNewPostsBanner(false);
-    const first = await fetchPosts(null, false);
-    setPosts(first);
-    if (first.length > 0) oldestPublishedAt.current = first[first.length - 1].published_at;
-    else oldestPublishedAt.current = null;
-  }, [channel, fetchPosts]);
+    const { data, count } = await fetchPage(channel.id, 1);
+    setPosts(data);
+    setTotalCount(count);
+    setCurrentPage(1);
+  }, [channel, fetchPage]);
 
   if (!user) return null;
 
@@ -317,23 +307,53 @@ export function KanalFeedClient({ slug }: { slug: string }) {
             </Link>
           </div>
         ) : (
-          <ul className="space-y-4">
-            {posts.map((post) => (
-              <li key={post.id}>
-                <FeedPostCard post={post} />
-              </li>
-            ))}
-          </ul>
-        )}
+          <>
+            <ul className="space-y-4">
+              {posts.map((post) => (
+                <li key={post.id}>
+                  <FeedPostCard post={post} />
+                </li>
+              ))}
+            </ul>
 
-        {loadingMore && (
-          <div className="mt-4 space-y-4">
-            <FeedSkeleton />
-            <FeedSkeleton />
-          </div>
+            {totalCount > PAGE_SIZE && (
+              <nav className="mt-8 flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 pt-6" aria-label="Sayfa numaraları">
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage <= 1 || pageLoading}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Önceki
+                </button>
+                <div className="flex flex-wrap items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => goToPage(p)}
+                      disabled={pageLoading}
+                      className={`min-w-[2.25rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                        p === currentPage ? "bg-brand-600 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                      aria-current={p === currentPage ? "page" : undefined}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages || pageLoading}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Sonraki
+                </button>
+              </nav>
+            )}
+          </>
         )}
-
-        <div ref={loadMoreRef} className="h-4 w-full" aria-hidden />
       </main>
 
       <Footer />
