@@ -2,11 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { ChannelsSidebar } from "@/components/kanallar/ChannelsSidebar";
 import { PanelFeed } from "@/components/kanallar/PanelFeed";
 import { FeedHeader } from "@/components/FeedHeader";
+import { AuthModal } from "@/components/AuthModal";
+import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
+import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 const BASE_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const DEBOUNCE_MS = 300;
@@ -29,13 +35,32 @@ export function UcretsizPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  const subscriptionActive = useSubscriptionActive(user?.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHowToApplyClick = useCallback(
+    (post: FeedPost) => {
+      if (!user) {
+        setAuthOpen(true);
+        return;
+      }
+      if (!subscriptionActive) {
+        setPremiumOpen(true);
+        return;
+      }
+      setJobGuideId(post.id);
+    },
+    [user, subscriptionActive]
+  );
 
   useEffect(() => {
     const c = searchParams.get("c");
@@ -202,9 +227,28 @@ export function UcretsizPanelClient() {
             selectedChip={chip === "all" ? null : chip}
             searchQuery={searchQuery}
             subscribedOnlyEmpty={false}
+            onHowToApplyClick={handleHowToApplyClick}
           />
         </div>
       </div>
+
+      <AnimatePresence>
+        <AuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onGoogle={() => setAuthOpen(false)}
+          onEmailSubmit={() => setAuthOpen(false)}
+          redirectNext="/panel"
+        />
+      </AnimatePresence>
+      <AnimatePresence>
+        <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      </AnimatePresence>
+      <JobApplyGuideModal
+        open={!!jobGuideId}
+        onClose={() => setJobGuideId(null)}
+        jobId={jobGuideId}
+      />
     </div>
   );
 }

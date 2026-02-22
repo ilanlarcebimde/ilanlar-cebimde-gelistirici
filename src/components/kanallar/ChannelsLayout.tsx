@@ -2,18 +2,43 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { ChannelsSidebar } from "./ChannelsSidebar";
 import { ChannelsFeed } from "./ChannelsFeed";
+import { AuthModal } from "@/components/AuthModal";
+import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
+import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 export function ChannelsLayout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const subscriptionActive = useSubscriptionActive(user?.id);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
+
+  const handleHowToApplyClick = useCallback(
+    (post: FeedPost) => {
+      if (!user) {
+        setAuthOpen(true);
+        return;
+      }
+      if (!subscriptionActive) {
+        setPremiumOpen(true);
+        return;
+      }
+      setJobGuideId(post.id);
+    },
+    [user, subscriptionActive]
+  );
 
   // URL'den kanal slug'ını oku veya ilk abone olunan kanalı seç
   useEffect(() => {
@@ -107,8 +132,24 @@ export function ChannelsLayout() {
         </header>
 
         {/* Feed */}
-        <ChannelsFeed selectedSlug={selectedSlug} />
+        <ChannelsFeed selectedSlug={selectedSlug} onHowToApplyClick={handleHowToApplyClick} />
       </div>
+
+      <AnimatePresence>
+        <AuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onGoogle={() => setAuthOpen(false)}
+          onEmailSubmit={() => setAuthOpen(false)}
+          redirectNext="/aboneliklerim"
+        />
+      </AnimatePresence>
+      <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      <JobApplyGuideModal
+        open={!!jobGuideId}
+        onClose={() => setJobGuideId(null)}
+        jobId={jobGuideId}
+      />
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { FeedPostCard, type FeedPost } from "@/components/kanal/FeedPostCard";
 import { FeedSkeleton } from "@/components/kanal/FeedSkeleton";
 
+export type OnHowToApplyClick = (post: FeedPost) => void;
+
 const PAGE_SIZE = 30;
 
 type ChannelInfo = { id: string; slug: string; name: string; brand_color: string | null };
@@ -14,6 +16,7 @@ type PanelFeedProps = {
   selectedChip: string | null;
   searchQuery: string;
   subscribedOnlyEmpty?: boolean;
+  onHowToApplyClick?: OnHowToApplyClick;
 };
 
 function buildBaseQuery(
@@ -42,7 +45,7 @@ function buildBaseQuery(
   return q;
 }
 
-export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyEmpty = false }: PanelFeedProps) {
+export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyEmpty = false, onHowToApplyClick }: PanelFeedProps) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [channelMap, setChannelMap] = useState<Record<string, ChannelInfo>>({});
   const [loading, setLoading] = useState(true);
@@ -176,7 +179,7 @@ export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyE
               const brandColor = ch?.brand_color || "rgb(59, 130, 246)";
               return (
                 <li key={post.id}>
-                  <FeedPostCard post={post} brandColor={brandColor} />
+                  <FeedPostCard post={post} brandColor={brandColor} onHowToApplyClick={onHowToApplyClick} />
                 </li>
               );
             })}

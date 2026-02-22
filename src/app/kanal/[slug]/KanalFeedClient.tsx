@@ -5,9 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { Footer } from "@/components/layout/Footer";
 import { FeedPostCard, type FeedPost } from "@/components/kanal/FeedPostCard";
 import { FeedSkeleton } from "@/components/kanal/FeedSkeleton";
+import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
 
 const FLAG_CDN = "https://flagcdn.com";
 const PAGE_SIZE = 30;
@@ -25,6 +28,7 @@ type SubscriptionRow = { id: string; channel_id: string };
 export function KanalFeedClient({ slug }: { slug: string }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const subscriptionActive = useSubscriptionActive(user?.id);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -36,6 +40,19 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   const [subscribing, setSubscribing] = useState(false);
   const [unsubscribing, setUnsubscribing] = useState(false);
   const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
+
+  const handleHowToApplyClick = useCallback(
+    (post: FeedPost) => {
+      if (!subscriptionActive) {
+        setPremiumOpen(true);
+        return;
+      }
+      setJobGuideId(post.id);
+    },
+    [subscriptionActive]
+  );
 
   const fetchChannel = useCallback(async () => {
     const { data } = await supabase
@@ -311,7 +328,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
             <ul className="space-y-4">
               {posts.map((post) => (
                 <li key={post.id}>
-                  <FeedPostCard post={post} />
+                  <FeedPostCard post={post} onHowToApplyClick={handleHowToApplyClick} />
                 </li>
               ))}
             </ul>
@@ -357,6 +374,13 @@ export function KanalFeedClient({ slug }: { slug: string }) {
       </main>
 
       <Footer />
+
+      <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      <JobApplyGuideModal
+        open={!!jobGuideId}
+        onClose={() => setJobGuideId(null)}
+        jobId={jobGuideId}
+      />
     </div>
   );
 }

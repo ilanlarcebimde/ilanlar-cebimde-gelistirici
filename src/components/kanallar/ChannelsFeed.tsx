@@ -20,9 +20,10 @@ type Channel = {
 
 type ChannelsFeedProps = {
   selectedSlug: string | null;
+  onHowToApplyClick?: (post: FeedPost) => void;
 };
 
-export function ChannelsFeed({ selectedSlug }: ChannelsFeedProps) {
+export function ChannelsFeed({ selectedSlug, onHowToApplyClick }: ChannelsFeedProps) {
   const { user } = useAuth();
   const [channel, setChannel] = useState<Channel | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -192,7 +193,7 @@ export function ChannelsFeed({ selectedSlug }: ChannelsFeedProps) {
             <ul className="space-y-4">
               {posts.map((post) => (
                 <li key={post.id}>
-                  <FeedPostCard post={post} brandColor={brandColor} />
+                  <FeedPostCard post={post} brandColor={brandColor} onHowToApplyClick={onHowToApplyClick} />
                 </li>
               ))}
             </ul>

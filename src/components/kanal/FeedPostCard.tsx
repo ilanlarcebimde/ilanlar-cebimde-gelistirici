@@ -43,7 +43,16 @@ function metaParts(post: FeedPost): string[] {
   return parts;
 }
 
-export function FeedPostCard({ post, brandColor }: { post: FeedPost; brandColor?: string }) {
+export function FeedPostCard({
+  post,
+  brandColor,
+  onHowToApplyClick,
+}: {
+  post: FeedPost;
+  brandColor?: string;
+  /** Verilirse "Nasıl Başvururum?" butonu gösterilir; tıklanınca bu çağrılır. */
+  onHowToApplyClick?: (post: FeedPost) => void;
+}) {
   const snippet = post.snippet
     ? truncateSnippet(post.snippet, SNIPPET_MAX_LINES)
     : null;
@@ -56,14 +65,25 @@ export function FeedPostCard({ post, brandColor }: { post: FeedPost; brandColor?
       className="group relative rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] sm:p-6 lg:p-6"
       style={{ borderLeft: `3px solid ${color}` }}
     >
-      {/* Header: başlık (baskın) + tarih (ikincil); mobilde başlık üstte */}
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+      {/* Header: başlık (baskın) + tarih + Nasıl Başvururum?; mobilde başlık üstte, buton full width */}
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:flex-wrap sm:gap-3">
         <h2 className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900 sm:text-lg">
           {post.title}
         </h2>
-        <span className="shrink-0 text-xs text-slate-500 sm:text-sm" aria-label="Yayın tarihi">
-          {formatPublishedAt(post.published_at)}
-        </span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 shrink-0">
+          <span className="text-xs text-slate-500 sm:text-sm order-last sm:order-none" aria-label="Yayın tarihi">
+            {formatPublishedAt(post.published_at)}
+          </span>
+          {onHowToApplyClick && (
+            <button
+              type="button"
+              onClick={() => onHowToApplyClick(post)}
+              className="rounded-xl border-2 font-semibold min-h-[44px] px-4 py-2.5 text-sm w-full sm:w-auto shrink-0 border-brand-600 text-brand-600 bg-transparent hover:bg-brand-50 transition"
+            >
+              Nasıl Başvururum?
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Meta: pozisyon / konum / kaynak — tek blok, wrap ile kırılır */}
