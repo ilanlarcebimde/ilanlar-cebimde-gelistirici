@@ -41,8 +41,12 @@ export function YurtdisiPanelClient() {
           clearToast();
           return;
         }
-        router.push("/premium/job-guide/" + post.id);
-        clearToast();
+        const target = "/premium/job-guide/" + post.id;
+        console.log("[YurtdisiPanel] opening panel", target);
+        setTimeout(() => {
+          router.push(target);
+          clearToast();
+        }, 0);
       } catch (err) {
         console.error("[YurtdisiPanel] applyGuide error", err);
         setApplyToast("Bir hata oluştu. Tekrar deneyin.");
