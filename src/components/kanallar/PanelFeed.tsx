@@ -17,7 +17,7 @@ type PanelFeedProps = {
 };
 
 function buildBaseQuery(
-  supabaseClient: ReturnType<typeof supabase>,
+  supabaseClient: typeof supabase,
   channelIdForFilter: string | null,
   searchQuery: string
 ) {
