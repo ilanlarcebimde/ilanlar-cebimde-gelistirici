@@ -10,7 +10,6 @@ import { Footer } from "@/components/layout/Footer";
 import { FeedPostCard, type FeedPost } from "@/components/kanal/FeedPostCard";
 import { FeedSkeleton } from "@/components/kanal/FeedSkeleton";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
-import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
 
 const FLAG_CDN = "https://flagcdn.com";
 const PAGE_SIZE = 30;
@@ -28,7 +27,7 @@ type SubscriptionRow = { id: string; channel_id: string };
 export function KanalFeedClient({ slug }: { slug: string }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const subscriptionActive = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -41,7 +40,6 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   const [unsubscribing, setUnsubscribing] = useState(false);
   const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
@@ -49,9 +47,9 @@ export function KanalFeedClient({ slug }: { slug: string }) {
         setPremiumOpen(true);
         return;
       }
-      setJobGuideId(post.id);
+      router.push("/premium/job-guide/" + post.id);
     },
-    [subscriptionActive]
+    [subscriptionActive, router]
   );
 
   const fetchChannel = useCallback(async () => {
@@ -376,11 +374,6 @@ export function KanalFeedClient({ slug }: { slug: string }) {
       <Footer />
 
       <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
-      <JobApplyGuideModal
-        open={!!jobGuideId}
-        onClose={() => setJobGuideId(null)}
-        jobId={jobGuideId}
-      />
     </div>
   );
 }

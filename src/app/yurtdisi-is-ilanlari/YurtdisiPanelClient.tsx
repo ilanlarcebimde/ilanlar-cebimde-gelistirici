@@ -8,7 +8,6 @@ import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { ChannelsSidebar } from "@/components/kanallar/ChannelsSidebar";
 import { PanelFeed } from "@/components/kanallar/PanelFeed";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
-import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
 import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 const DEBOUNCE_MS = 300;
@@ -19,10 +18,9 @@ export function YurtdisiPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const subscriptionActive = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
   const [subscribedChannels, setSubscribedChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
@@ -36,9 +34,9 @@ export function YurtdisiPanelClient() {
         setPremiumOpen(true);
         return;
       }
-      setJobGuideId(post.id);
+      router.push("/premium/job-guide/" + post.id);
     },
-    [subscriptionActive]
+    [subscriptionActive, router]
   );
 
   // URL'den c ve q oku
@@ -221,11 +219,6 @@ export function YurtdisiPanelClient() {
       </div>
 
       <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
-      <JobApplyGuideModal
-        open={!!jobGuideId}
-        onClose={() => setJobGuideId(null)}
-        jobId={jobGuideId}
-      />
     </div>
   );
 }

@@ -8,15 +8,18 @@ import { supabase } from "@/lib/supabase";
  * - Haftalık abonelik: premium_subscriptions.ends_at > now() ise aktif.
  * - Eski kayıtlar (migration öncesi): premium_subscriptions yoksa profiles.status === "paid" ile fallback.
  */
-export function useSubscriptionActive(userId: string | undefined): boolean {
+export function useSubscriptionActive(userId: string | undefined): { active: boolean; loading: boolean } {
   const [active, setActive] = useState(false);
+  const [loading, setLoading] = useState(!!userId);
 
   useEffect(() => {
     if (!userId) {
       setActive(false);
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
     let cancelled = false;
 
     void (async () => {
@@ -30,19 +33,25 @@ export function useSubscriptionActive(userId: string | undefined): boolean {
           .limit(1);
         if (!cancelled && (premium?.length ?? 0) > 0) {
           setActive(true);
+          setLoading(false);
           return;
         }
         if (cancelled) return;
-        // Legacy: premium_subscriptions yoksa eski "profile paid" ile kabul et
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id")
           .eq("user_id", userId)
           .eq("status", "paid")
           .limit(1);
-        if (!cancelled) setActive((profiles?.length ?? 0) > 0);
+        if (!cancelled) {
+          setActive((profiles?.length ?? 0) > 0);
+          setLoading(false);
+        }
       } catch {
-        if (!cancelled) setActive(false);
+        if (!cancelled) {
+          setActive(false);
+          setLoading(false);
+        }
       }
     })();
 
@@ -51,5 +60,5 @@ export function useSubscriptionActive(userId: string | undefined): boolean {
     };
   }, [userId]);
 
-  return active;
+  return { active, loading };
 }

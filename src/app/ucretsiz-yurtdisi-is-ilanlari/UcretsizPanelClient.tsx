@@ -11,7 +11,6 @@ import { PanelFeed } from "@/components/kanallar/PanelFeed";
 import { FeedHeader } from "@/components/FeedHeader";
 import { AuthModal } from "@/components/AuthModal";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
-import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
 import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 const BASE_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
@@ -35,11 +34,10 @@ export function UcretsizPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const subscriptionActive = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
@@ -57,9 +55,9 @@ export function UcretsizPanelClient() {
         setPremiumOpen(true);
         return;
       }
-      setJobGuideId(post.id);
+      router.push("/premium/job-guide/" + post.id);
     },
-    [user, subscriptionActive]
+    [user, subscriptionActive, router]
   );
 
   useEffect(() => {
@@ -244,11 +242,6 @@ export function UcretsizPanelClient() {
       <AnimatePresence>
         <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
       </AnimatePresence>
-      <JobApplyGuideModal
-        open={!!jobGuideId}
-        onClose={() => setJobGuideId(null)}
-        jobId={jobGuideId}
-      />
     </div>
   );
 }

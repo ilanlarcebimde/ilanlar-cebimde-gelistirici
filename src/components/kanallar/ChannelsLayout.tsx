@@ -10,20 +10,18 @@ import { ChannelsSidebar } from "./ChannelsSidebar";
 import { ChannelsFeed } from "./ChannelsFeed";
 import { AuthModal } from "@/components/AuthModal";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
-import { JobApplyGuideModal } from "@/components/modals/JobApplyGuideModal";
 import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 export function ChannelsLayout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const subscriptionActive = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive } = useSubscriptionActive(user?.id);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [jobGuideId, setJobGuideId] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
@@ -35,9 +33,9 @@ export function ChannelsLayout() {
         setPremiumOpen(true);
         return;
       }
-      setJobGuideId(post.id);
+      router.push("/premium/job-guide/" + post.id);
     },
-    [user, subscriptionActive]
+    [user, subscriptionActive, router]
   );
 
   // URL'den kanal slug'ını oku veya ilk abone olunan kanalı seç
@@ -145,11 +143,6 @@ export function ChannelsLayout() {
         />
       </AnimatePresence>
       <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
-      <JobApplyGuideModal
-        open={!!jobGuideId}
-        onClose={() => setJobGuideId(null)}
-        jobId={jobGuideId}
-      />
     </div>
   );
 }
