@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT_FULL = 549;
@@ -11,6 +12,8 @@ const AMOUNT_WEEKLY = 89;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
 const FREE_COUPON_CODE = "ADMIN549";
+/** Haftalık premium test kuponu (7 gün abonelik, giriş gerekli) */
+const PREMIUM_COUPON_CODE = "ADMIN89";
 
 function generateMerchantOid(): string {
   return "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
@@ -43,6 +46,36 @@ export default function OdemePage() {
     const code = couponCode.trim().toUpperCase();
     if (!code) {
       setCouponMessage({ type: "error", text: "Kupon kodu girin." });
+      return;
+    }
+    if (code === PREMIUM_COUPON_CODE) {
+      setCouponMessage({ type: "success", text: "Kupon uygulanıyor…" });
+      if (!user) {
+        setCouponMessage({ type: "error", text: "Haftalık premium kuponu için giriş yapmanız gerekir." });
+        return;
+      }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setCouponMessage({ type: "error", text: "Oturum bulunamadı. Lütfen tekrar giriş yapın." });
+          return;
+        }
+        const res = await fetch("/api/premium/apply-coupon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ code: PREMIUM_COUPON_CODE }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setCouponMessage({ type: "error", text: (data as { error?: string }).error ?? "Kupon uygulanamadı." });
+          return;
+        }
+        setCouponMessage({ type: "success", text: "Haftalık premium aktif. Yönlendiriliyorsunuz…" });
+        router.replace("/premium/job-guides");
+      } catch (e) {
+        setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
+      }
       return;
     }
     if (code === FREE_COUPON_CODE) {
