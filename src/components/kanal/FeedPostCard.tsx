@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatPublishedAt } from "@/lib/formatTime";
 
 const SNIPPET_MAX_LINES = 3;
-const SNIPPET_LINE_HEIGHT = 1.4;
+const SNIPPET_LINE_HEIGHT = 1.45;
 
 export type FeedPost = {
   id: string;
@@ -26,54 +26,77 @@ function truncateSnippet(text: string, maxLines: number): string {
   return out;
 }
 
+/** Meta satırında başlıkla birebir aynı metni tekrar gösterme */
+function metaParts(post: FeedPost): string[] {
+  const titleNorm = post.title?.trim().toLowerCase() ?? "";
+  const parts: string[] = [];
+  if (post.position_text?.trim()) {
+    if (post.position_text.trim().toLowerCase() !== titleNorm) {
+      parts.push(post.position_text.trim());
+    }
+  }
+  if (post.location_text?.trim()) parts.push(post.location_text.trim());
+  if (post.source_name?.trim()) parts.push(post.source_name.trim());
+  return parts;
+}
+
 export function FeedPostCard({ post, brandColor }: { post: FeedPost; brandColor?: string }) {
   const snippet = post.snippet
     ? truncateSnippet(post.snippet, SNIPPET_MAX_LINES)
     : null;
   const detailHref = post.source_url ? `/r/${post.id}` : null;
   const color = brandColor || "rgb(59, 130, 246)";
+  const metaItems = metaParts(post);
 
   return (
     <article
-      className="group rounded-[16px] border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] sm:p-6 relative"
+      className="group relative rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] sm:p-6 lg:p-6"
       style={{ borderLeft: `3px solid ${color}` }}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      {/* Header: başlık (baskın) + tarih (ikincil); mobilde başlık üstte */}
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <h2 className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900 sm:text-lg">
           {post.title}
         </h2>
-        <span className="shrink-0 text-xs text-slate-400 sm:text-sm">
+        <span className="shrink-0 text-xs text-slate-500 sm:text-sm" aria-label="Yayın tarihi">
           {formatPublishedAt(post.published_at)}
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500">
-        {post.position_text && <span>{post.position_text}</span>}
-        {post.location_text && <span>{post.location_text}</span>}
-        {post.source_name && <span>{post.source_name}</span>}
-      </div>
+      {/* Meta: pozisyon / konum / kaynak — tek blok, wrap ile kırılır */}
+      {metaItems.length > 0 && (
+        <div className="mt-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500">
+          {metaItems.map((item, i) => (
+            <span key={i} className="truncate max-w-full sm:max-w-none">
+              {item}
+            </span>
+          ))}
+        </div>
+      )}
 
-      {snippet && (
+      {/* Snippet: max 3 satır, taşan … ile kesilir; boşsa alan yok */}
+      {snippet ? (
         <p
-          className="mt-3 text-sm leading-relaxed text-slate-600"
+          className="mt-3 text-sm text-slate-600"
           style={{ lineHeight: SNIPPET_LINE_HEIGHT }}
         >
           {snippet}
         </p>
-      )}
+      ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs font-medium text-slate-500">
+      {/* Footer: kaynak solda, buton sağda; mobilde buton full-width */}
+      <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <span className="text-xs font-medium text-slate-500 shrink-0">
           {post.source_name || "Kaynak"}
         </span>
-        {detailHref && (
+        {detailHref ? (
           <Link
             href={detailHref}
-            className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 w-full sm:w-auto text-center"
+            className="flex min-h-[44px] w-full shrink-0 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 sm:w-auto sm:py-2.5"
           >
             İlana Git
           </Link>
-        )}
+        ) : null}
       </div>
     </article>
   );
