@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 
-const REDIRECT_DELAY_MS = 1200;
+function LoadingUI({ showLoginLink = false }: { showLoginLink?: boolean }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="text-center">
+        <p className="text-slate-600">Kontrol ediliyor…</p>
+        {showLoginLink && (
+          <Link href="/giris" className="mt-4 inline-block text-brand-600 hover:underline">
+            Giriş yap
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PremiumLayout({
   children,
@@ -14,56 +27,42 @@ export default function PremiumLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
-  const [retried, setRetried] = useState(false);
-  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
 
+  // Debug: layout guard durumu (kaldırılabilir)
   useEffect(() => {
-    if (authLoading) return;
+    console.log("[PremiumLayout]", {
+      userId: user?.id ?? null,
+      subscriptionLoading,
+      subscriptionActive,
+      authLoading,
+    });
+  }, [user?.id, subscriptionLoading, subscriptionActive, authLoading]);
+
+  // Redirect SADECE loading bittikten sonra; render içinde redirect yok
+  useEffect(() => {
+    if (authLoading || subscriptionLoading) return;
+
     if (!user) {
-      router.replace("/giris?next=" + encodeURIComponent("/premium/job-guides"));
+      router.replace("/giris?next=" + encodeURIComponent(pathname || "/premium/job-guides"));
       return;
     }
-    if (subscriptionLoading) return;
-    if (subscriptionActive) return;
-
-    // Abonelik yok: önce bir kez refetch (ödeme dönüşü / gecikme), sonra yönlendir
-    if (!retried) {
-      setRetried(true);
-      redirectTimeoutRef.current = setTimeout(() => {
-        redirectTimeoutRef.current = null;
-        refetch().then((active) => {
-          if (!active) {
-            router.replace("/ucretsiz-yurtdisi-is-ilanlari");
-          }
-        });
-      }, REDIRECT_DELAY_MS);
-    } else {
+    if (!subscriptionActive) {
       router.replace("/ucretsiz-yurtdisi-is-ilanlari");
     }
+  }, [user, authLoading, subscriptionActive, subscriptionLoading, pathname, router]);
 
-    return () => {
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current);
-        redirectTimeoutRef.current = null;
-      }
-    };
-  }, [user, authLoading, subscriptionActive, subscriptionLoading, retried, refetch, router]);
-
-  if (authLoading || !user || subscriptionLoading || !subscriptionActive) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-        <div className="text-center">
-          <p className="text-slate-600">Yükleniyor…</p>
-          {!authLoading && !user && (
-            <Link href="/giris" className="mt-4 inline-block text-brand-600 hover:underline">
-              Giriş yap
-            </Link>
-          )}
-        </div>
-      </div>
-    );
+  // Loading iken redirect yapma; sadece Loading UI göster
+  if (authLoading || subscriptionLoading) {
+    return <LoadingUI />;
+  }
+  if (!user) {
+    return <LoadingUI showLoginLink />;
+  }
+  if (!subscriptionActive) {
+    return <LoadingUI />;
   }
 
   return <>{children}</>;

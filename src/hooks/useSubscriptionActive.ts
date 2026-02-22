@@ -3,29 +3,30 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
+/**
+ * Aktiflik SADECE premium_subscriptions üzerinden belirlenir.
+ * ends_at > now() → aktif (Supabase timestamptz; ISO string ile karşılaştırma tutarlı).
+ */
 async function fetchSubscriptionActive(userId: string): Promise<boolean> {
   const now = new Date().toISOString();
-  const { data: premium } = await supabase
+  const { data: premium, error } = await supabase
     .from("premium_subscriptions")
     .select("id")
     .eq("user_id", userId)
     .gt("ends_at", now)
     .limit(1);
-  if ((premium?.length ?? 0) > 0) return true;
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("status", "paid")
-    .limit(1);
-  return (profiles?.length ?? 0) > 0;
+
+  if (error) {
+    console.error("[useSubscriptionActive] premium_subscriptions query error", error.message, { userId });
+    return false;
+  }
+  return (premium?.length ?? 0) > 0;
 }
 
 /**
  * Kullanıcının premium aboneliği aktif mi?
- * - Haftalık abonelik: premium_subscriptions.ends_at > now() ise aktif.
- * - Eski kayıtlar (migration öncesi): premium_subscriptions yoksa profiles.status === "paid" ile fallback.
- * - refetch: Abonelik kontrolünü tekrar çalıştırır (ödeme dönüşü / layout retry için).
+ * - Tek kaynak: premium_subscriptions (ends_at > now()).
+ * - refetch: Ödeme dönüşü / invalidate event ile yeniden sorgular.
  */
 export function useSubscriptionActive(userId: string | undefined): {
   active: boolean;
@@ -42,7 +43,8 @@ export function useSubscriptionActive(userId: string | undefined): {
       const result = await fetchSubscriptionActive(userId);
       setActive(result);
       return result;
-    } catch {
+    } catch (e) {
+      console.error("[useSubscriptionActive] refetch error", e);
       setActive(false);
       return false;
     } finally {
@@ -67,8 +69,9 @@ export function useSubscriptionActive(userId: string | undefined): {
           setActive(result);
           setLoading(false);
         }
-      } catch {
+      } catch (e) {
         if (!cancelled) {
+          console.error("[useSubscriptionActive] initial fetch error", e);
           setActive(false);
           setLoading(false);
         }
@@ -79,6 +82,15 @@ export function useSubscriptionActive(userId: string | undefined): {
       cancelled = true;
     };
   }, [userId]);
+
+  // Ödeme başarılı sayfasından tetiklenen invalidate: tüm hook instance'ları yeniden fetch eder
+  useEffect(() => {
+    const onInvalidate = () => {
+      if (userId) void refetch();
+    };
+    window.addEventListener("premium-subscription-invalidate", onInvalidate);
+    return () => window.removeEventListener("premium-subscription-invalidate", onInvalidate);
+  }, [userId, refetch]);
 
   return { active, loading, refetch };
 }
