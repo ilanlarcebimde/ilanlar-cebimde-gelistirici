@@ -43,7 +43,26 @@ export default function PremiumJobGuidesPage() {
       setList([]);
       return;
     }
-    setList((data as JobGuideRow[]) ?? []);
+    const rows = (data ?? []) as Array<{
+      id: string;
+      job_post_id: string;
+      status: string;
+      progress_step: number;
+      report_json: JobGuideRow["report_json"];
+      updated_at: string;
+      job_posts: { id: string; title: string | null; location_text: string | null } | { id: string; title: string | null; location_text: string | null }[] | null;
+    }>;
+    setList(
+      rows.map((r) => ({
+        id: r.id,
+        job_post_id: r.job_post_id,
+        status: r.status,
+        progress_step: r.progress_step,
+        report_json: r.report_json,
+        updated_at: r.updated_at,
+        job_posts: Array.isArray(r.job_posts) ? r.job_posts[0] ?? null : r.job_posts,
+      }))
+    );
   }, [user?.id]);
 
   useEffect(() => {
