@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       merchant_fail_url,
       basket_description,
       profile_snapshot,
+      user_id: body_user_id,
     } = body as {
       merchant_oid?: string;
       email?: string;
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
         answers?: Record<string, unknown>;
         photo_url?: string | null;
       };
+      user_id?: string;
     };
 
     const emailTrimmed = typeof email === "string" ? email.trim() : "";
@@ -69,9 +71,10 @@ export async function POST(request: NextRequest) {
           }
         : null;
 
+    const userId = typeof body_user_id === "string" && body_user_id.trim() ? body_user_id.trim() : null;
     await supabase.from("payments").insert({
       profile_id: null,
-      user_id: null,
+      user_id: userId,
       provider: "paytr",
       status: "started",
       amount: Number(amount),

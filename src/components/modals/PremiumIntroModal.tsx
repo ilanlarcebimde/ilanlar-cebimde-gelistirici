@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const BULLETS = [
   "Adım adım başvuru rehberi",
@@ -21,6 +22,32 @@ export function PremiumIntroModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const handleWeeklyPay = () => {
+    const email = user?.email?.trim();
+    if (!email) {
+      router.push("/giris?next=" + encodeURIComponent("/odeme"));
+      onClose();
+      return;
+    }
+    const payload = {
+      email,
+      plan: "weekly",
+      method: "form",
+      country: null,
+      job_area: null,
+      job_branch: null,
+      answers: {},
+      photo_url: null,
+      ...(user?.id && { user_id: user.id }),
+    };
+    sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
+    onClose();
+    router.push("/odeme");
+  };
+
   if (!open) return null;
 
   return (
@@ -68,12 +95,13 @@ export function PremiumIntroModal({
         </div>
 
         <div className="p-5 sm:p-6 pt-0 flex flex-col sm:flex-row gap-3 border-t border-slate-100">
-          <Link
-            href="/odeme"
+          <button
+            type="button"
+            onClick={handleWeeklyPay}
             className="flex min-h-[44px] items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
             Haftalık Premium – 89 TL
-          </Link>
+          </button>
           <button
             type="button"
             onClick={onClose}

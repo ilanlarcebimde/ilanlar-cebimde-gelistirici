@@ -6,9 +6,10 @@ import Script from "next/script";
 import { useAuth } from "@/hooks/useAuth";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
-const AMOUNT = 549;
-const AMOUNT_DISPLAY = "549,00 TL";
-const BASKET_DESCRIPTION = "Usta Başvuru Paketi";
+const AMOUNT_FULL = 549;
+const AMOUNT_WEEKLY = 89;
+const BASKET_FULL = "Usta Başvuru Paketi";
+const BASKET_WEEKLY = "Haftalık Premium";
 const FREE_COUPON_CODE = "ADMIN549";
 
 function generateMerchantOid(): string {
@@ -92,12 +93,29 @@ export default function OdemePage() {
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-    const parsed = pending ? (JSON.parse(pending) as { email?: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null }) : null;
+    const parsed = pending
+      ? (JSON.parse(pending) as {
+          email?: string;
+          user_name?: string;
+          method?: string;
+          country?: string | null;
+          job_area?: string | null;
+          job_branch?: string | null;
+          answers?: Record<string, unknown>;
+          photo_url?: string | null;
+          plan?: string;
+          user_id?: string;
+        })
+      : null;
     const email = parsed?.email?.trim() ?? null;
     if (!email) {
       router.replace("/");
       return;
     }
+
+    const isWeekly = parsed?.plan === "weekly";
+    const amount = isWeekly ? AMOUNT_WEEKLY : AMOUNT_FULL;
+    const basketDescription = isWeekly ? BASKET_WEEKLY : BASKET_FULL;
 
     const user_name =
       (parsed?.user_name && String(parsed.user_name).trim()) ||
@@ -107,7 +125,7 @@ export default function OdemePage() {
     const merchant_oid = generateMerchantOid();
     const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
     const profile_snapshot =
-      parsed?.method != null && parsed?.country != null
+      parsed?.method != null
         ? {
             method: parsed.method,
             country: parsed.country ?? null,
@@ -121,14 +139,15 @@ export default function OdemePage() {
     const body = {
       merchant_oid,
       email: email.trim(),
-      amount: AMOUNT,
+      amount,
       user_name: user_name.trim().slice(0, 60),
       user_address: "Adres girilmedi",
       user_phone: "5550000000",
       merchant_ok_url: `${siteUrl}/odeme/basarili`,
       merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
-      basket_description: BASKET_DESCRIPTION,
+      basket_description: basketDescription,
       profile_snapshot,
+      ...(parsed?.user_id && { user_id: parsed.user_id }),
     };
 
     fetch("/api/paytr/initiate", {
@@ -255,7 +274,14 @@ export default function OdemePage() {
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
           <p className="text-sm font-medium text-slate-700">
-            Ödemeniz gereken tutar: <span className="text-slate-900">{AMOUNT_DISPLAY}</span>
+            Ödemeniz gereken tutar:{" "}
+            <span className="text-slate-900">
+              {(() => {
+                const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+                const plan = p ? (JSON.parse(p) as { plan?: string })?.plan : null;
+                return plan === "weekly" ? "89,00 TL" : "549,00 TL";
+              })()}
+            </span>
           </p>
           <button
             type="button"
