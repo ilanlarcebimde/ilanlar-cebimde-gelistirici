@@ -49,31 +49,31 @@ export function UcretsizPanelClient() {
   const handleHowToApplyClick = useCallback(
     (post: FeedPost) => {
       setApplyToast("Kontrol ediliyor…");
-      const clearToast = () => {
-        const t = setTimeout(() => setApplyToast(null), 2000);
-        return () => clearTimeout(t);
-      };
+      const clearToast = () => setTimeout(() => setApplyToast(null), 2000);
       try {
         if (!user) {
           setAuthOpen(true);
-          clearToast();
+          setApplyToast("Panele erişmek için giriş yapın.");
+          setTimeout(() => setApplyToast(null), 3000);
           return;
         }
         if (!subscriptionLoading && !subscriptionActive) {
           setPremiumOpen(true);
-          clearToast();
+          setApplyToast("Premium panele erişmek için abonelik gerekiyor.");
+          setTimeout(() => setApplyToast(null), 3000);
           return;
         }
         const target = "/premium/job-guide/" + post.id;
         console.log("[UcretsizPanel] opening panel", target);
+        setApplyToast("Yönlendiriliyor…");
         setTimeout(() => {
           router.push(target);
-          clearToast();
+          setTimeout(() => setApplyToast(null), 2500);
         }, 0);
       } catch (err) {
         console.error("[UcretsizPanel] applyGuide error", err);
         setApplyToast("Bir hata oluştu. Tekrar deneyin.");
-        clearToast();
+        setTimeout(() => setApplyToast(null), 4000);
       }
     },
     [user, subscriptionActive, subscriptionLoading, router]
@@ -88,6 +88,23 @@ export function UcretsizPanelClient() {
       setSearchQuery(q);
     }
   }, [searchParams]);
+
+  // Premium panelden abonelik/giriş yüzünden geri atıldıysa kullanıcıya sebebi göster
+  useEffect(() => {
+    try {
+      const reason = sessionStorage.getItem("premium_redirect_reason");
+      sessionStorage.removeItem("premium_redirect_reason");
+      if (reason === "no_auth") {
+        setApplyToast("Panele erişmek için giriş yapın.");
+        setTimeout(() => setApplyToast(null), 4000);
+      } else if (reason === "no_subscription") {
+        setApplyToast("Premium panele erişmek için abonelik gerekiyor.");
+        setTimeout(() => setApplyToast(null), 5000);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const loadChannels = useCallback(async () => {
     const { data } = await supabase

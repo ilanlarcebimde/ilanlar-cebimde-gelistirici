@@ -182,6 +182,45 @@ Bu üç adım: route’un gerçekten “açılması”, redirect’in doğru ko�
 
 ---
 
+## Debug logları (panel neden gelmiyor?)
+
+Console’da şu log’lar aranmalı:
+
+| Log | Anlamı |
+|-----|--------|
+| `HOWTO CLICK <post.id>` | “Nasıl Başvururum?” tıklaması; yoksa handler bağlı değil veya tıklama engelleniyor. |
+| `PREMIUM GUARD { userId, subscriptionLoading, subscriptionActive, authLoading }` | Layout’ta hangi gate takılı: auth yok / subscription false / loading. |
+| `JOB GUIDE MOUNT <jobId>` | Panel sayfası mount oldu; jobId doğru mu? |
+
+**Kesin DB kontrolü (Supabase SQL):**
+
+```sql
+SELECT user_id, ends_at, created_at
+FROM premium_subscriptions
+WHERE user_id = '<AUTH_USER_ID>'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+En üst satırda `ends_at` gelecekte olmalı. Yoksa veya geçmişse panel geri atar.
+
+```sql
+SELECT now() AS now_db, ends_at, (ends_at > now()) AS is_active
+FROM premium_subscriptions
+WHERE user_id = '<AUTH_USER_ID>'
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+`is_active = false` ise layout her zaman redirect yapar.
+
+**2 soruluk teşhis:**  
+1) Tıklayınca çıkan toast: Giriş / Abonelik / Yönlendiriliyor?  
+2) `premium_subscriptions` sorgusunda `ends_at > now()` true mu? (evet/hayır)  
+Bu ikisiyle “tam olarak nerede kırılıyor” netleşir.
+
+---
+
 ## Uygulanan kesin düzeltme (layout guard + hook + ödeme sayfası)
 
 1. **src/app/premium/layout.tsx**

@@ -31,9 +31,9 @@ export default function PremiumLayout({
   const { user, loading: authLoading } = useAuth();
   const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
 
-  // Debug: layout guard durumu (kaldırılabilir)
+  // Debug: hangi gate (auth / subscription) takılı görünüyor
   useEffect(() => {
-    console.log("[PremiumLayout]", {
+    console.log("PREMIUM GUARD", {
       userId: user?.id ?? null,
       subscriptionLoading,
       subscriptionActive,
@@ -46,10 +46,20 @@ export default function PremiumLayout({
     if (authLoading || subscriptionLoading) return;
 
     if (!user) {
+      try {
+        sessionStorage.setItem("premium_redirect_reason", "no_auth");
+      } catch {
+        // ignore
+      }
       router.replace("/giris?next=" + encodeURIComponent(pathname || "/premium/job-guides"));
       return;
     }
     if (!subscriptionActive) {
+      try {
+        sessionStorage.setItem("premium_redirect_reason", "no_subscription");
+      } catch {
+        // ignore
+      }
       router.replace("/ucretsiz-yurtdisi-is-ilanlari");
     }
   }, [user, authLoading, subscriptionActive, subscriptionLoading, pathname, router]);

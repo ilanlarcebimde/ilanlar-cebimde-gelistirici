@@ -58,7 +58,7 @@ export function FeedPostCard({
   onApplyGuideError?: (err: unknown) => void;
 }) {
   const handleApplyClick = () => {
-    console.log("[FeedPostCard] applyGuide clicked", post.id);
+    console.log("HOWTO CLICK", post.id);
     try {
       if (onHowToApplyClick) {
         onHowToApplyClick(post);
