@@ -89,9 +89,11 @@ export function FeedPostCard({ post, brandColor }: { post: FeedPost; brandColor?
 
       {/* Footer: kaynak solda, buton sağda; mobilde buton full-width */}
       <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <span className="text-xs font-medium text-slate-500 shrink-0">
-          {isHiddenSourceName(post.source_name) ? "Kaynak" : (post.source_name || "Kaynak")}
-        </span>
+        {!isHiddenSourceName(post.source_name) ? (
+          <span className="text-xs font-medium text-slate-500 shrink-0">
+            {post.source_name || "Kaynak"}
+          </span>
+        ) : null}
         {detailHref ? (
           <Link
             href={detailHref}
