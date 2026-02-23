@@ -39,6 +39,7 @@ export function ChannelsLayout() {
       };
       try {
         if (!user) {
+          setPendingJobId(post.id);
           setAuthOpen(true);
           clearToast();
           return;
@@ -162,9 +163,9 @@ export function ChannelsLayout() {
       <AnimatePresence>
         <AuthModal
           open={authOpen}
-          onClose={() => setAuthOpen(false)}
-          onGoogle={() => setAuthOpen(false)}
-          onEmailSubmit={() => setAuthOpen(false)}
+          onClose={() => { setAuthOpen(false); setPendingJobId(null); }}
+          onGoogle={() => { setAuthOpen(false); if (pendingJobId) setPremiumOpen(true); }}
+          onEmailSubmit={() => { setAuthOpen(false); if (pendingJobId) setPremiumOpen(true); }}
           redirectNext="/aboneliklerim"
         />
       </AnimatePresence>

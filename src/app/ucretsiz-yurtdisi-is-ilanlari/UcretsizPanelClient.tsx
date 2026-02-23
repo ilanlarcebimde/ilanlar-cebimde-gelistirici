@@ -59,6 +59,7 @@ export function UcretsizPanelClient() {
       const clearToast = () => setTimeout(() => setApplyToast(null), 2000);
       try {
         if (!user) {
+          setPendingJobId(post.id);
           setAuthOpen(true);
           setApplyToast("Panele erişmek için giriş yapın.");
           setTimeout(() => setApplyToast(null), 3000);
@@ -97,11 +98,14 @@ export function UcretsizPanelClient() {
     }
   }, [searchParams]);
 
-  // Premium panelden abonelik/giriş yüzünden geri atıldıysa sebebi göster ve ilgili modalı aç (ödeme/giriş)
+  // Premium panelden geri atıldıysa: job id varsa sakla, sebebe göre giriş veya ödeme modalı aç
   useEffect(() => {
     try {
       const reason = sessionStorage.getItem("premium_redirect_reason");
+      const jobId = sessionStorage.getItem("premium_redirect_job_id");
       sessionStorage.removeItem("premium_redirect_reason");
+      sessionStorage.removeItem("premium_redirect_job_id");
+      if (jobId) setPendingJobId(jobId);
       if (reason === "no_auth") {
         setAuthOpen(true);
         setApplyToast("Panele erişmek için giriş yapın.");
@@ -279,9 +283,9 @@ export function UcretsizPanelClient() {
       <AnimatePresence>
         <AuthModal
           open={authOpen}
-          onClose={() => setAuthOpen(false)}
-          onGoogle={() => setAuthOpen(false)}
-          onEmailSubmit={() => setAuthOpen(false)}
+          onClose={() => { setAuthOpen(false); setPendingJobId(null); }}
+          onGoogle={() => { setAuthOpen(false); if (pendingJobId) setPremiumOpen(true); }}
+          onEmailSubmit={() => { setAuthOpen(false); if (pendingJobId) setPremiumOpen(true); }}
           redirectNext="/panel"
         />
       </AnimatePresence>
