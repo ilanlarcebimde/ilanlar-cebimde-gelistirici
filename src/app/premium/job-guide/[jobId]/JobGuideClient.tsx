@@ -243,6 +243,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     let cancelled = false;
     setInitialChatFetched(true);
     setSending(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     (async () => {
       const token = await getSession();
       if (!token || cancelled) return;
@@ -256,33 +258,38 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             user_message: "__start__",
             answers_json: guide.answers_json,
           }),
+          signal: controller.signal,
         });
-        const data = await res.json();
+        clearTimeout(timeoutId);
+        const data = await res.json().catch(() => ({}));
         if (cancelled) return;
-        if (!res.ok) throw new Error(data.error || "Chat başlatılamadı");
+        if (!res.ok) throw new Error((data as { error?: string }).error || "Chat başlatılamadı");
         const msg: ChatMessage = {
           role: "assistant",
-          text: data.assistant_message ?? "",
-          next_question: data.next_question ?? undefined,
+          text: (data as { assistant_message?: string }).assistant_message ?? "",
+          next_question: (data as { next_question?: NextQuestionSingle }).next_question ?? undefined,
         };
         setMessages([msg]);
-        setNextQuestion(data.next_question ?? null);
-        if (data.report_json) setReport(data.report_json);
-        if (data.checklist_snapshot) setChecklistSnapshot(data.checklist_snapshot);
-        if (data.answers_json) {
-          setGuide((g) => (g ? { ...g, answers_json: data.answers_json } : null));
-          setAnswers(answersFromJson(data.answers_json));
+        setNextQuestion((data as { next_question?: NextQuestionSingle }).next_question ?? null);
+        if ((data as { report_json?: ReportJson }).report_json) setReport((data as { report_json?: ReportJson }).report_json);
+        if ((data as { checklist_snapshot?: unknown }).checklist_snapshot) setChecklistSnapshot((data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot);
+        if ((data as { answers_json?: Record<string, unknown> }).answers_json) {
+          const aj = (data as { answers_json: Record<string, unknown> }).answers_json;
+          setGuide((g) => (g ? { ...g, answers_json: aj } : null));
+          setAnswers(answersFromJson(aj));
         }
       } catch (e) {
         if (!cancelled) {
-          setMessages([{ role: "assistant", text: "Bağlantı hatası. Lütfen tekrar deneyin." }]);
+          const isAbort = e instanceof Error && e.name === "AbortError";
+          setMessages([{ role: "assistant", text: isAbort ? "İstek zaman aşımına uğradı. Tekrar deneyin." : "Bağlantı hatası. Lütfen tekrar deneyin." }]);
           setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
         }
       } finally {
+        clearTimeout(timeoutId);
         if (!cancelled) setSending(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); };
   }, [loading, guide, job, initialChatFetched, messages.length, getSession]);
 
   const sendMessage = useCallback(
@@ -298,6 +305,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       setInputText("");
       setSending(true);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000);
       try {
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
@@ -309,26 +318,31 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             answers_json: guide.answers_json,
             chat_history: messages.map((m) => ({ role: m.role, text: m.text })),
           }),
+          signal: controller.signal,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Gönderilemedi");
+        clearTimeout(timeoutId);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data as { error?: string }).error || "Gönderilemedi");
 
         const assistantMsg: ChatMessage = {
           role: "assistant",
-          text: data.assistant_message ?? "",
+          text: (data as { assistant_message?: string }).assistant_message ?? "",
           ts: new Date().toISOString(),
-          next_question: data.next_question ?? undefined,
+          next_question: (data as { next_question?: NextQuestionSingle }).next_question ?? undefined,
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        setNextQuestion(data.next_question ?? null);
-        if (data.report_json) setReport(data.report_json);
-        if (data.checklist_snapshot) setChecklistSnapshot(data.checklist_snapshot);
-        if (data.answers_json) {
-          setGuide((g) => (g ? { ...g, answers_json: data.answers_json } : null));
-          setAnswers(answersFromJson(data.answers_json));
+        setNextQuestion((data as { next_question?: NextQuestionSingle }).next_question ?? null);
+        if ((data as { report_json?: ReportJson }).report_json) setReport((data as { report_json?: ReportJson }).report_json);
+        if ((data as { checklist_snapshot?: unknown }).checklist_snapshot) setChecklistSnapshot((data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot);
+        if ((data as { answers_json?: Record<string, unknown> }).answers_json) {
+          const aj = (data as { answers_json: Record<string, unknown> }).answers_json;
+          setGuide((g) => (g ? { ...g, answers_json: aj } : null));
+          setAnswers(answersFromJson(aj));
         }
       } catch (e) {
-        setMessages((prev) => [...prev, { role: "assistant", text: "Bir hata oluştu. Lütfen tekrar deneyin." }]);
+        clearTimeout(timeoutId);
+        const isAbort = e instanceof Error && e.name === "AbortError";
+        setMessages((prev) => [...prev, { role: "assistant", text: isAbort ? "İstek zaman aşımına uğradı. Tekrar deneyin." : "Bir hata oluştu. Lütfen tekrar deneyin." }]);
         setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
       } finally {
         setSending(false);
@@ -502,7 +516,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
         {/* Orta: Sohbet (desktop her zaman, mobil sadece Sohbet tab'da) */}
         <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col border-r border-slate-200 bg-slate-50/50">
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-4">
               {messages.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
@@ -534,7 +548,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               <div ref={messagesBottomRef} />
             </div>
           </div>
-          <div className="p-4 border-t border-slate-200 bg-white">
+          <div className="shrink-0 p-4 border-t border-slate-200 bg-white">
             <div className="max-w-2xl mx-auto flex gap-2">
               <input
                 type="text"
@@ -560,7 +574,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         {/* Mobil: Sohbet tab içeriği */}
         {mobileTab === "sohbet" && (
             <div className="md:hidden flex-1 flex flex-col min-h-0 bg-slate-50/50">
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
                 {messages.map((m, i) => (
                   <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                     <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
@@ -584,7 +598,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                 )}
                 <div ref={messagesBottomRef} />
               </div>
-              <div className="p-4 border-t border-slate-200 bg-white flex gap-2">
+              <div className="shrink-0 p-4 border-t border-slate-200 bg-white flex gap-2">
                 <input
                   type="text"
                   placeholder="Mesajınızı yazın..."

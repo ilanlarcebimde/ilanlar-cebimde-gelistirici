@@ -61,7 +61,7 @@ export function buildChecklist(job: JobForChecklist, answers: Answers): Checklis
       title: "Vize & Çalışma İzni",
       icon: "🌍",
       items: [
-        { id: "v1", label: "Sponsor gerekliliği kontrol edildi", done: !!job },
+        { id: "v1", label: "Sponsor gerekliliği kontrol edildi", done: false },
         { id: "v2", label: "İşveren başvurusu netleşti", done: false },
         { id: "v3", label: "Ortalama süre biliniyor", done: false },
         { id: "v4", label: "Randevu / takip planı hazır", done: false },
@@ -85,8 +85,8 @@ export function buildChecklist(job: JobForChecklist, answers: Answers): Checklis
       icon: "⚠️",
       items: [
         { id: "r1", label: "Dolandırıcılık kontrolü", done: false },
-        { id: "r2", label: "Dil riski değerlendirildi", done: answers.language !== undefined },
-        { id: "r3", label: "Sponsor riski değerlendirildi", done: !!job },
+        { id: "r2", label: "Dil riski değerlendirildi", done: false },
+        { id: "r3", label: "Sponsor riski değerlendirildi", done: false },
         { id: "r4", label: "Fiziksel iş riski not edildi", done: false },
       ],
     },
