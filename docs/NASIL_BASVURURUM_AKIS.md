@@ -112,3 +112,24 @@ URL `/premium/job-guide/[jobId]` olduğu için bu layout her zaman çalışır.
 | Kanal sayfası `/kanal/[slug]` | KanalFeedClient | job_posts (o kanal) |
 
 Tümünde mantık aynı: giriş yoksa auth, abonelik yoksa premium modal; ikisi de varsa `router.push("/premium/job-guide/" + post.id)`.
+
+---
+
+## 7. Tasarım: Benzersiz ilan id = tüm panel verisi
+
+**Prensip:** Her ilanın tek bir benzersiz id’si vardır (`job_posts.id`). Bu id:
+
+- Feed’de, URL’de ve tüm API çağrılarında **tek anahtar** olarak kullanılır.
+- **Nasıl Başvururum** analiz paneli, adım adım süreç ve tüm veri bu id üzerinden sorgulanır ve üretilir.
+
+| Veri / süreç | Anahtar | Açıklama |
+|--------------|---------|----------|
+| İlan bilgisi | `job_posts.id` | Başlık, konum, kaynak, snippet, analiz alanları |
+| Kullanıcı rehberi | `job_guides.job_post_id` | Bu ilan + bu kullanıcı için checklist, cevaplar, rapor |
+| Panel URL | `/premium/job-guide/[jobId]` | `jobId = job_posts.id` |
+| API: ilan | `GET /api/job-posts/:id` | İlan detayı |
+| API: rehber | `GET/POST/PATCH /api/job-guide?jobPostId=:id` | Rehber oluşturma/okuma/güncelleme |
+| **API: panel (tek istek)** | `GET /api/premium/panel/[jobId]` (Bearer) | İlan + rehber, yoksa draft tek yanıtta |
+| Rapor üretimi | `job_guide.update` + `job_post_id` | Gemini analizi bu ilan id’sine göre |
+
+Sonuç: Tek id ile ilan verisi, rehber durumu, checklist ve rapor tek bir tutarlı süreçte toplanır; “Nasıl Başvururum” adımları ve analiz paneli tamamen bu id’ye bağlıdır.

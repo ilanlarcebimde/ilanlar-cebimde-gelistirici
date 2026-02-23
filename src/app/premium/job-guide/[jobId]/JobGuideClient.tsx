@@ -138,50 +138,34 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       if (!token || cancelled) return;
 
       const trimmedId = String(jobId).trim();
-      let jobRes = await fetch(`/api/job-posts/${trimmedId}`);
-      if (cancelled) return;
-      if (jobRes.status === 404) {
-        await new Promise((r) => setTimeout(r, 1000));
-        if (cancelled) return;
-        jobRes = await fetch(`/api/job-posts/${trimmedId}`);
-      }
-
-      const guideRes = await fetch(`/api/job-guide?jobPostId=${encodeURIComponent(trimmedId)}`, {
+      let panelRes = await fetch(`/api/premium/panel/${trimmedId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (cancelled) return;
+      if (panelRes.status === 404) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (cancelled) return;
+        panelRes = await fetch(`/api/premium/panel/${trimmedId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
 
       if (cancelled) return;
-      if (!jobRes.ok) {
-        console.warn("[JobGuideClient] job fetch failed", { jobId: trimmedId, status: jobRes.status });
+      if (!panelRes.ok) {
+        console.warn("[JobGuideClient] panel fetch failed", { jobId: trimmedId, status: panelRes.status });
         if (!cancelled) {
           setJobLoadError(true);
           setLoading(false);
         }
         return;
       }
-      const jobData = (await jobRes.json()) as JobSummary;
-      if (!cancelled) setJob(jobData);
 
-      if (guideRes.status === 404 || !guideRes.ok) {
-        const createRes = await fetch("/api/job-guide", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ jobPostId: trimmedId }),
-        });
-        if (!createRes.ok || cancelled) {
-          if (!cancelled) setLoading(false);
-          return;
-        }
-        const created = (await createRes.json()) as JobGuide;
-        if (!cancelled) {
-          setGuide(created);
-          setAnswers(answersFromJson(created.answers_json ?? {}));
-        }
-      } else {
-        const guideData = (await guideRes.json()) as JobGuide;
-        if (!cancelled) {
+      const { job: jobData, guide: guideData } = (await panelRes.json()) as { job: JobSummary; guide: JobGuide };
+      if (!cancelled) {
+        setJob(jobData);
+        if (guideData) {
           setGuide(guideData);
-          setAnswers(answersFromJson(guideData.answers_json ?? {}));
+          setAnswers(answersFromJson((guideData.answers_json as Record<string, unknown>) ?? {}));
         }
       }
       if (!cancelled) setLoading(false);
