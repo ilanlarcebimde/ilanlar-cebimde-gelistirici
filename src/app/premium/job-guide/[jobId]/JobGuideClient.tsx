@@ -172,7 +172,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         return;
       }
 
-      if (panelRes.status === 404) {
+      if (panelRes.status === 404 || panelRes.status === 500) {
         const fallbackJobRes = await fetch(`/api/job-posts/${trimmedId}`);
         if (cancelled) return;
         if (fallbackJobRes.ok) {

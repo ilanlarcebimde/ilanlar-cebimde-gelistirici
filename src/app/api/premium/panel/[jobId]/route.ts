@@ -23,67 +23,74 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const auth = await getUserFromRequest(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const auth = await getUserFromRequest(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const raw = (await params).jobId;
-  const jobId = typeof raw === "string" ? raw.trim() : "";
-  if (!jobId) return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
+    const raw = (await params).jobId;
+    const jobId = typeof raw === "string" ? raw.trim() : "";
+    if (!jobId) return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
 
-  const admin = getSupabaseAdmin();
-  const { data: job, error: jobErr } = await admin
-    .from("job_posts")
-    .select(JOB_COLS)
-    .eq("id", jobId)
-    .maybeSingle();
+    const admin = getSupabaseAdmin();
+    const { data: job, error: jobErr } = await admin
+      .from("job_posts")
+      .select(JOB_COLS)
+      .eq("id", jobId)
+      .maybeSingle();
 
-  if (jobErr) {
-    console.warn("[premium/panel] job_posts query error", { jobId, message: jobErr.message });
-    return NextResponse.json({ error: jobErr.message, requestedId: jobId }, { status: 500 });
-  }
-  if (!job) {
-    console.warn("[premium/panel] job not found", { jobId, length: jobId.length });
-    return NextResponse.json({ error: "Not found", requestedId: jobId }, { status: 404 });
-  }
-
-  const { data: existingGuide, error: guideErr } = await auth.supabase
-    .from("job_guides")
-    .select("*")
-    .eq("user_id", auth.user.id)
-    .eq("job_post_id", jobId)
-    .maybeSingle();
-
-  let guide = guideErr ? null : existingGuide ?? null;
-
-  if (!guide) {
-    const { data: created, error: insertErr } = await auth.supabase
-      .from("job_guides")
-      .insert({
-        user_id: auth.user.id,
-        job_post_id: jobId,
-        status: "draft",
-        progress_step: 1,
-        answers_json: {},
-      })
-      .select()
-      .single();
-
-    if (insertErr) {
-      if ((insertErr as { code?: string }).code === "23505") {
-        const { data: existing } = await auth.supabase
-          .from("job_guides")
-          .select("*")
-          .eq("user_id", auth.user.id)
-          .eq("job_post_id", jobId)
-          .maybeSingle();
-        guide = existing ?? null;
-      } else {
-        return NextResponse.json({ error: insertErr.message }, { status: 500 });
-      }
-    } else {
-      guide = created;
+    if (jobErr) {
+      console.warn("[premium/panel] job_posts query error", { jobId, message: jobErr.message });
+      return NextResponse.json({ error: jobErr.message, requestedId: jobId }, { status: 500 });
     }
-  }
+    if (!job) {
+      console.warn("[premium/panel] job not found", { jobId, length: jobId.length });
+      return NextResponse.json({ error: "Not found", requestedId: jobId }, { status: 404 });
+    }
 
-  return NextResponse.json({ job, guide });
+    const { data: existingGuide, error: guideErr } = await auth.supabase
+      .from("job_guides")
+      .select("*")
+      .eq("user_id", auth.user.id)
+      .eq("job_post_id", jobId)
+      .maybeSingle();
+
+    let guide = guideErr ? null : existingGuide ?? null;
+
+    if (!guide) {
+      const { data: created, error: insertErr } = await auth.supabase
+        .from("job_guides")
+        .insert({
+          user_id: auth.user.id,
+          job_post_id: jobId,
+          status: "draft",
+          progress_step: 1,
+          answers_json: {},
+        })
+        .select()
+        .single();
+
+      if (insertErr) {
+        if ((insertErr as { code?: string }).code === "23505") {
+          const { data: existing } = await auth.supabase
+            .from("job_guides")
+            .select("*")
+            .eq("user_id", auth.user.id)
+            .eq("job_post_id", jobId)
+            .maybeSingle();
+          guide = existing ?? null;
+        } else {
+          console.warn("[premium/panel] job_guides insert error", { jobId, message: insertErr.message });
+          return NextResponse.json({ error: insertErr.message }, { status: 500 });
+        }
+      } else {
+        guide = created;
+      }
+    }
+
+    return NextResponse.json({ job, guide });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[premium/panel] unexpected error", message, err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

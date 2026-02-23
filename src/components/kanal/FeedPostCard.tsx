@@ -137,6 +137,7 @@ export function FeedPostCard({
         {detailHref ? (
           <Link
             href={detailHref}
+            prefetch={false}
             className="flex min-h-[44px] w-full shrink-0 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 sm:w-auto sm:py-2.5"
           >
             İlana Git
