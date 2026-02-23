@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 
 const BULLETS = [
   "Adım adım başvuru rehberi",
@@ -15,6 +17,8 @@ const BULLETS = [
   "30 günlük başvuru planı",
 ];
 
+const PREMIUM_COUPON_CODE = "ADMIN89";
+
 export function PremiumIntroModal({
   open,
   onClose,
@@ -24,6 +28,54 @@ export function PremiumIntroModal({
 }) {
   const router = useRouter();
   const { user } = useAuth();
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const applyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) {
+      setCouponMessage({ type: "error", text: "Kupon kodu girin." });
+      return;
+    }
+    if (code !== PREMIUM_COUPON_CODE) {
+      setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
+      return;
+    }
+    if (!user) {
+      setCouponMessage({ type: "error", text: "Kupon için giriş yapmanız gerekir." });
+      return;
+    }
+    setCouponLoading(true);
+    setCouponMessage(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setCouponMessage({ type: "error", text: "Oturum bulunamadı. Lütfen tekrar giriş yapın." });
+        setCouponLoading(false);
+        return;
+      }
+      const res = await fetch("/api/premium/apply-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: PREMIUM_COUPON_CODE }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCouponMessage({ type: "error", text: (data as { error?: string }).error ?? "Kupon uygulanamadı." });
+        setCouponLoading(false);
+        return;
+      }
+      setCouponMessage({ type: "success", text: "Premium aktif. Yönlendiriliyorsunuz…" });
+      window.dispatchEvent(new Event("premium-subscription-invalidate"));
+      onClose();
+      router.replace("/premium/job-guides");
+    } catch {
+      setCouponMessage({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
+      setCouponLoading(false);
+    }
+  };
 
   const handleWeeklyPay = () => {
     const email = user?.email?.trim();
@@ -92,6 +144,37 @@ export function PremiumIntroModal({
           </ul>
 
           <p className="text-sm text-slate-500">1 hafta boyunca tüm rehberlere erişin; süre sonunda abonelik otomatik sonlanır.</p>
+
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <p className="text-sm font-medium text-slate-700 mb-2">Kupon kodunuz var mı?</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value);
+                  setCouponMessage(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                placeholder="Kupon kodu"
+                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                disabled={couponLoading}
+              />
+              <button
+                type="button"
+                onClick={applyCoupon}
+                disabled={couponLoading}
+                className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {couponLoading ? "…" : "Uygula"}
+              </button>
+            </div>
+            {couponMessage && (
+              <p className={`mt-2 text-sm ${couponMessage.type === "success" ? "text-emerald-600" : "text-red-600"}`}>
+                {couponMessage.text}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="p-5 sm:p-6 pt-0 flex flex-col sm:flex-row gap-3 border-t border-slate-100">
