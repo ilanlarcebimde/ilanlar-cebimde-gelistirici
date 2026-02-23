@@ -280,11 +280,15 @@ export async function POST(req: NextRequest) {
         firstQuestion = { text: "Bu platformda veya ilan sayfasında hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
         askId = "has_platform_account";
       }
-      await auth.supabase.from("job_guide_events").insert({
-        job_guide_id: jobGuideId,
-        type: "assistant_message",
-        content: JSON.stringify({ message: guideMessage, next_question: firstQuestion }),
-      }).catch(() => {});
+      try {
+        await auth.supabase.from("job_guide_events").insert({
+          job_guide_id: jobGuideId,
+          type: "assistant_message",
+          content: JSON.stringify({ message: guideMessage, next_question: firstQuestion }),
+        });
+      } catch {
+        /* event yazılamazsa devam et */
+      }
       const assistant = {
         message_md: guideMessage,
         quick_replies: firstQuestion.choices,
