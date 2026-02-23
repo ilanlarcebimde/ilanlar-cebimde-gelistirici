@@ -146,6 +146,34 @@ function normalizeNextQuestion(parsed: Record<string, unknown>): NextQuestionOut
   return { text, choices: choicesStr.length > 0 ? choicesStr : DEFAULT_QUESTION.choices };
 }
 
+/** Gemini farklı anahtarlarla mesaj dönebilir; hepsini dene, yoksa ham metni kullan */
+function extractAssistantMessage(parsed: Record<string, unknown>, rawText: string): string {
+  const keys = ["assistant_message", "message", "message_md", "response", "reply", "content", "text", "output", "answer"];
+  for (const k of keys) {
+    const v = parsed[k];
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
+  }
+  const assistant = parsed.assistant;
+  if (assistant && typeof assistant === "object" && assistant !== null) {
+    const a = assistant as Record<string, unknown>;
+    for (const k of ["message", "message_md", "text", "content"]) {
+      const v = a[k];
+      if (typeof v === "string" && v.trim().length > 0) return v.trim();
+    }
+  }
+  if (typeof rawText === "string" && rawText.trim().length > 0) {
+    const cleaned = rawText
+      .replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "")
+      .trim();
+    if (!cleaned.startsWith("{") || !cleaned.includes('"assistant_message"')) {
+      const firstLine = cleaned.split("\n")[0]?.trim() ?? "";
+      if (firstLine.length > 10 && firstLine.length < 2000) return firstLine;
+      if (cleaned.length > 10 && cleaned.length < 4000) return cleaned.slice(0, 2000);
+    }
+  }
+  return "";
+}
+
 type ReportFromGemini = {
   summary?: { one_liner?: string; top_actions?: string[] };
   how_to_apply?: { steps?: string[]; where_to_apply?: string; notes?: string[] };
@@ -380,8 +408,11 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
       });
     }
 
-    let assistantMessage = typeof parsed.assistant_message === "string" ? parsed.assistant_message : "";
-    let nextQuestion = normalizeNextQuestion(parsed as Record<string, unknown>);
+    let assistantMessage = extractAssistantMessage(parsed as Record<string, unknown>, rawText);
+    if (!assistantMessage.trim()) {
+      assistantMessage = "Kısa bir yanıt geldi; devam edelim. İlan sayfasında başvuru bölümünü görüyor musun?";
+    }
+    const nextQuestion = normalizeNextQuestion(parsed as Record<string, unknown>);
     const answersPatch = (parsed.answers_patch && typeof parsed.answers_patch === "object") ? parsed.answers_patch : {};
     const finalAnswers = { ...mergedAnswers, ...answersPatch };
     const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};
