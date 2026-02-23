@@ -22,9 +22,12 @@ const PREMIUM_COUPON_CODE = "ADMIN89";
 export function PremiumIntroModal({
   open,
   onClose,
+  /** Tıklanan ilanın id'si; kupon başarılı olunca bu ilanın paneline yönlendirilir. */
+  initialJobId = null,
 }: {
   open: boolean;
   onClose: () => void;
+  initialJobId?: string | null;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -71,7 +74,8 @@ export function PremiumIntroModal({
       window.dispatchEvent(new Event("premium-subscription-invalidate"));
       onClose();
       await new Promise((r) => setTimeout(r, 800));
-      router.replace("/premium/job-guides");
+      const target = initialJobId ? `/premium/job-guide/${initialJobId}` : "/premium/job-guides";
+      router.replace(target);
     } catch {
       setCouponMessage({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
       setCouponLoading(false);

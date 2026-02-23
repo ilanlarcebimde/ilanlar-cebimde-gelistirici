@@ -38,6 +38,7 @@ export function UcretsizPanelClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [applyToast, setApplyToast] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +65,7 @@ export function UcretsizPanelClient() {
           return;
         }
         if (!subscriptionLoading && !subscriptionActive) {
+          setPendingJobId(post.id);
           setPremiumOpen(true);
           setApplyToast("Premium panele erişmek için abonelik gerekiyor.");
           setTimeout(() => setApplyToast(null), 3000);
@@ -284,7 +286,11 @@ export function UcretsizPanelClient() {
         />
       </AnimatePresence>
       <AnimatePresence>
-        <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+        <PremiumIntroModal
+          open={premiumOpen}
+          onClose={() => { setPremiumOpen(false); setPendingJobId(null); }}
+          initialJobId={pendingJobId}
+        />
       </AnimatePresence>
 
       {applyToast && (

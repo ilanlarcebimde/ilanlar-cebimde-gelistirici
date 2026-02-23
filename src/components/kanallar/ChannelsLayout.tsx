@@ -22,6 +22,7 @@ export function ChannelsLayout() {
   const [initialized, setInitialized] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [applyToast, setApplyToast] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
@@ -43,6 +44,7 @@ export function ChannelsLayout() {
           return;
         }
         if (!subscriptionLoading && !subscriptionActive) {
+          setPendingJobId(post.id);
           setPremiumOpen(true);
           clearToast();
           return;
@@ -166,7 +168,11 @@ export function ChannelsLayout() {
           redirectNext="/aboneliklerim"
         />
       </AnimatePresence>
-      <PremiumIntroModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      <PremiumIntroModal
+        open={premiumOpen}
+        onClose={() => { setPremiumOpen(false); setPendingJobId(null); }}
+        initialJobId={pendingJobId}
+      />
 
       {applyToast && (
         <div className="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg">
