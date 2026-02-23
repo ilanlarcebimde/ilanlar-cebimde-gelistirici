@@ -240,7 +240,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     return () => { cancelled = true; };
   }, [jobId, getSession]);
 
-  // İlk açılışta bootstrap ile ilk asistan mesajını al (30s güvenlik: sending asla takılı kalmaz)
+  // İlk açılışta bootstrap ile ilk asistan mesajını al (10s'de açılır, 25s abort)
   useEffect(() => {
     if (loading || !guide || !job || initialChatFetched || messages.length > 0) return;
     let cancelled = false;
@@ -252,8 +252,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       if (!cancelled) {
         setSending(false);
         setReportUpdating(false);
+        setMessages((prev) => (prev.length === 0 ? [{ role: "assistant" as const, text: "Bağlantı gecikiyor. Aşağıdan yazıp gönderin veya sayfayı yenileyin." }] : prev));
+        setNextQuestion((q) => q ?? { text: "Devam etmek için bir seçenek yazın veya tıklayın.", choices: ["Var", "Yok", "Emin değilim"] });
       }
-    }, 30000);
+    }, 10000);
     (async () => {
       const token = await getSession();
       if (!token || cancelled) {
