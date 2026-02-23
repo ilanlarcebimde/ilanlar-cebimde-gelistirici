@@ -239,11 +239,15 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
     } catch (parseErr) {
       // JSON parse fail: event'e yaz ki UI'da görünsün / debug edilebilsin
       const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
-      await auth.supabase.from("job_guide_events").insert({
-        job_guide_id: jobGuideId,
-        type: "error",
-        content: JSON.stringify({ error: "JSON_PARSE_FAILED", snippet: errSnippet }),
-      }).catch(() => {});
+      try {
+        await auth.supabase.from("job_guide_events").insert({
+          job_guide_id: jobGuideId,
+          type: "error",
+          content: JSON.stringify({ error: "JSON_PARSE_FAILED", snippet: errSnippet }),
+        });
+      } catch {
+        /* event yazılamazsa devam et */
+      }
       return NextResponse.json(
         { error: "gemini_parse_failed", detail: "Yanıt işlenemedi. Lütfen tekrar deneyin." },
         { status: 500 }
