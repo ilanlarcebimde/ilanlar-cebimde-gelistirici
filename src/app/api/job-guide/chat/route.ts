@@ -232,43 +232,63 @@ export async function POST(req: NextRequest) {
     const missingTop3 = getMissingTop(modules, 3);
     const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3: missingTop3 };
 
-    // Deterministik bootstrap: EURES / Glassdoor için ilk mesaj + soru garantisi (Gemini çağrılmadan)
-    const sourceLower = (jobPost.source_name ?? "").toString().toLowerCase();
-    if (isBootstrap && (sourceLower.includes("eures") || sourceLower.includes("glassdoor"))) {
+    // Bootstrap: HER ZAMAN deterministik ilk mesaj + soru (Gemini'ye gerek yok, arayüz hep çalışır)
+    if (isBootstrap) {
+      const sourceLower = (jobPost.source_name ?? "").toString().toLowerCase();
       const isEures = sourceLower.includes("eures");
-      const guideMessage = isEures
-        ? [
-            "Bu ilan kaynağı **EURES** üzerinden yayınlanmıştır.",
-            "",
-            "Başvuruyu tamamlamak için şu sırayla ilerleyelim:",
-            "• Önce EURES'te oturum aç (EU Login).",
-            "• İlanlar Cebimde'de **İlana Git** butonuna tıkla.",
-            "• Açılan sayfada **How to apply / Başvuru** bölümünü bul.",
-            "• Tarayıcıdan **Sayfayı Türkçe'ye çevir** özelliğini aç.",
-            "Şimdi sana 1 soru soracağım; cevabına göre sıradaki adımı göstereceğim.",
-          ].join("\n")
-        : [
-            "Bu ilan kaynağı **Glassdoor** üzerinden yayınlanmıştır.",
-            "",
-            "Başvuruyu tamamlamak için:",
-            "• Glassdoor'da hesap aç veya giriş yap.",
-            "• İlanlar Cebimde'de **İlana Git** butonuna tıkla.",
-            "• Açılan sayfada **Apply / Sign in to apply** ekranını kullan.",
-            "• Tarayıcıdan sayfayı Türkçe'ye çevirebilirsin.",
-            "Şimdi sana 1 soru soracağım; cevabına göre devam edeceğiz.",
-          ].join("\n");
-      const firstQuestion = isEures
-        ? { text: "EURES (EU Login) hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] }
-        : { text: "Glassdoor hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
+      const isGlassdoor = sourceLower.includes("glassdoor");
+      let guideMessage: string;
+      let firstQuestion: { text: string; choices: string[] };
+      let askId: string;
+      if (isEures) {
+        guideMessage = [
+          "Bu ilan kaynağı EURES üzerinden yayınlanmıştır.",
+          "",
+          "Başvuruyu tamamlamak için:",
+          "• EURES'te oturum aç (EU Login).",
+          "• İlanlar Cebimde'de İlana Git butonuna tıkla.",
+          "• Açılan sayfada How to apply / Başvuru bölümünü bul.",
+          "• Tarayıcıdan Sayfayı Türkçe'ye çevir özelliğini aç.",
+          "Şimdi sana 1 soru soracağım; cevabına göre sıradaki adımı göstereceğim.",
+        ].join("\n");
+        firstQuestion = { text: "EURES (EU Login) hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
+        askId = "has_eu_login";
+      } else if (isGlassdoor) {
+        guideMessage = [
+          "Bu ilan kaynağı Glassdoor üzerinden yayınlanmıştır.",
+          "",
+          "Başvuruyu tamamlamak için:",
+          "• Glassdoor'da hesap aç veya giriş yap.",
+          "• İlanlar Cebimde'de İlana Git butonuna tıkla.",
+          "• Açılan sayfada Apply / Sign in to apply ekranını kullan.",
+          "• Tarayıcıdan sayfayı Türkçe'ye çevirebilirsin.",
+          "Şimdi sana 1 soru soracağım; cevabına göre devam edeceğiz.",
+        ].join("\n");
+        firstQuestion = { text: "Glassdoor hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
+        askId = "has_glassdoor_account";
+      } else {
+        const sourceLabel = (jobPost.source_name ?? "bu platform").toString();
+        guideMessage = [
+          `Bu ilan ${sourceLabel} kaynağından geliyor.`,
+          "",
+          "Başvurmak için:",
+          "• İlanlar Cebimde'de İlana Git butonuna tıkla.",
+          "• Açılan sayfada başvuru / Apply bölümünü bul.",
+          "• Gerekirse tarayıcıdan sayfayı Türkçe'ye çevir.",
+          "Aşağıdaki sorudan devam edelim.",
+        ].join("\n");
+        firstQuestion = { text: "Bu platformda veya ilan sayfasında hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
+        askId = "has_platform_account";
+      }
       await auth.supabase.from("job_guide_events").insert({
         job_guide_id: jobGuideId,
         type: "assistant_message",
         content: JSON.stringify({ message: guideMessage, next_question: firstQuestion }),
-      });
+      }).catch(() => {});
       const assistant = {
         message_md: guideMessage,
         quick_replies: firstQuestion.choices,
-        ask: { id: isEures ? "has_eu_login" : "has_glassdoor_account", question: firstQuestion.text, type: "choice" as const, choices: firstQuestion.choices },
+        ask: { id: askId, question: firstQuestion.text, type: "choice" as const, choices: firstQuestion.choices },
       };
       const state_patch = {
         answers_patch: {},

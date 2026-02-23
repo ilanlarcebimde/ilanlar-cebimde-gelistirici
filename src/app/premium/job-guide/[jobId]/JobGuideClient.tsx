@@ -240,7 +240,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     return () => { cancelled = true; };
   }, [jobId, getSession]);
 
-  // İlk açılışta __start__ ile ilk asistan mesajını al
+  // İlk açılışta bootstrap ile ilk asistan mesajını al (30s güvenlik: sending asla takılı kalmaz)
   useEffect(() => {
     if (loading || !guide || !job || initialChatFetched || messages.length > 0) return;
     let cancelled = false;
@@ -248,6 +248,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setSending(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const safetyId = setTimeout(() => {
+      if (!cancelled) {
+        setSending(false);
+        setReportUpdating(false);
+      }
+    }, 30000);
     (async () => {
       const token = await getSession();
       if (!token || cancelled) {
@@ -303,6 +309,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           setGuide((g) => (g ? { ...g, answers_json: d.answers_json! } : null));
           setAnswers(answersFromJson(d.answers_json));
         }
+        if (!text && !nextQ && !cancelled) {
+          setMessages([{ role: "assistant", text: "Rehber yüklenemedi. Sayfayı yenileyin veya aşağıdaki seçenekten devam edin." }]);
+          setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+        }
       } catch (e) {
         if (!cancelled) {
           const isAbort = e instanceof Error && e.name === "AbortError";
@@ -311,13 +321,14 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
       } finally {
         clearTimeout(timeoutId);
+        clearTimeout(safetyId);
         if (!cancelled) {
           setSending(false);
           setReportUpdating(false);
         }
       }
     })();
-    return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); };
+    return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); clearTimeout(safetyId); };
   }, [loading, guide, job, initialChatFetched, messages.length, getSession]);
 
   const sendMessage = useCallback(
@@ -335,6 +346,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const safetyId = setTimeout(() => setSending(false), 30000);
       try {
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
@@ -351,6 +363,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
+        clearTimeout(safetyId);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error((data as { detail?: string; error?: string }).detail ?? (data as { error?: string }).error ?? "Gönderilemedi");
 
@@ -389,10 +402,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
       } catch (e) {
         clearTimeout(timeoutId);
+        clearTimeout(safetyId);
         const isAbort = e instanceof Error && e.name === "AbortError";
         setMessages((prev) => [...prev, { role: "assistant", text: isAbort ? "Yanıt gecikiyor. Sayfayı yenileyin veya tekrar yazın." : "Bir hata oluştu. Sayfayı yenileyip tekrar deneyin." }]);
         setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
       } finally {
+        clearTimeout(safetyId);
         setSending(false);
         setReportUpdating(false);
       }
@@ -455,7 +470,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   }, [guide, getSession]);
 
   if (jobLoadError) return <JobNotFoundShell jobId={jobId} />;
-  if (loading || !job) return <LoadingShell />;
+  if (loading || !job || !guide) return <LoadingShell />;
 
   const locationLabel = job.location_text ?? "";
   const sourceLabel = job.source_name ?? "";
@@ -614,7 +629,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
-                disabled={sending}
                 className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                 aria-label="Mesaj"
               />
@@ -666,7 +680,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
-                  disabled={sending}
                   className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   aria-label="Mesaj"
                 />
