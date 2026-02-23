@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
     const modules = buildChecklist(jobForChecklist, answersForChecklist);
     const progress = calcProgress(modules);
     const missingTop3 = getMissingTop(modules, 3);
-    const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3 };
+    const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3: missingTop3 };
 
     const system = `Sen yurtdışı iş başvuru asistanısın. Kullanıcı lise mezunu/usta profiline uygun; kısa, net, madde madde (en fazla 5-8 madde) yaz.
 KAYNAK YÖNLENDİRMESİ ZORUNLU: İlk mesajda (__start__) mutlaka ilan kaynağına göre adımlar ver:
