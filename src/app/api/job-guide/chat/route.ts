@@ -175,11 +175,11 @@ export async function POST(req: NextRequest) {
 
     const jobForChecklist = {
       id: jobPostId,
-      title: jobPost.title ?? null,
-      location_text: jobPost.location_text ?? null,
-      source_name: jobPost.source_name ?? null,
-      source_url: jobPost.source_url ?? null,
-      snippet: jobPost.snippet ?? null,
+      title: typeof jobPost.title === "string" ? jobPost.title : null,
+      location_text: typeof jobPost.location_text === "string" ? jobPost.location_text : null,
+      source_name: typeof jobPost.source_name === "string" ? jobPost.source_name : null,
+      source_url: typeof jobPost.source_url === "string" ? jobPost.source_url : null,
+      snippet: typeof jobPost.snippet === "string" ? jobPost.snippet : null,
     };
     const answersForChecklist = answersFromJson(mergedAnswers as Record<string, unknown>);
     const modules = buildChecklist(jobForChecklist, answersForChecklist);
