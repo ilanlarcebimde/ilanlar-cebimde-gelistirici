@@ -190,7 +190,7 @@ Kurallar:
       vize_izin: vizeText,
       maas_yasam: maasText,
       risk: riskText,
-      sana_ozel: [].concat(fit.strengths ?? [], fit.gaps ?? []).join("\n"),
+      sana_ozel: [...(fit.strengths ?? []), ...(fit.gaps ?? [])].join("\n"),
       plan_30_gun: planText,
       score: score ?? undefined,
       _raw: parsed,
