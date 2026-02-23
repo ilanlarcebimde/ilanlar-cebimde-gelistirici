@@ -131,6 +131,8 @@ export async function POST(req: NextRequest) {
       jobGuideId?: string;
       jobPostId?: string;
       user_message?: string;
+      message_text?: string;
+      mode?: "bootstrap" | "chat";
       answers_json?: Record<string, unknown>;
       chat_history?: Array<{ role: string; text: string }>;
       client_context?: { locale?: string };
@@ -140,14 +142,15 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
-    const { jobGuideId, jobPostId, user_message, answers_json = {}, chat_history = [] } = body;
+    const { jobGuideId, jobPostId, user_message, message_text, mode, answers_json = {}, chat_history = [] } = body;
     if (!jobGuideId || !jobPostId) {
       return NextResponse.json({ error: "jobGuideId and jobPostId required" }, { status: 400 });
     }
 
-    const isStart = user_message === "__start__" || (typeof user_message === "string" && !user_message.trim());
-    const rawUserText = typeof user_message === "string" ? user_message.trim() : "";
-    const normalizedPatch = rawUserText && !isStart ? normalizeUserMessageToAnswers(rawUserText) : {};
+    // bootstrap = ilk asistan mesajı; chat = kullanıcı cevabı sonrası
+    const isBootstrap = mode === "bootstrap" || user_message === "__start__" || (typeof user_message === "string" && !user_message.trim());
+    const rawUserText = (typeof message_text === "string" ? message_text : typeof user_message === "string" ? user_message : "").trim();
+    const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText) : {};
     const mergedAnswers = { ...answers_json, ...normalizedPatch };
 
     const { data: guide } = await auth.supabase
@@ -220,17 +223,32 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
   }
 }`;
 
-    const userPrompt = isStart
+    const userPrompt = isBootstrap
       ? `__start__ (ilk mesaj). Bu ilan için kaynak yönlendirmesi yap (${sourceName || "kaynak"}). Sonra ilk soruyu sor (next_question zorunlu). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(mergedAnswers)}`
       : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(mergedAnswers)}\n\nchecklist_snapshot: ${JSON.stringify(checklistSnapshot)}\n\nSohbet (son kullanıcı mesajı): ${rawUserText}`;
 
     const rawText = await callGemini(system, userPrompt);
-    const parsed = extractJson(rawText) as {
+    let parsed: {
       assistant_message?: string;
       next_question?: NextQuestionOut;
       answers_patch?: Record<string, unknown>;
       report?: ReportFromGemini;
     };
+    try {
+      parsed = extractJson(rawText) as typeof parsed;
+    } catch (parseErr) {
+      // JSON parse fail: event'e yaz ki UI'da görünsün / debug edilebilsin
+      const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
+      await auth.supabase.from("job_guide_events").insert({
+        job_guide_id: jobGuideId,
+        type: "error",
+        content: JSON.stringify({ error: "JSON_PARSE_FAILED", snippet: errSnippet }),
+      }).catch(() => {});
+      return NextResponse.json(
+        { error: "gemini_parse_failed", detail: "Yanıt işlenemedi. Lütfen tekrar deneyin." },
+        { status: 500 }
+      );
+    }
 
     let assistantMessage = typeof parsed.assistant_message === "string" ? parsed.assistant_message : "";
     let nextQuestion: NextQuestionOut = { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] };
@@ -267,7 +285,7 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
       .eq("id", jobGuideId)
       .eq("user_id", auth.user.id);
 
-    if (rawUserText && !isStart) {
+    if (rawUserText && !isBootstrap) {
       await auth.supabase.from("job_guide_events").insert({
         job_guide_id: jobGuideId,
         type: "user_message",
@@ -280,6 +298,24 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
       content: JSON.stringify({ message: assistantMessage, next_question: nextQuestion }),
     });
 
+    // Yeni şema: assistant + state_patch + next (mega prompt uyumlu)
+    const assistant = {
+      message_md: assistantMessage,
+      quick_replies: nextQuestion.choices ?? [],
+      ask: {
+        id: "q_next",
+        question: nextQuestion.text,
+        type: "choice" as const,
+        choices: nextQuestion.choices ?? ["Var", "Başvurdum", "Yok"],
+      },
+    };
+    const state_patch = {
+      answers_patch: answersPatch,
+      checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
+      progress: { total: progress.total, done: progress.done, percent: progress.pct },
+    };
+    const next = { should_finalize: false, reason: "" };
+
     return NextResponse.json({
       assistant_message: assistantMessage,
       next_question: nextQuestion,
@@ -289,6 +325,10 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
       score: score ?? undefined,
       risk_level: riskLevel ?? undefined,
       answers_json: finalAnswers,
+      // Yeni şema (ChatGPT tarzı UI için)
+      assistant,
+      state_patch,
+      next,
     });
   } catch (e) {
     const msg = String(e instanceof Error ? e.message : "unknown_error");

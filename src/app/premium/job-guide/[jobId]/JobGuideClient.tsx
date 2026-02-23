@@ -91,6 +91,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [initialChatFetched, setInitialChatFetched] = useState(false);
   const [reportDrawerOpen, setReportDrawerOpen] = useState(false);
   const [reportUpdating, setReportUpdating] = useState(false);
+  const [reportUpdateError, setReportUpdateError] = useState<string | null>(null);
   const [lastReportUpdate, setLastReportUpdate] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("sohbet");
   const messagesBottomRef = useRef<HTMLDivElement>(null);
@@ -258,7 +259,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           body: JSON.stringify({
             jobGuideId: guide.id,
             jobPostId: job.id,
-            user_message: "__start__",
+            mode: "bootstrap",
             answers_json: guide.answers_json,
           }),
           signal: controller.signal,
@@ -266,22 +267,38 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         clearTimeout(timeoutId);
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
-        if (!res.ok) throw new Error((data as { error?: string }).error || "Chat başlatılamadı");
+        if (!res.ok) throw new Error((data as { error?: string; detail?: string }).detail ?? (data as { error?: string }).error ?? "Chat başlatılamadı");
+        // Yeni şema (assistant/state_patch) veya eski alanlar
+        const d = data as {
+          assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[] } };
+          state_patch?: { progress?: { total?: number; done?: number; percent?: number }; answers_patch?: Record<string, unknown> };
+          assistant_message?: string;
+          next_question?: NextQuestionSingle;
+          report_json?: ReportJson;
+          checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] };
+          answers_json?: Record<string, unknown>;
+        };
+        const text = d.assistant?.message_md ?? d.assistant_message ?? "";
+        const ask = d.assistant?.ask;
+        const nextQ: NextQuestionSingle | null = ask
+          ? { text: ask.question ?? "", choices: ask.choices }
+          : (d.next_question ?? null);
         const msg: ChatMessage = {
           role: "assistant",
-          text: (data as { assistant_message?: string }).assistant_message ?? "",
-          next_question: (data as { next_question?: NextQuestionSingle }).next_question ?? undefined,
+          text,
+          next_question: nextQ ?? undefined,
         };
         setMessages([msg]);
-        setNextQuestion((data as { next_question?: NextQuestionSingle }).next_question ?? null);
-        const rj = (data as { report_json?: ReportJson }).report_json;
-        if (rj) setReport(rj);
-        const cs = (data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot;
-        if (cs) setChecklistSnapshot(cs);
-        if ((data as { answers_json?: Record<string, unknown> }).answers_json) {
-          const aj = (data as { answers_json: Record<string, unknown> }).answers_json;
-          setGuide((g) => (g ? { ...g, answers_json: aj } : null));
-          setAnswers(answersFromJson(aj));
+        setNextQuestion(nextQ);
+        if (d.report_json) setReport(d.report_json);
+        if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
+        else {
+          const prog = d.state_patch?.progress;
+          if (prog) setChecklistSnapshot({ total: prog.total ?? 0, done: prog.done ?? 0, percent: prog.percent ?? 0 });
+        }
+        if (d.answers_json) {
+          setGuide((g) => (g ? { ...g, answers_json: d.answers_json! } : null));
+          setAnswers(answersFromJson(d.answers_json));
         }
       } catch (e) {
         if (!cancelled) {
@@ -291,7 +308,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
       } finally {
         clearTimeout(timeoutId);
-        if (!cancelled) setSending(false);
+        if (!cancelled) {
+          setSending(false);
+          setReportUpdating(false);
+        }
       }
     })();
     return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); };
@@ -319,7 +339,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           body: JSON.stringify({
             jobGuideId: guide.id,
             jobPostId: job.id,
-            user_message: trimmed,
+            mode: "chat",
+            message_text: trimmed,
             answers_json: guide.answers_json,
             chat_history: messages.map((m) => ({ role: m.role, text: m.text })),
           }),
@@ -327,24 +348,39 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         });
         clearTimeout(timeoutId);
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((data as { error?: string }).error || "Gönderilemedi");
+        if (!res.ok) throw new Error((data as { detail?: string; error?: string }).detail ?? (data as { error?: string }).error ?? "Gönderilemedi");
 
+        const d = data as {
+          assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[] } };
+          state_patch?: { progress?: { total?: number; done?: number; percent?: number }; answers_patch?: Record<string, unknown> };
+          assistant_message?: string;
+          next_question?: NextQuestionSingle;
+          report_json?: ReportJson;
+          checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] };
+          answers_json?: Record<string, unknown>;
+        };
+        const text = d.assistant?.message_md ?? d.assistant_message ?? "";
+        const ask = d.assistant?.ask;
+        const nextQ: NextQuestionSingle | null = ask
+          ? { text: ask.question ?? "", choices: ask.choices }
+          : (d.next_question ?? null);
         const assistantMsg: ChatMessage = {
           role: "assistant",
-          text: (data as { assistant_message?: string }).assistant_message ?? "",
+          text,
           ts: new Date().toISOString(),
-          next_question: (data as { next_question?: NextQuestionSingle }).next_question ?? undefined,
+          next_question: nextQ ?? undefined,
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        setNextQuestion((data as { next_question?: NextQuestionSingle }).next_question ?? null);
-        const rj2 = (data as { report_json?: ReportJson }).report_json;
-        if (rj2) setReport(rj2);
-        const cs2 = (data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot;
-        if (cs2) setChecklistSnapshot(cs2);
-        if ((data as { answers_json?: Record<string, unknown> }).answers_json) {
-          const aj = (data as { answers_json: Record<string, unknown> }).answers_json;
-          setGuide((g) => (g ? { ...g, answers_json: aj } : null));
-          setAnswers(answersFromJson(aj));
+        setNextQuestion(nextQ);
+        if (d.report_json) setReport(d.report_json);
+        if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
+        else {
+          const prog = d.state_patch?.progress;
+          if (prog) setChecklistSnapshot({ total: prog.total ?? 0, done: prog.done ?? 0, percent: prog.percent ?? 0 });
+        }
+        if (d.answers_json) {
+          setGuide((g) => (g ? { ...g, answers_json: d.answers_json! } : null));
+          setAnswers(answersFromJson(d.answers_json));
         }
       } catch (e) {
         clearTimeout(timeoutId);
@@ -353,6 +389,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
       } finally {
         setSending(false);
+        setReportUpdating(false);
       }
     },
     [guide, job, messages, sending, getSession]
@@ -376,6 +413,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     if (!guide || !jobId) return;
     const token = await getSession();
     if (!token) return;
+    setReportUpdateError(null);
     setReportUpdating(true);
     const snapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top5: getMissingTop(modules, 5) };
     try {
@@ -384,8 +422,13 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ jobGuideId: guide.id, jobPostId: jobId, answers_json: answers, checklist_snapshot: snapshot }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Güncelleme başarısız");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = (data as { error?: string; detail?: string }).detail ?? (data as { error?: string }).error ?? "Güncelleme başarısız";
+        if (res.status === 500) console.error("[JobGuide] report update 500", data);
+        setReportUpdateError(msg);
+        return;
+      }
       if (data.report_json) setReport(data.report_json);
       setLastReportUpdate(new Date().toISOString());
     } finally {
@@ -465,8 +508,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         </div>
       </header>
 
-      {/* Desktop: 3 kolon | Mobil: tek içerik (tab'a göre) */}
-      <div className="flex-1 flex min-h-0">
+      {/* Desktop: 3 kolon | Mobil: tek içerik (tab'a göre). overflow-hidden ile yükseklik sınırlanır, input kaybolmaz. */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sol: Kontrol Listesi (sadece desktop) */}
         <aside className="w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto hidden md:block">
           <div className="p-4">
@@ -521,8 +564,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           </div>
         )}
 
-        {/* Orta: Sohbet (desktop her zaman, mobil sadece Sohbet tab'da) */}
-        <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col border-r border-slate-200 bg-slate-50/50">
+        {/* Orta: Sohbet — flex-col + min-h-0 ile input her zaman altta (sticky bottom) */}
+        <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col md:overflow-hidden border-r border-slate-200 bg-slate-50/50">
           <div className="flex-1 min-h-0 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-4">
               {messages.map((m, i) => (
@@ -647,6 +690,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
         {mobileTab === "report" && (
           <div className="md:hidden flex-1 overflow-y-auto bg-white p-4">
+            {reportUpdateError && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p>{reportUpdateError}</p>
+                <button type="button" onClick={handleUpdateReport} disabled={reportUpdating} className="mt-2 text-amber-700 font-medium underline disabled:opacity-50">Tekrar dene</button>
+              </div>
+            )}
             <ReportViewer
               report={report}
               loading={reportUpdating}
@@ -668,6 +717,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               <button type="button" onClick={() => setReportDrawerOpen(false)} className="text-slate-500 hover:text-slate-700 text-xl leading-none">×</button>
             </div>
             <div className="p-4">
+              {reportUpdateError && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <p>{reportUpdateError}</p>
+                  <button type="button" onClick={handleUpdateReport} disabled={reportUpdating} className="mt-2 text-amber-700 font-medium underline disabled:opacity-50">Tekrar dene</button>
+                </div>
+              )}
               <ReportViewer
                 report={report}
                 loading={reportUpdating}
