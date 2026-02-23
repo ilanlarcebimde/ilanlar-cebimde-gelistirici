@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,23 +29,25 @@ export default function PremiumLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscriptionActive(user?.id);
+  const retryCancelledRef = useRef(false);
 
   // Debug: hangi gate (auth / subscription) takılı görünüyor
   useEffect(() => {
-    console.log("PREMIUM GUARD", {
+    console.log("[PremiumLayout]", {
       userId: user?.id ?? null,
+      authLoading,
       subscriptionLoading,
       subscriptionActive,
-      authLoading,
     });
-  }, [user?.id, subscriptionLoading, subscriptionActive, authLoading]);
+  }, [user?.id, authLoading, subscriptionLoading, subscriptionActive]);
 
-  // Redirect SADECE loading bittikten sonra; render içinde redirect yok
+  // Redirect SADECE loading bittikten sonra. subscriptionActive=false ise 3 kez refetch dene, hâlâ false ise redirect (DB gecikmesi/yarışı önler).
   useEffect(() => {
     if (authLoading || subscriptionLoading) return;
 
     if (!user) {
+      console.log("[PremiumLayout] redirect: no_auth");
       try {
         sessionStorage.setItem("premium_redirect_reason", "no_auth");
       } catch {
@@ -54,15 +56,35 @@ export default function PremiumLayout({
       router.replace("/giris?next=" + encodeURIComponent(pathname || "/premium/job-guides"));
       return;
     }
+
     if (!subscriptionActive) {
-      try {
-        sessionStorage.setItem("premium_redirect_reason", "no_subscription");
-      } catch {
-        // ignore
-      }
-      router.replace("/ucretsiz-yurtdisi-is-ilanlari");
+      retryCancelledRef.current = false;
+      (async () => {
+        const delays = [0, 600, 1200];
+        for (const waitMs of delays) {
+          await new Promise((r) => setTimeout(r, waitMs));
+          if (retryCancelledRef.current) return;
+          const ok = await refetchSubscription();
+          if (retryCancelledRef.current) return;
+          if (ok) {
+            console.log("[PremiumLayout] retry: subscription active, no redirect");
+            return;
+          }
+        }
+        if (retryCancelledRef.current) return;
+        console.log("[PremiumLayout] redirect: no_subscription (after 3 retries)");
+        try {
+          sessionStorage.setItem("premium_redirect_reason", "no_subscription");
+        } catch {
+          // ignore
+        }
+        router.replace("/ucretsiz-yurtdisi-is-ilanlari");
+      })();
+      return () => {
+        retryCancelledRef.current = true;
+      };
     }
-  }, [user, authLoading, subscriptionActive, subscriptionLoading, pathname, router]);
+  }, [user, authLoading, subscriptionActive, pathname, router, refetchSubscription]);
 
   // Loading iken redirect yapma; sadece Loading UI göster
   if (authLoading || subscriptionLoading) {

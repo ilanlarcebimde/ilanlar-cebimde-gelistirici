@@ -70,7 +70,7 @@ export function PremiumIntroModal({
       setCouponMessage({ type: "success", text: "Premium aktif. Panele yönlendiriliyorsunuz…" });
       window.dispatchEvent(new Event("premium-subscription-invalidate"));
       onClose();
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 800));
       router.replace("/premium/job-guides");
     } catch {
       setCouponMessage({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });

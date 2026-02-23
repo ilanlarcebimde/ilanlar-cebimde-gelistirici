@@ -59,7 +59,7 @@ export function FeedPostCard({
   onApplyGuideError?: (err: unknown) => void;
 }) {
   const handleApplyClick = () => {
-    console.log("HOWTO CLICK", post.id);
+    console.log("HOWTO CLICK", post?.id ?? "no-id");
     try {
       if (onHowToApplyClick) {
         onHowToApplyClick(post);

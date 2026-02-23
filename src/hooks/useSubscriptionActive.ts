@@ -5,19 +5,27 @@ import { supabase } from "@/lib/supabase";
 
 /**
  * Panel erişimi SADECE premium_subscriptions (kupon veya haftalık ödeme başarılı).
- * ends_at > now() → aktif.
+ * ends_at > now() → aktif. order + limit ile en güncel kayıt.
  */
 async function fetchSubscriptionActive(userId: string): Promise<boolean> {
-  const now = new Date().toISOString();
+  const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("premium_subscriptions")
-    .select("id")
+    .select("id, ends_at")
     .eq("user_id", userId)
-    .gt("ends_at", now)
+    .gt("ends_at", nowIso)
+    .order("ends_at", { ascending: false })
     .limit(1);
 
-  const active = !error && (data?.length ?? 0) > 0;
-  console.log("SUBSCRIPTION RESULT", { userId, rowCount: data?.length ?? 0, error: error?.message ?? null, active });
+  const row = data?.[0] ?? null;
+  const active = !error && !!row;
+  console.log("[SUBSCRIPTION RESULT]", {
+    userId,
+    nowIso,
+    row: row ? { id: row.id, ends_at: row.ends_at } : null,
+    error: error?.message ?? null,
+    active,
+  });
   if (error) {
     console.error("[useSubscriptionActive] premium_subscriptions query error", error.message, { userId });
     return false;
