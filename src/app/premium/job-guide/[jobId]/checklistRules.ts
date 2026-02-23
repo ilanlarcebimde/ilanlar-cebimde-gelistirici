@@ -137,16 +137,21 @@ export function getMissingTop(modules: ChecklistModule[], n: number): string[] {
   return labels.slice(0, n);
 }
 
-/** answers_json'dan Answers çıkar (uyumluluk için) */
+/** answers_json'dan Answers çıkar (chat'ten gelen "Var"/"Yok" gibi değerleri normalize eder) */
 export function answersFromJson(json: Record<string, unknown>): Answers {
   return {
-    passport: asPassport(json.passport),
-    cv: asCv(json.cv),
+    passport: asPassport(normalizeEnum(json.passport)),
+    cv: asCv(normalizeEnum(json.cv)),
     language: asLang(json.language),
-    profession: typeof json.profession === "string" ? json.profession : undefined,
+    profession: typeof json.profession === "string" ? json.profession.trim() || undefined : undefined,
     experience: asExp(json.experience),
-    barrier: asBarrier(json.barrier),
+    barrier: asBarrier(normalizeEnum(json.barrier)),
   };
+}
+
+function normalizeEnum(v: unknown): unknown {
+  if (typeof v === "string") return v.toLowerCase().trim();
+  return v;
 }
 
 function asPassport(v: unknown): Answers["passport"] {

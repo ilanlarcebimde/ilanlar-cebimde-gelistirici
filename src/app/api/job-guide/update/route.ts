@@ -196,10 +196,11 @@ JSON ŞEMASI (zorunlu):
 
 Kurallar:
 - how_to_apply.steps: Bu ilanın ülkesi, başlığı ve kaynağına göre (EURES, şirket portalı vb.) gerçek başvuru adımlarını numaralı yaz. Link verme; "X sitesine gir, Y bölümüne tıkla" gibi net adımlar yaz.
-- where_to_apply: İlan kaynağına göre nereye başvurulacağını kısaca yaz (site/platform adı, "İlan metninde belirtilmiyor" vb.).
+- where_to_apply: Sadece platform/site adı ve menü yolu (örn. "EURES portal, Apply bölümü"). URL veya link yazma; kullanıcı "İlana Git" ile zaten dış linke gidecek.
 - score 0-100 arası integer (fit_analysis.score). Pasaport "yok" ise top_actions 1. madde pasaport randevusu olsun.
 - Dil seviyesi "hic/a1/a2" ise risk_assessment içinde "Dil riski" olsun.
-- Maaş/kira için kesin rakam uydurma; aralık veya "tahmini" kullan. Emoji JSON içine koyma.`;
+- salary_and_life_calc: Kesin rakam uydurma. net_salary_estimate, rent_estimate vb. tahmini aralık veya "tahmini X–Y" olmalı. assumptions alanı zorunlu; tahmin için kullandığın varsayımları madde madde yaz.
+- Emoji JSON içine koyma.`;
 
     const userPrompt = `job_post:\n${jobContent}\n\nuser_answers:\n${JSON.stringify(answersJson, null, 2)}\n\nchecklist_snapshot:\n${JSON.stringify(checklistSnapshot, null, 2)}`;
 
