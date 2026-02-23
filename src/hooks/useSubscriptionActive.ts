@@ -4,35 +4,51 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
 /**
- * Aktiflik SADECE premium_subscriptions üzerinden belirlenir.
- * ends_at > now() → aktif (Supabase timestamptz; ISO string ile karşılaştırma tutarlı).
+ * Panel erişimi: premium_subscriptions (ödeme/kupon) VEYA en az bir kanal aboneliği.
+ * - premium_subscriptions: ends_at > now() → aktif.
+ * - channel_subscriptions: Kanallara abone olan kullanıcı da panele erişebilir (giriş + kanal aboneliği yeterli).
  */
 async function fetchSubscriptionActive(userId: string): Promise<boolean> {
   const now = new Date().toISOString();
-  const { data: premium, error } = await supabase
-    .from("premium_subscriptions")
-    .select("id")
-    .eq("user_id", userId)
-    .gt("ends_at", now)
-    .limit(1);
+
+  const [premiumRes, channelRes] = await Promise.all([
+    supabase
+      .from("premium_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .gt("ends_at", now)
+      .limit(1),
+    supabase
+      .from("channel_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1),
+  ]);
+
+  const hasPremium = !premiumRes.error && (premiumRes.data?.length ?? 0) > 0;
+  const hasChannel = !channelRes.error && (channelRes.data?.length ?? 0) > 0;
+  const active = hasPremium || hasChannel;
 
   console.log("SUBSCRIPTION RESULT", {
     userId,
-    rowCount: premium?.length ?? 0,
-    error: error?.message ?? null,
-    active: !error && (premium?.length ?? 0) > 0,
+    hasPremium,
+    hasChannel,
+    active,
   });
 
-  if (error) {
-    console.error("[useSubscriptionActive] premium_subscriptions query error", error.message, { userId });
-    return false;
+  if (premiumRes.error) {
+    console.error("[useSubscriptionActive] premium_subscriptions query error", premiumRes.error.message, { userId });
   }
-  return (premium?.length ?? 0) > 0;
+  if (channelRes.error) {
+    console.error("[useSubscriptionActive] channel_subscriptions query error", channelRes.error.message, { userId });
+  }
+
+  return active;
 }
 
 /**
- * Kullanıcının premium aboneliği aktif mi?
- * - Tek kaynak: premium_subscriptions (ends_at > now()).
+ * Kullanıcı panele (Nasıl Başvururum?) erişebilir mi?
+ * - premium_subscriptions (ends_at > now()) VEYA en az bir channel_subscriptions → aktif.
  * - refetch: Ödeme dönüşü / invalidate event ile yeniden sorgular.
  */
 export function useSubscriptionActive(userId: string | undefined): {
