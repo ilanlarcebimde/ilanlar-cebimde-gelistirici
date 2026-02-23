@@ -271,8 +271,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         };
         setMessages([msg]);
         setNextQuestion((data as { next_question?: NextQuestionSingle }).next_question ?? null);
-        if ((data as { report_json?: ReportJson }).report_json) setReport((data as { report_json?: ReportJson }).report_json);
-        if ((data as { checklist_snapshot?: unknown }).checklist_snapshot) setChecklistSnapshot((data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot);
+        const rj = (data as { report_json?: ReportJson }).report_json;
+        if (rj) setReport(rj);
+        const cs = (data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot;
+        if (cs) setChecklistSnapshot(cs);
         if ((data as { answers_json?: Record<string, unknown> }).answers_json) {
           const aj = (data as { answers_json: Record<string, unknown> }).answers_json;
           setGuide((g) => (g ? { ...g, answers_json: aj } : null));
@@ -332,8 +334,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         };
         setMessages((prev) => [...prev, assistantMsg]);
         setNextQuestion((data as { next_question?: NextQuestionSingle }).next_question ?? null);
-        if ((data as { report_json?: ReportJson }).report_json) setReport((data as { report_json?: ReportJson }).report_json);
-        if ((data as { checklist_snapshot?: unknown }).checklist_snapshot) setChecklistSnapshot((data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot);
+        const rj2 = (data as { report_json?: ReportJson }).report_json;
+        if (rj2) setReport(rj2);
+        const cs2 = (data as { checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] } }).checklist_snapshot;
+        if (cs2) setChecklistSnapshot(cs2);
         if ((data as { answers_json?: Record<string, unknown> }).answers_json) {
           const aj = (data as { answers_json: Record<string, unknown> }).answers_json;
           setGuide((g) => (g ? { ...g, answers_json: aj } : null));
