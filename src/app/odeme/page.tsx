@@ -72,6 +72,7 @@ export default function OdemePage() {
           return;
         }
         setCouponMessage({ type: "success", text: "Haftalık premium aktif. Yönlendiriliyorsunuz…" });
+        window.dispatchEvent(new Event("premium-subscription-invalidate"));
         router.replace("/premium/job-guides");
       } catch (e) {
         setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
