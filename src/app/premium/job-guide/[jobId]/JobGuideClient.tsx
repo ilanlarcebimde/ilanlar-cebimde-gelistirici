@@ -137,16 +137,22 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       const token = await getSession();
       if (!token || cancelled) return;
 
-      const [jobRes, guideRes] = await Promise.all([
-        fetch(`/api/job-posts/${jobId}`),
-        fetch(`/api/job-guide?jobPostId=${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      const trimmedId = String(jobId).trim();
+      let jobRes = await fetch(`/api/job-posts/${trimmedId}`);
+      if (cancelled) return;
+      if (jobRes.status === 404) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (cancelled) return;
+        jobRes = await fetch(`/api/job-posts/${trimmedId}`);
+      }
+
+      const guideRes = await fetch(`/api/job-guide?jobPostId=${encodeURIComponent(trimmedId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (cancelled) return;
       if (!jobRes.ok) {
-        console.warn("[JobGuideClient] job fetch failed", jobId, jobRes.status);
+        console.warn("[JobGuideClient] job fetch failed", { jobId: trimmedId, status: jobRes.status });
         if (!cancelled) {
           setJobLoadError(true);
           setLoading(false);
@@ -160,7 +166,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         const createRes = await fetch("/api/job-guide", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ jobPostId: jobId }),
+          body: JSON.stringify({ jobPostId: trimmedId }),
         });
         if (!createRes.ok || cancelled) {
           if (!cancelled) setLoading(false);

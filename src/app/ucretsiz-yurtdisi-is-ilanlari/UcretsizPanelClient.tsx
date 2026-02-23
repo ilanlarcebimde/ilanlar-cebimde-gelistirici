@@ -60,6 +60,11 @@ export function UcretsizPanelClient() {
       try {
         if (!user) {
           setPendingJobId(post.id);
+          try {
+            sessionStorage.setItem("premium_pending_job_id", post.id);
+          } catch {
+            // ignore
+          }
           setAuthOpen(true);
           setApplyToast("Panele erişmek için giriş yapın.");
           setTimeout(() => setApplyToast(null), 3000);
@@ -67,6 +72,11 @@ export function UcretsizPanelClient() {
         }
         if (!subscriptionLoading && !subscriptionActive) {
           setPendingJobId(post.id);
+          try {
+            sessionStorage.setItem("premium_pending_job_id", post.id);
+          } catch {
+            // ignore
+          }
           setPremiumOpen(true);
           setApplyToast("Premium panele erişmek için abonelik gerekiyor.");
           setTimeout(() => setApplyToast(null), 3000);
@@ -105,7 +115,14 @@ export function UcretsizPanelClient() {
       const jobId = sessionStorage.getItem("premium_redirect_job_id");
       sessionStorage.removeItem("premium_redirect_reason");
       sessionStorage.removeItem("premium_redirect_job_id");
-      if (jobId) setPendingJobId(jobId);
+      if (jobId) {
+        setPendingJobId(jobId);
+        try {
+          sessionStorage.setItem("premium_pending_job_id", jobId);
+        } catch {
+          // ignore
+        }
+      }
       if (reason === "no_auth") {
         setAuthOpen(true);
         setApplyToast("Panele erişmek için giriş yapın.");

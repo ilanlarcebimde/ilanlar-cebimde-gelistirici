@@ -17,9 +17,14 @@ export default function OdemeBasariliPage() {
     if (typeof window === "undefined") return null;
     try {
       const path = sessionStorage.getItem("premium_after_payment_redirect");
-      if (path) {
+      if (path && path.startsWith("/premium/job-guide/")) {
         sessionStorage.removeItem("premium_after_payment_redirect");
         return path;
+      }
+      const jobId = sessionStorage.getItem("premium_pending_job_id");
+      if (jobId) {
+        sessionStorage.removeItem("premium_pending_job_id");
+        return "/premium/job-guide/" + jobId;
       }
     } catch {
       // ignore

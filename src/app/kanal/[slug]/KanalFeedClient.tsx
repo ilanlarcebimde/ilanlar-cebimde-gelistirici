@@ -58,6 +58,11 @@ export function KanalFeedClient({ slug }: { slug: string }) {
       try {
         if (!subscriptionLoading && !subscriptionActive) {
           setPendingJobId(post.id);
+          try {
+            sessionStorage.setItem("premium_pending_job_id", post.id);
+          } catch {
+            // ignore
+          }
           setPremiumOpen(true);
           clearToast();
           return;

@@ -74,7 +74,19 @@ export function PremiumIntroModal({
       window.dispatchEvent(new Event("premium-subscription-invalidate"));
       onClose();
       await new Promise((r) => setTimeout(r, 800));
-      const target = initialJobId ? `/premium/job-guide/${initialJobId}` : "/premium/job-guides";
+      let jobIdForRedirect = initialJobId;
+      if (!jobIdForRedirect && typeof window !== "undefined") {
+        try {
+          const saved = sessionStorage.getItem("premium_pending_job_id");
+          if (saved) {
+            sessionStorage.removeItem("premium_pending_job_id");
+            jobIdForRedirect = saved;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      const target = jobIdForRedirect ? `/premium/job-guide/${jobIdForRedirect}` : "/premium/job-guides";
       router.replace(target);
     } catch {
       setCouponMessage({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });

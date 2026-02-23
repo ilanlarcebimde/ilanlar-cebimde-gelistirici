@@ -76,10 +76,16 @@ export default function OdemePage() {
         await new Promise((r) => setTimeout(r, 800));
         let target = "/premium/job-guides";
         try {
-          const saved = sessionStorage.getItem("premium_after_payment_redirect");
+          let saved = sessionStorage.getItem("premium_after_payment_redirect");
           if (saved && saved.startsWith("/premium/job-guide/")) {
             sessionStorage.removeItem("premium_after_payment_redirect");
             target = saved;
+          } else {
+            const jobId = sessionStorage.getItem("premium_pending_job_id");
+            if (jobId) {
+              sessionStorage.removeItem("premium_pending_job_id");
+              target = "/premium/job-guide/" + jobId;
+            }
           }
         } catch {
           // ignore
