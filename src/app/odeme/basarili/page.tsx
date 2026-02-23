@@ -21,12 +21,13 @@ export default function OdemeBasariliPage() {
     window.dispatchEvent(new Event("premium-subscription-invalidate"));
   }, [router]);
 
-  // Ödeme dönüşünde abonelik durumunu bir kez kontrol et; "Premium aktif" göstermek için
+  // Ödeme dönüşünde abonelik durumunu hemen kontrol et; "Premium aktif" ve panele link için
   useEffect(() => {
     if (!user) return;
+    window.dispatchEvent(new Event("premium-subscription-invalidate"));
     const t = setTimeout(() => {
       refetch().then(() => setPremiumChecked(true));
-    }, 800);
+    }, 300);
     return () => clearTimeout(t);
   }, [user, refetch]);
 
@@ -47,19 +48,27 @@ export default function OdemeBasariliPage() {
             Premium paketiniz aktif. İlanlardan &quot;Nasıl Başvururum?&quot; ile panele gidebilirsiniz.
           </p>
         )}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col gap-3 justify-center">
           <Link
-            href="/ucretsiz-yurtdisi-is-ilanlari"
-            className="inline-block rounded-xl bg-brand-600 px-6 py-3 font-medium text-white hover:bg-brand-700"
+            href="/premium/job-guides"
+            className="inline-block rounded-xl bg-emerald-600 px-6 py-3 font-medium text-white hover:bg-emerald-700"
           >
-            İlanlara Git
+            Nasıl Başvururum paneline git
           </Link>
-          <Link
-            href="/"
-            className="inline-block rounded-xl bg-slate-800 px-6 py-3 font-medium text-white hover:bg-slate-700"
-          >
-            Ana Sayfa
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/ucretsiz-yurtdisi-is-ilanlari"
+              className="inline-block rounded-xl bg-brand-600 px-6 py-3 font-medium text-white hover:bg-brand-700"
+            >
+              İlanlara Git
+            </Link>
+            <Link
+              href="/"
+              className="inline-block rounded-xl bg-slate-800 px-6 py-3 font-medium text-white hover:bg-slate-700"
+            >
+              Ana Sayfa
+            </Link>
+          </div>
         </div>
       </motion.div>
     </div>

@@ -67,9 +67,10 @@ export function PremiumIntroModal({
         setCouponLoading(false);
         return;
       }
-      setCouponMessage({ type: "success", text: "Premium aktif. Yönlendiriliyorsunuz…" });
+      setCouponMessage({ type: "success", text: "Premium aktif. Panele yönlendiriliyorsunuz…" });
       window.dispatchEvent(new Event("premium-subscription-invalidate"));
       onClose();
+      await new Promise((r) => setTimeout(r, 500));
       router.replace("/premium/job-guides");
     } catch {
       setCouponMessage({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
