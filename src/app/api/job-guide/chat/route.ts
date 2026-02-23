@@ -111,6 +111,22 @@ async function callGemini(system: string, user: string): Promise<string> {
 }
 
 type NextQuestionOut = { text: string; choices?: string[] };
+const DEFAULT_QUESTION: NextQuestionOut = { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] };
+
+/** Gemini bazen "question"/"options" döndürür; hepsini kabul et */
+function normalizeNextQuestion(parsed: Record<string, unknown>): NextQuestionOut {
+  const q = parsed.next_question ?? parsed.next_questions;
+  if (!q || typeof q !== "object") return DEFAULT_QUESTION;
+  const obj = Array.isArray(q) ? q[0] : q;
+  if (!obj || typeof obj !== "object") return DEFAULT_QUESTION;
+  const o = obj as Record<string, unknown>;
+  const text = (typeof o.text === "string" ? o.text : typeof o.question === "string" ? o.question : "").trim();
+  const choices = Array.isArray(o.choices) ? o.choices : Array.isArray(o.options) ? o.options : [];
+  const choicesStr = choices.map((c) => (typeof c === "string" ? c : (c as { label?: string })?.label ?? String(c)));
+  if (!text) return DEFAULT_QUESTION;
+  return { text, choices: choicesStr.length > 0 ? choicesStr : DEFAULT_QUESTION.choices };
+}
+
 type ReportFromGemini = {
   summary?: { one_liner?: string; top_actions?: string[] };
   how_to_apply?: { steps?: string[]; where_to_apply?: string; notes?: string[] };
@@ -199,17 +215,19 @@ export async function POST(req: NextRequest) {
     const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3: missingTop3 };
 
     const system = `Sen yurtdışı iş başvuru asistanısın. Kullanıcı lise mezunu/usta profiline uygun; kısa, net, madde madde (en fazla 5-8 madde) yaz.
-KAYNAK YÖNLENDİRMESİ ZORUNLU: İlk mesajda (__start__) mutlaka ilan kaynağına göre adımlar ver:
-- GLASSDOOR ise: hesap açma, "İlana Git" ile ilgili sayfaya gitme, tarayıcıda Türkçe çeviri açma, CV yükleme / başvuru akışı (link verme, adım adım).
-- EURES ise: EURES portal adımları (hesap, arama, başvuru).
-- Diğer kaynaklar: benzer şekilde platform adı + menü yolu (link yok).
-next_question ZORUNLU: Her yanıtta tam olarak 1 soru dön. Boş bırakma. Format: { "text": "Soru metni", "choices": ["Seçenek1","Seçenek2",...] }. choices 3-6 arası öneri (opsiyonel ama tercih edilir). Soru yoksa fallback kullan: "Pasaportun var mı?" ve choices: ["Var", "Başvurdum", "Yok"].
-Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş/kira: kesin rakam uydurma; tahmini aralık + assumptions zorunlu. where_to_apply: sadece platform adı ve menü yolu (link yok).
 
-ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok.
+KRİTİK - next_question ZORUNLU: Her yanıtta mutlaka "next_question" objesini döndür. Bu olmadan kullanıcı bir sonraki adımı göremez. Format: { "text": "Tek bir soru metni (örn: Pasaportun var mı?)", "choices": ["Var", "Başvurdum", "Yok"] }. choices 3-5 seçenek ver. Asla boş bırakma; soru her zaman olmalı.
+
+KAYNAK YÖNLENDİRMESİ: İlk mesajda (__start__) ilan kaynağına göre adımlar ver:
+- GLASSDOOR: hesap aç, İlana Git ile sayfaya git, tarayıcıda Türkçe çevir, başvuru butonunu bul (link verme).
+- EURES: portal adımları (hesap, arama, başvuru).
+- Diğer: platform adı + menü yolu (link yok).
+Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. where_to_apply: sadece platform + menü (link yok).
+
+ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok. next_question'ı mutlaka doldur.
 {
-  "assistant_message": "string (Türkçe, 5-8 maddeyi geçmesin)",
-  "next_question": { "text": "string (tek soru)", "choices": ["string","string","string"] },
+  "assistant_message": "string (Türkçe, 5-8 madde)",
+  "next_question": { "text": "Tek soru metni - ZORUNLU", "choices": ["Seçenek1", "Seçenek2", "Seçenek3"] },
   "answers_patch": {},
   "report": {
     "summary": { "one_liner": "string", "top_actions": ["string","string","string"] },
@@ -224,8 +242,8 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
 }`;
 
     const userPrompt = isBootstrap
-      ? `__start__ (ilk mesaj). Bu ilan için kaynak yönlendirmesi yap (${sourceName || "kaynak"}). Sonra ilk soruyu sor (next_question zorunlu). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(mergedAnswers)}`
-      : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(mergedAnswers)}\n\nchecklist_snapshot: ${JSON.stringify(checklistSnapshot)}\n\nSohbet (son kullanıcı mesajı): ${rawUserText}`;
+      ? `__start__ (ilk mesaj). Bu ilan için kaynak yönlendirmesi yap (${sourceName || "kaynak"}). Sonra MUTLAKA next_question ile tek bir soru sor (örn: "GLASSDOOR hesabın var mı?" veya "Pasaportun var mı?"). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(mergedAnswers)}\n\nYanıtında next_question objesini mutlaka doldur.`
+      : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(mergedAnswers)}\n\nchecklist_snapshot: ${JSON.stringify(checklistSnapshot)}\n\nSohbet (son kullanıcı mesajı): ${rawUserText}\n\nYanıtında next_question ile bir sonraki soruyu mutlaka dön.`;
 
     const rawText = await callGemini(system, userPrompt);
     let parsed: {
@@ -255,13 +273,7 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş
     }
 
     let assistantMessage = typeof parsed.assistant_message === "string" ? parsed.assistant_message : "";
-    let nextQuestion: NextQuestionOut = { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] };
-    if (parsed.next_question && typeof parsed.next_question === "object" && typeof parsed.next_question.text === "string") {
-      nextQuestion = {
-        text: parsed.next_question.text,
-        choices: Array.isArray(parsed.next_question.choices) ? parsed.next_question.choices : ["Var", "Başvurdum", "Yok"],
-      };
-    }
+    let nextQuestion = normalizeNextQuestion(parsed as Record<string, unknown>);
     const answersPatch = (parsed.answers_patch && typeof parsed.answers_patch === "object") ? parsed.answers_patch : {};
     const finalAnswers = { ...mergedAnswers, ...answersPatch };
     const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};
