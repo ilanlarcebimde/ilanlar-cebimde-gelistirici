@@ -38,9 +38,11 @@ export async function GET(
     .maybeSingle();
 
   if (jobErr) {
+    console.warn("[premium/panel] job_posts query error", { jobId, message: jobErr.message });
     return NextResponse.json({ error: jobErr.message, requestedId: jobId }, { status: 500 });
   }
   if (!job) {
+    console.warn("[premium/panel] job not found", { jobId, length: jobId.length });
     return NextResponse.json({ error: "Not found", requestedId: jobId }, { status: 404 });
   }
 
