@@ -23,6 +23,14 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("[premium/panel] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing");
+    return NextResponse.json(
+      { error: "supabase_admin_not_configured", detail: "Server env missing" },
+      { status: 503 }
+    );
+  }
+
   try {
     const auth = await getUserFromRequest(req);
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,7 +39,16 @@ export async function GET(
     const jobId = typeof raw === "string" ? raw.trim() : "";
     if (!jobId) return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
 
-    const admin = getSupabaseAdmin();
+    let admin;
+    try {
+      admin = getSupabaseAdmin();
+    } catch (adminErr) {
+      console.error("[premium/panel] getSupabaseAdmin failed", adminErr);
+      return NextResponse.json(
+        { error: "supabase_admin_not_configured", detail: adminErr instanceof Error ? adminErr.message : "Unknown" },
+        { status: 503 }
+      );
+    }
     const { data: job, error: jobErr } = await admin
       .from("job_posts")
       .select(JOB_COLS)
@@ -39,8 +56,11 @@ export async function GET(
       .maybeSingle();
 
     if (jobErr) {
-      console.warn("[premium/panel] job_posts query error", { jobId, message: jobErr.message });
-      return NextResponse.json({ error: jobErr.message, requestedId: jobId }, { status: 500 });
+      console.error("[premium/panel] job_posts query error", jobId, jobErr);
+      return NextResponse.json(
+        { error: "job_posts_fetch_failed", detail: jobErr.message?.slice(0, 200) ?? "Unknown", requestedId: jobId },
+        { status: 500 }
+      );
     }
     if (!job) {
       console.warn("[premium/panel] job not found", { jobId, length: jobId.length });
@@ -79,8 +99,11 @@ export async function GET(
             .maybeSingle();
           guide = existing ?? null;
         } else {
-          console.warn("[premium/panel] job_guides insert error", { jobId, message: insertErr.message });
-          return NextResponse.json({ error: insertErr.message }, { status: 500 });
+          console.error("[premium/panel] job_guides insert error", jobId, insertErr);
+          return NextResponse.json(
+            { error: "job_guides_insert_failed", detail: insertErr.message?.slice(0, 200) ?? "Unknown", requestedId: jobId },
+            { status: 500 }
+          );
         }
       } else {
         guide = created;
@@ -121,6 +144,9 @@ export async function GET(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[premium/panel] unexpected error", message, err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "internal_error", detail: message.slice(0, 200) },
+      { status: 500 }
+    );
   }
 }

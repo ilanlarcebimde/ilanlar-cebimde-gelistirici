@@ -60,13 +60,17 @@ export function usePushSubscription() {
         return;
       }
 
-      const { data } = await supabase
+      const { data, error: subErr } = await supabase
         .from('push_subscriptions')
         .select('id, is_active')
         .eq('endpoint', existing.endpoint)
         .eq('user_id', user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
+      if (subErr) {
+        console.warn('[push_subscriptions] read error', subErr);
+      }
       setIsSubscribed(data?.is_active ?? false);
     } catch (err) {
       console.error('Check subscription error:', err);

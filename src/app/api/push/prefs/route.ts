@@ -37,14 +37,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
     }
 
-    // Kullanıcının aktif push subscription'ını bul
-    const { data: subscription } = await supabase
+    // Kullanıcının aktif push subscription'ını bul (maybeSingle: yoksa 406 değil 404 dön)
+    const { data: subscription, error: subErr } = await supabase
       .from('push_subscriptions')
       .select('id')
       .eq('user_id', user.id)
       .eq('is_active', true)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
+    if (subErr) {
+      console.warn('[push/prefs] push_subscriptions read error', subErr);
+    }
     if (!subscription) {
       return NextResponse.json(
         { error: 'No active push subscription found' },

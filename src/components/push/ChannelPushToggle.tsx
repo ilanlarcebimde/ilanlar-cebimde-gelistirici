@@ -37,7 +37,8 @@ export function ChannelPushToggle({ channelSlug, channelId, className }: Channel
           .from('channels')
           .select('id')
           .eq('slug', channelSlug)
-          .single();
+          .limit(1)
+          .maybeSingle();
         if (!channel) {
           setIsEnabled(null);
           setIsLoading(false);
@@ -46,27 +47,32 @@ export function ChannelPushToggle({ channelSlug, channelId, className }: Channel
         chId = channel.id;
       }
 
-      // Aktif push subscription var mı?
-      const { data: subscription } = await supabase
+      // Aktif push subscription var mı? (maybeSingle: yoksa 406 yerine null)
+      const { data: subscription, error: subErr } = await supabase
         .from('push_subscriptions')
         .select('id')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
+      if (subErr) {
+        console.warn('[push_subscriptions] read error', subErr);
+      }
       if (!subscription) {
         setIsEnabled(null);
         setIsLoading(false);
         return;
       }
 
-      // Push pref'i kontrol et
+      // Push pref'i kontrol et (yoksa null, 406 olmasın)
       const { data: pref } = await supabase
         .from('push_prefs')
         .select('enabled')
         .eq('subscription_id', subscription.id)
         .eq('channel_id', chId)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       setIsEnabled(pref?.enabled ?? false);
     } catch (err) {
