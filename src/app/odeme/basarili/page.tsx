@@ -13,6 +13,19 @@ export default function OdemeBasariliPage() {
   const { user } = useAuth();
   const { active: subscriptionActive, refetch } = useSubscriptionActive(user?.id);
   const [premiumChecked, setPremiumChecked] = useState(false);
+  const [afterPaymentPanelPath] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const path = sessionStorage.getItem("premium_after_payment_redirect");
+      if (path) {
+        sessionStorage.removeItem("premium_after_payment_redirect");
+        return path;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
   useEffect(() => {
     sessionStorage.removeItem("paytr_pending");
@@ -50,10 +63,10 @@ export default function OdemeBasariliPage() {
         )}
         <div className="flex flex-col gap-3 justify-center">
           <Link
-            href="/premium/job-guides"
+            href={afterPaymentPanelPath || "/premium/job-guides"}
             className="inline-block rounded-xl bg-emerald-600 px-6 py-3 font-medium text-white hover:bg-emerald-700"
           >
-            Nasıl Başvururum paneline git
+            {afterPaymentPanelPath ? "Başvuru panelini aç" : "Nasıl Başvururum paneline git"}
           </Link>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

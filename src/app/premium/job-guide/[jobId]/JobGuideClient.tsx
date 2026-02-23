@@ -40,6 +40,33 @@ function formatRelativeTime(iso: string): string {
   return `${diffDays} gün önce`;
 }
 
+function JobNotFoundShell({ jobId }: { jobId: string }) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
+      <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+        <p className="text-amber-600 font-medium mb-2">Bu ilan bulunamadı</p>
+        <p className="text-sm text-slate-600 mb-6">
+          İlan kaldırılmış veya erişilemiyor olabilir. Başka bir ilandan &quot;Nasıl Başvururum?&quot; ile başlayabilirsiniz.
+        </p>
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/premium/job-guides"
+            className="rounded-xl bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
+          >
+            Başvuru Paneline Dön
+          </Link>
+          <Link
+            href="/ucretsiz-yurtdisi-is-ilanlari"
+            className="rounded-xl border border-slate-300 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
+          >
+            İlanlara Git
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LoadingShell({ jobId }: { jobId: string }) {
   return (
     <div className="min-h-screen bg-slate-50">
@@ -74,6 +101,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [lastReportUpdate, setLastReportUpdate] = useState<string | null>(null);
   const [reportViewOpen, setReportViewOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [jobLoadError, setJobLoadError] = useState(false);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<Answers | null>(null);
 
@@ -100,6 +128,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setJob(null);
     setGuide(null);
     setLoading(true);
+    setJobLoadError(false);
     setAnswers({});
 
     let cancelled = false;
@@ -117,7 +146,11 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
       if (cancelled) return;
       if (!jobRes.ok) {
-        router.replace("/premium/job-guides");
+        console.warn("[JobGuideClient] job fetch failed", jobId, jobRes.status);
+        if (!cancelled) {
+          setJobLoadError(true);
+          setLoading(false);
+        }
         return;
       }
       const jobData = (await jobRes.json()) as JobSummary;
@@ -269,6 +302,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setTimeout(() => setToast(null), 3000);
   }, [guide, getSession]);
 
+  if (jobLoadError) {
+    return <JobNotFoundShell jobId={jobId} />;
+  }
   if (loading || !job) {
     return <LoadingShell jobId={jobId} />;
   }

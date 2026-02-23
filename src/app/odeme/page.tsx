@@ -74,7 +74,17 @@ export default function OdemePage() {
         setCouponMessage({ type: "success", text: "Haftalık premium aktif. Panele yönlendiriliyorsunuz…" });
         window.dispatchEvent(new Event("premium-subscription-invalidate"));
         await new Promise((r) => setTimeout(r, 800));
-        router.replace("/premium/job-guides");
+        let target = "/premium/job-guides";
+        try {
+          const saved = sessionStorage.getItem("premium_after_payment_redirect");
+          if (saved && saved.startsWith("/premium/job-guide/")) {
+            sessionStorage.removeItem("premium_after_payment_redirect");
+            target = saved;
+          }
+        } catch {
+          // ignore
+        }
+        router.replace(target);
       } catch (e) {
         setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
       }

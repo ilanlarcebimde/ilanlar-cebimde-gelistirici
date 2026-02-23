@@ -101,6 +101,13 @@ export function PremiumIntroModal({
       ...(user?.id && { user_id: user.id }),
     };
     sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
+    if (initialJobId) {
+      try {
+        sessionStorage.setItem("premium_after_payment_redirect", "/premium/job-guide/" + initialJobId);
+      } catch {
+        // ignore
+      }
+    }
     onClose();
     router.push("/odeme");
   };
