@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -10,6 +10,7 @@ import {
   buildChecklist,
   calcProgress,
   answersFromJson,
+  getMissingTop,
   type Answers,
   type ChecklistModule,
 } from "./checklistRules";
@@ -72,10 +73,23 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [toast, setToast] = useState<string | null>(null);
   const [lastReportUpdate, setLastReportUpdate] = useState<string | null>(null);
   const [reportViewOpen, setReportViewOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<Answers | null>(null);
 
   useEffect(() => {
     console.log("JOB GUIDE MOUNT", jobId);
   }, [jobId]);
+
+  useEffect(() => {
+    if (guide?.report_json) setReportViewOpen(true);
+  }, [guide?.report_json]);
+
+  useEffect(() => {
+    return () => {
+      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    };
+  }, []);
 
   const getSession = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -147,32 +161,55 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const modules = useMemo(() => buildChecklist(jobForChecklist, answers), [jobForChecklist, answers]);
   const progress = useMemo(() => calcProgress(modules), [modules]);
   const selectedModule = useMemo(() => modules.find((m) => m.id === selectedModuleId) ?? modules[0], [modules, selectedModuleId]);
+  const missingTop3 = useMemo(() => getMissingTop(modules, 3), [modules]);
+  const baseUnlocked = Boolean(answers.passport && answers.cv);
 
   const saveAnswers = useCallback(
-    async (newAnswers: Answers) => {
-      if (!guide || !(await getSession())) return;
+    async (newAnswers: Answers): Promise<boolean> => {
+      if (!guide) return false;
       const token = await getSession();
-      if (!token) return;
+      if (!token) return false;
       const res = await fetch("/api/job-guide", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ jobGuideId: guide.id, answers_json: newAnswers }),
       });
       if (res.ok) setGuide((g) => (g ? { ...g, answers_json: newAnswers as unknown as Record<string, unknown> } : null));
+      return res.ok;
     },
     [guide, getSession]
   );
 
-  const setAnswer = useCallback(
-    (key: keyof Answers, value: Answers[keyof Answers]) => {
-      setAnswers((prev) => {
-        const next = { ...prev, [key]: value };
-        saveAnswers(next);
-        return next;
-      });
+  const scheduleSave = useCallback(
+    (nextAnswers: Answers) => {
+      pendingSaveRef.current = nextAnswers;
+      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = setTimeout(async () => {
+        const toSave = pendingSaveRef.current;
+        saveDebounceRef.current = null;
+        if (!toSave) return;
+        setSaveStatus("saving");
+        try {
+          const ok = await saveAnswers(toSave);
+          setSaveStatus(ok ? "saved" : "error");
+          if (ok) setTimeout(() => setSaveStatus("idle"), 2000);
+          else setTimeout(() => setSaveStatus("idle"), 3000);
+        } catch {
+          setSaveStatus("error");
+          setTimeout(() => setSaveStatus("idle"), 3000);
+        }
+      }, 800);
     },
     [saveAnswers]
   );
+
+  const setAnswer = useCallback((key: keyof Answers, value: Answers[keyof Answers]) => {
+    setAnswers((prev) => {
+      const next = { ...prev, [key]: value };
+      scheduleSave(next);
+      return next;
+    });
+  }, [scheduleSave]);
 
   const handleUpdateReport = useCallback(async () => {
     if (!guide || !jobId) return;
@@ -180,7 +217,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     if (!token) return;
 
     setReportUpdating(true);
-    const snapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top5: modules.flatMap((m) => m.items.filter((i) => !i.done).map((i) => i.label)).slice(0, 5) };
+    const snapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top5: getMissingTop(modules, 5) };
     try {
       const res = await fetch("/api/job-guide/update", {
         method: "POST",
@@ -239,13 +276,23 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-7xl flex-wrap items-center justify-between gap-2 px-4">
           <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900">
             ← Başvuru Paneli
           </Link>
-          {lastReportUpdate && (
-            <span className="text-xs text-slate-500">Son güncelleme: {formatRelativeTime(lastReportUpdate)}</span>
-          )}
+          <div className="flex items-center gap-3">
+            {reportUpdating && (
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                🟢 Canlı Analiz: Güncelleniyor…
+              </span>
+            )}
+            {saveStatus === "saving" && <span className="text-xs text-slate-500">Kaydediliyor…</span>}
+            {saveStatus === "saved" && <span className="text-xs text-emerald-600">✅ Kaydedildi</span>}
+            {saveStatus === "error" && <span className="text-xs text-amber-600">⚠️ Bağlantı sorunu</span>}
+            {lastReportUpdate && !reportUpdating && (
+              <span className="text-xs text-slate-500">Son güncelleme: {formatRelativeTime(lastReportUpdate)}</span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -279,6 +326,16 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               {progress.done} / {progress.total} madde tamamlandı
             </p>
           </div>
+          {missingTop3.length > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-3">
+              <p className="text-sm font-semibold text-amber-900">Bugün bitirmen gereken 3 şey</p>
+              <ol className="mt-2 list-decimal list-inside space-y-0.5 text-sm text-amber-800">
+                {missingTop3.map((label, i) => (
+                  <li key={i}>{label}</li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
 
         {/* Grid: modüller | checklist | asistan */}
@@ -288,19 +345,26 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             {modules.map((m) => {
               const doneCount = m.items.filter((i) => i.done).length;
               const status = doneCount === m.items.length ? "done" : doneCount > 0 ? "partial" : "todo";
+              const locked = !baseUnlocked && !["passport", "cv"].includes(m.id);
               return (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setSelectedModuleId(m.id)}
+                  onClick={() => {
+                    if (locked) return;
+                    setSelectedModuleId(m.id);
+                  }}
+                  title={locked ? "Önce pasaport ve CV sorularını cevapla" : undefined}
                   className={`w-full rounded-2xl border p-4 text-left shadow-sm transition ${
+                    locked ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-80" : ""
+                  } ${
                     selectedModuleId === m.id ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-xl">
-                        {m.icon}
+                        {locked ? "🔒" : m.icon}
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-bold text-slate-900">{m.title}</p>
@@ -308,9 +372,15 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className={status === "done" ? "text-green-600" : "text-slate-300"}>✔</span>
-                      <span className={status !== "todo" ? "text-green-600" : "text-slate-300"}>✔</span>
-                      <span className={status === "partial" ? "text-amber-500" : "text-slate-300"}>●</span>
+                      {locked ? (
+                        <span className="text-slate-400" title="Önce pasaport ve CV">🔒</span>
+                      ) : (
+                        <>
+                          <span className={status === "done" ? "text-green-600" : "text-slate-300"}>✔</span>
+                          <span className={status !== "todo" ? "text-green-600" : "text-slate-300"}>✔</span>
+                          <span className={status === "partial" ? "text-amber-500" : "text-slate-300"}>●</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </button>
@@ -397,8 +467,11 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   type="text"
                   placeholder="Örn: Kaynakçı, Elektrikçi"
                   value={answers.profession ?? ""}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, profession: e.target.value.trim() || undefined }))}
-                  onBlur={() => saveAnswers({ ...answers, profession: answers.profession })}
+                  onChange={(e) => {
+                    const next = { ...answers, profession: e.target.value.trim() || undefined };
+                    setAnswers(next);
+                    scheduleSave(next);
+                  }}
                   className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
@@ -442,7 +515,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           )}
         </div>
 
-        {/* Rapor bölümü (Gemini çıktısı) */}
+        {/* Rapor bölümü: sekmeli (Rehber / Belgeler / Vize / Maaş&Yaşam / Risk / Uygunluk / 30 Gün) */}
         {(guide?.report_json || reportViewOpen) && (
           <div className="mt-6">
             <button

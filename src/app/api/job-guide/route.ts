@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data);
 }
 
-/** POST: Draft job_guide oluştur (user_id + job_post_id). Varsa mevcut kaydı dön. */
+/** POST: Draft job_guide oluştur (user_id + job_post_id). Idempotent: aynı user+job için ikinci çağrıda duplicate oluşmaz, mevcut kayıt dönülür. */
 export async function POST(req: NextRequest) {
   const auth = await getUserFromRequest(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,15 +47,6 @@ export async function POST(req: NextRequest) {
   const jobPostId = body?.jobPostId;
   if (!jobPostId) return NextResponse.json({ error: "jobPostId required" }, { status: 400 });
 
-  const { data: existing } = await auth.supabase
-    .from("job_guides")
-    .select("*")
-    .eq("user_id", auth.user.id)
-    .eq("job_post_id", jobPostId)
-    .maybeSingle();
-
-  if (existing) return NextResponse.json(existing);
-
   const { data: created, error } = await auth.supabase
     .from("job_guides")
     .insert({
@@ -68,8 +59,21 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(created);
+  if (!error) return NextResponse.json(created);
+
+  // Unique violation (23505): aynı user+job_post zaten var → mevcut kaydı dön
+  if ((error as { code?: string }).code === "23505") {
+    const { data: existing, error: selectErr } = await auth.supabase
+      .from("job_guides")
+      .select("*")
+      .eq("user_id", auth.user.id)
+      .eq("job_post_id", jobPostId)
+      .maybeSingle();
+    if (selectErr) return NextResponse.json({ error: selectErr.message }, { status: 500 });
+    if (existing) return NextResponse.json(existing);
+  }
+
+  return NextResponse.json({ error: error.message }, { status: 500 });
 }
 
 /** PATCH: answers_json, status, progress_step güncelle (sadece kendi kaydı). */

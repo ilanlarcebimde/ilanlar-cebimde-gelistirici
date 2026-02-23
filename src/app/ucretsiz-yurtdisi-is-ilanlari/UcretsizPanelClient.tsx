@@ -95,15 +95,17 @@ export function UcretsizPanelClient() {
     }
   }, [searchParams]);
 
-  // Premium panelden abonelik/giriş yüzünden geri atıldıysa kullanıcıya sebebi göster
+  // Premium panelden abonelik/giriş yüzünden geri atıldıysa sebebi göster ve ilgili modalı aç (ödeme/giriş)
   useEffect(() => {
     try {
       const reason = sessionStorage.getItem("premium_redirect_reason");
       sessionStorage.removeItem("premium_redirect_reason");
       if (reason === "no_auth") {
+        setAuthOpen(true);
         setApplyToast("Panele erişmek için giriş yapın.");
         setTimeout(() => setApplyToast(null), 4000);
       } else if (reason === "no_subscription") {
+        setPremiumOpen(true);
         setApplyToast("Premium panele erişmek için abonelik gerekiyor.");
         setTimeout(() => setApplyToast(null), 5000);
       }

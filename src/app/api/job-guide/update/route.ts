@@ -13,6 +13,34 @@ async function getUserFromRequest(req: NextRequest) {
   return user ? { user, supabase } : null;
 }
 
+/** Kanal slug veya location_text'ten ülke çıkar (Gemini prompt için). */
+function inferCountry(channelSlug: string | null, locationText: string): string {
+  const slug = (channelSlug ?? "").toLowerCase();
+  const loc = locationText.toLowerCase();
+  const bySlug: Record<string, string> = {
+    katar: "Katar",
+    belcika: "Belçika",
+    irlanda: "İrlanda",
+    almanya: "Almanya",
+    hollanda: "Hollanda",
+    avusturya: "Avusturya",
+    polonya: "Polonya",
+    isvec: "İsveç",
+    norvec: "Norveç",
+    finlandiya: "Finlandiya",
+    danimarka: "Danimarka",
+  };
+  if (slug && bySlug[slug]) return bySlug[slug];
+  if (/\b(katar|qatar)\b/.test(loc)) return "Katar";
+  if (/\b(belçika|belgium|belcika)\b/.test(loc)) return "Belçika";
+  if (/\b(irlanda|ireland)\b/.test(loc)) return "İrlanda";
+  if (/\b(almanya|germany|deutschland)\b/.test(loc)) return "Almanya";
+  if (/\b(hollanda|netherlands)\b/.test(loc)) return "Hollanda";
+  if (/\b(avusturya|austria)\b/.test(loc)) return "Avusturya";
+  if (/\b(polonya|poland)\b/.test(loc)) return "Polonya";
+  return channelSlug ? channelSlug : loc || "unknown";
+}
+
 function extractJson(text: string): Record<string, unknown> {
   const cleaned = text
     .replace(/^```json\s*/i, "")
@@ -93,20 +121,55 @@ export async function POST(req: NextRequest) {
 
     if (!guide) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
 
-    const admin = getSupabaseAdmin();
-    const { data: jobPost } = await admin
+    const { data: currentRow } = await auth.supabase
+      .from("job_guides")
+      .select("id, status")
+      .eq("id", jobGuideId)
+      .eq("user_id", auth.user.id)
+      .single();
+
+    if (currentRow?.status === "report_generating") {
+      return NextResponse.json({ error: "Analiz zaten güncelleniyor, lütfen bekleyin." }, { status: 409 });
+    }
+
+    await auth.supabase
+      .from("job_guides")
+      .update({ status: "report_generating" })
+      .eq("id", jobGuideId)
+      .eq("user_id", auth.user.id);
+
+    const unlock = () =>
+      auth.supabase
+        .from("job_guides")
+        .update({ status: currentRow?.status ?? "draft" })
+        .eq("id", jobGuideId)
+        .eq("user_id", auth.user.id);
+
+    try {
+      const admin = getSupabaseAdmin();
+    const { data: jobPostRow } = await admin
       .from("job_posts")
-      .select("id, title, position_text, location_text, source_name, snippet, published_at")
+      .select("id, title, position_text, location_text, source_name, snippet, published_at, channels(slug)")
       .eq("id", jobPostId)
       .eq("status", "published")
       .single();
 
-    if (!jobPost) return NextResponse.json({ error: "Job post not found" }, { status: 404 });
+    if (!jobPostRow) {
+      await unlock();
+      return NextResponse.json({ error: "Job post not found" }, { status: 404 });
+    }
+
+    const jobPost = jobPostRow as Record<string, unknown> & { location_text?: string | null };
+    const ch = (jobPost as { channels?: { slug?: string } | Array<{ slug?: string }> | null }).channels;
+    const channelSlug =
+      ch == null ? null : Array.isArray(ch) ? ch[0]?.slug ?? null : ch?.slug ?? null;
+    const country = inferCountry(channelSlug, jobPost.location_text ?? "");
 
     const jobContent = [
       `Başlık: ${jobPost.title ?? ""}`,
       `Pozisyon: ${jobPost.position_text ?? ""}`,
       `Konum: ${jobPost.location_text ?? ""}`,
+      `Ülke (inferred): ${country}`,
       `Kaynak: ${jobPost.source_name ?? ""}`,
       `Özet: ${jobPost.snippet ?? ""}`,
     ].join("\n");
@@ -183,6 +246,7 @@ Kurallar:
     const progressStep = typeof fit.score === "number" ? Math.min(7, Math.max(1, Math.floor((fit.score / 100) * 7))) : 1;
 
     const reportJson: Record<string, unknown> = {
+      schema_version: 1,
       summary: summaryObj.one_liner ?? "",
       top_actions: topActions,
       rehber: rehberText,
@@ -214,7 +278,7 @@ Kurallar:
       report_json: reportJson,
       report_md: reportMd,
       progress_step: progressStep,
-      status: "in_progress",
+      status: "in_progress", // lock kaldır
     };
     if (score != null) updatePayload.score = score;
     if (riskLevel) updatePayload.risk_level = riskLevel;
@@ -231,14 +295,18 @@ Kurallar:
       content: JSON.stringify({ progress_step: progressStep, next_questions: nextQuestions }),
     });
 
-    return NextResponse.json({
-      report_json: reportJson,
-      report_md: reportMd,
-      progress_step: progressStep,
-      next_questions: nextQuestions,
-      score: score ?? undefined,
-      risk_level: riskLevel ?? undefined,
-    });
+      return NextResponse.json({
+        report_json: reportJson,
+        report_md: reportMd,
+        progress_step: progressStep,
+        next_questions: nextQuestions,
+        score: score ?? undefined,
+        risk_level: riskLevel ?? undefined,
+      });
+    } catch (inner) {
+      await unlock();
+      throw inner;
+    }
   } catch (e) {
     const msg = String(e instanceof Error ? e.message : "unknown_error");
     if (msg.includes("GEMINI_API_KEY_MISSING")) {

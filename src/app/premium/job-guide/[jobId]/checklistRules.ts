@@ -126,6 +126,17 @@ export function calcProgress(modules: ChecklistModule[]): { total: number; done:
   return { total, done, pct };
 }
 
+/** Checklist'ten yapılmamış maddeleri önem sırasına göre (pasaport → cv → vize → …) alır; ilk n tanesinin label'ını döner. missing_top5 / "3 kritik adım" için kullan. */
+export function getMissingTop(modules: ChecklistModule[], n: number): string[] {
+  const labels: string[] = [];
+  for (const m of modules) {
+    for (const it of m.items) {
+      if (!it.done && labels.length < n) labels.push(it.label);
+    }
+  }
+  return labels.slice(0, n);
+}
+
 /** answers_json'dan Answers çıkar (uyumluluk için) */
 export function answersFromJson(json: Record<string, unknown>): Answers {
   return {
