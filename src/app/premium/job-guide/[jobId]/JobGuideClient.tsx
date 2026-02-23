@@ -599,8 +599,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                 </button>
               </div>
             </div>
-          )}
-        </section>
+        )}
 
         {/* Sağ: İlan bilgisi + Rapor butonu (desktop) | Rapor tab (mobil) */}
         <aside className="w-72 shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden md:block">
