@@ -108,7 +108,7 @@ export async function GET(
                 ts: e.created_at,
                 next_questions: parsed.next_questions,
               });
-            } else {
+            } catch {
               chatMessages.push({ role: "assistant", text: e.content ?? "", ts: e.created_at });
             }
           }
