@@ -59,7 +59,9 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
     const val = t === "evet" || t === "var" ? "var" : t === "hayır" || t === "yok" ? "yok" : undefined;
     if (val && lastAskId === "has_eu_login") patch.has_eu_login = val;
     else if (val && lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = val;
-    else if (val && !patch.has_eu_login && !patch.has_glassdoor_account) {
+    else if (val && lastAskId === "has_trade_certificate") patch.has_trade_certificate = val;
+    else if (val && lastAskId === "has_platform_account") patch.profile_complete = val;
+    else if (val && !patch.has_eu_login && !patch.has_glassdoor_account && !patch.has_trade_certificate) {
       patch.has_eu_login = val;
       patch.has_glassdoor_account = val;
     }
@@ -242,27 +244,25 @@ export async function POST(req: NextRequest) {
       let askId: string;
       if (isEures) {
         guideMessage = [
-          "Bu ilan kaynağı EURES üzerinden yayınlanmıştır.",
+          "Merhaba! Bu iş ilanı EURES üzerinden yayınlanmış. Sana hızlıca nasıl başvuracağını anlatıyorum.",
           "",
-          "Başvuruyu tamamlamak için:",
-          "• EURES'te oturum aç (EU Login).",
-          "• İlanlar Cebimde'de İlana Git butonuna tıkla.",
-          "• Açılan sayfada How to apply / Başvuru bölümünü bul.",
-          "• Tarayıcıdan Sayfayı Türkçe'ye çevir özelliğini aç.",
-          "Şimdi sana 1 soru soracağım; cevabına göre sıradaki adımı göstereceğim.",
+          "• İlana Git ile EURES sayfasını aç.",
+          "• Sayfa İngilizceyse tarayıcıda Çevir → Türkçe yap (Chrome: adres çubuğundaki çeviri simgesi).",
+          "• EURES'te başvuru için genelde EU Login hesabı gerekir; yoksa Create account ile açılır.",
+          "",
+          "Soru: EU Login / EURES hesabın var mı?",
         ].join("\n");
-        firstQuestion = { text: "EURES (EU Login) hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
+        firstQuestion = { text: "EU Login / EURES hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
         askId = "has_eu_login";
       } else if (isGlassdoor) {
         guideMessage = [
-          "Bu ilan kaynağı Glassdoor üzerinden yayınlanmıştır.",
+          "Merhaba! Bu ilan Glassdoor üzerinden geliyor. Sana hızlıca başvuru yolunu göstereceğim.",
           "",
-          "Başvuruyu tamamlamak için:",
-          "• Glassdoor'da hesap aç veya giriş yap.",
-          "• İlanlar Cebimde'de İlana Git butonuna tıkla.",
-          "• Açılan sayfada Apply / Sign in to apply ekranını kullan.",
-          "• Tarayıcıdan sayfayı Türkçe'ye çevirebilirsin.",
-          "Şimdi sana 1 soru soracağım; cevabına göre devam edeceğiz.",
+          "• İlana Git ile Glassdoor ilanını aç.",
+          "• Sayfa İngilizceyse tarayıcıda Türkçe'ye çevir.",
+          "• Apply / Sign in to apply görürsen giriş yapman gerekir.",
+          "",
+          "Soru: Glassdoor hesabın var mı?",
         ].join("\n");
         firstQuestion = { text: "Glassdoor hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
         askId = "has_glassdoor_account";
@@ -314,15 +314,14 @@ export async function POST(req: NextRequest) {
 
     const system = `Sen yurtdışı iş başvuru asistanısın. Kullanıcı lise mezunu/usta profiline uygun; kısa, net, madde madde (en fazla 5-8 madde) yaz.
 
-KRİTİK - next_question ZORUNLU: Her yanıtta mutlaka "next_question" objesini döndür. Bu olmadan kullanıcı bir sonraki adımı göremez. Format: { "text": "Tek bir soru metni (örn: Pasaportun var mı?)", "choices": ["Var", "Başvurdum", "Yok"] }. choices 3-5 seçenek ver. Asla boş bırakma; soru her zaman olmalı.
+KRİTİK - next_question ZORUNLU: Her yanıtta tam 1 soru dön. Format: { "text": "Soru metni", "choices": ["Var", "Yok", "Emin değilim"] }. Asla boş bırakma.
+KRİTİK - checklist_patch: Cevaba göre ilgili maddeyi işaretle. Örn. kullanıcı "Var" derse answers_patch ve raporla uyumlu checklist_patch ver.
 
-KAYNAK YÖNLENDİRMESİ: İlk mesajda (__start__) ilan kaynağına göre adımlar ver:
-- GLASSDOOR: hesap aç, İlana Git ile sayfaya git, tarayıcıda Türkçe çevir, başvuru butonunu bul (link verme).
-- EURES: portal adımları (hesap, arama, başvuru).
-- Diğer: platform adı + menü yolu (link yok).
-Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. where_to_apply: sadece platform + menü (link yok).
+USTALIK BELGESİ: Meslek/pozisyon (aşçı, kaynakçı, elektrikçi, forklift vb.) belli olduktan sonra mutlaka sor: "Ustalık belgesi / mesleki yeterlilik belgen var mı?" options: ["Var", "Yok", "Emin değilim"]. Yoksa kısa bilgilendir: "Başvuru yine yapılır; bazı işverenler belge isteyebilir. Yapabileceğin: (1) sertifika/ustalık planı (2) deneyimi CV'de + referans ile kanıtlamak."
+YouTube: Link uydurma. "YouTube'da şunu arat: [ifade]" şeklinde yönlendir.
+Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
 
-ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok. next_question'ı mutlaka doldur.
+ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok. next_question ve answers_patch zorunlu.
 {
   "assistant_message": "string (Türkçe, 5-8 madde)",
   "next_question": { "text": "Tek soru metni - ZORUNLU", "choices": ["Seçenek1", "Seçenek2", "Seçenek3"] },

@@ -18,6 +18,7 @@ export type Answers = {
   source_apply_done?: "var" | "yok";     // Başvuruyu tamamladım
   profile_complete?: "var" | "yok";       // Profil bilgilerim tam
   cv_uploaded?: "var" | "yok";          // CV yükledim (ilan istiyorsa)
+  has_trade_certificate?: "var" | "yok"; // Ustalık belgesi / mesleki yeterlilik
 };
 
 export type ChecklistItem = { id: string; label: string; done: boolean; hint?: string };
@@ -120,15 +121,17 @@ export function buildChecklist(job: JobForChecklist, answers: Answers): Checklis
     });
   }
 
-  // 3) DOCUMENTS – CV/Belgeler (ilan metninde isteniyorsa; yoksa minimal)
+  // 3) BELGELER & NİTELİK – CV + ustalık belgesi (✔ sadece kullanıcı cevabıyla)
   const cvDone = answers.cv === "var" || answers.cv_uploaded === "var";
+  const tradeCertDone = answers.has_trade_certificate === "var";
   modules.push({
     id: "documents",
-    title: "CV & Belgeler",
+    title: "Belgeler & Nitelik",
     icon: "📄",
     items: [
       { id: "d1", label: "CV hazır (PDF)", done: cvDone },
-      { id: "d2", label: "İlanda istenen ek belge(ler) hazır (ilan metninde belirtiliyorsa)", done: false },
+      { id: "d2", label: "Ustalık belgesi / mesleki yeterlilik (varsa)", done: tradeCertDone },
+      { id: "d3", label: "İlanda istenen ek belge(ler) hazır (ilan metninde belirtiliyorsa)", done: false },
     ],
   });
 
@@ -197,5 +200,6 @@ export function answersFromJson(json: Record<string, unknown>): Answers {
     source_apply_done: asVarYok(normalizeEnum(json.source_apply_done)),
     profile_complete: asVarYok(normalizeEnum(json.profile_complete)),
     cv_uploaded: asVarYok(normalizeEnum(json.cv_uploaded)),
+    has_trade_certificate: asVarYok(normalizeEnum(json.has_trade_certificate)),
   };
 }

@@ -497,9 +497,15 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             </div>
             <span className="text-sm font-medium text-slate-700 shrink-0">%{progressPercent}</span>
           </div>
-          {missingLabels.length > 0 && (
-            <p className="mt-1 text-xs text-slate-500">Bugün bitirmen gereken: {missingLabels.slice(0, 3).join(" · ")}</p>
-          )}
+          {/* Hızlı Özet: kaynak rehberi + sonraki adım + 1 soru (checklist cümleleri yok) */}
+          <div className="mt-2 text-xs text-slate-600 space-y-0.5">
+            <p className="font-medium text-slate-700">Hızlı Özet</p>
+            <p>{sourceLabel ? `Bu ilan ${sourceLabel} üzerinden. Başvurmak için platformda giriş yapıp başvuru adımını tamamlayacağız.` : "Bu ilan için başvuru rehberi."}</p>
+            <p>Sonraki adım: İlana Git butonuna basıp sayfayı gerekirse Türkçe&apos;ye çevir.</p>
+            {nextQuestion?.text && (
+              <p className="pt-0.5">Soru: {nextQuestion.text} {nextQuestion.choices?.length ? `(${nextQuestion.choices.slice(0, 3).join(" / ")})` : ""}</p>
+            )}
+          </div>
         </div>
 
         {/* Mobil: Tab bar */}
