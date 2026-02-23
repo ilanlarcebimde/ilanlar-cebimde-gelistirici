@@ -65,7 +65,12 @@ export async function POST(req: NextRequest) {
     const auth = await getUserFromRequest(req);
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    let body: { jobGuideId?: string; jobPostId?: string; answers_json?: Record<string, unknown> };
+    let body: {
+      jobGuideId?: string;
+      jobPostId?: string;
+      answers_json?: Record<string, unknown>;
+      checklist_snapshot?: { total?: number; done?: number; percent?: number; missing_top5?: string[] };
+    };
     try {
       body = await req.json();
     } catch {
@@ -74,6 +79,7 @@ export async function POST(req: NextRequest) {
     const jobGuideId = body?.jobGuideId;
     const jobPostId = body?.jobPostId;
     const answersJson = body?.answers_json ?? {};
+    const checklistSnapshot = body?.checklist_snapshot ?? {};
     if (!jobGuideId || !jobPostId) {
       return NextResponse.json({ error: "jobGuideId and jobPostId required" }, { status: 400 });
     }
@@ -105,69 +111,117 @@ export async function POST(req: NextRequest) {
       `Özet: ${jobPost.snippet ?? ""}`,
     ].join("\n");
 
-    const system = `Sen bir yurtdışı iş başvurusu rehberi asistanısın. Verilen ilan metni ve kullanıcı cevaplarına göre Türkçe, kişiselleştirilmiş bir rapor üret.
+    const system = `Sen, "yurtdışı iş başvuru asistanı"sın. Kullanıcının eğitim seviyesi düşük olabilir. Kısa, net, adım adım yaz.
+Asla uzun paragraf yazma. Her bölümde madde madde ilerle.
+Uydurma bilgi yazma. İlan verisinde olmayan şeylere "İlan metninde belirtilmiyor" de.
+
+Girdi: job_post, user_answers, checklist_snapshot.
+
+ÇIKTI: SADECE JSON DÖNDÜR. Başka hiçbir metin yazma.
+
+JSON ŞEMASI (zorunlu):
+{
+  "summary": { "one_liner": "string", "top_actions": ["string","string","string"] },
+  "how_to_apply": { "steps": ["string","string","string","string","string"], "where_to_apply": "string", "cv_language": "string", "notes": ["string","string"] },
+  "documents": { "required": ["string","string","string"], "optional": ["string","string"], "warnings": ["string"] },
+  "work_permit_and_visa": { "sponsor_needed": "yes|no|unknown", "process_owner": "employer|candidate|unknown", "estimated_duration": "string", "risk_points": ["string","string"] },
+  "salary_and_life_calc": { "currency": "string", "net_salary_estimate": "string", "rent_estimate": "string", "food_estimate": "string", "transport_estimate": "string", "remaining_estimate": "string", "assumptions": ["string","string"] },
+  "risk_assessment": { "level": "low|medium|high", "items": [ { "title": "string", "level": "low|medium|high", "why": "string", "what_to_do": "string" } ] },
+  "fit_analysis": { "score": 0, "strengths": ["string","string"], "gaps": ["string","string"], "next_questions": ["string","string","string"] },
+  "plan_30_days": { "week1": ["string","string","string"], "week2": ["string","string","string"], "week3": ["string","string","string"], "week4": ["string","string","string"] }
+}
 
 Kurallar:
-- İlan metninde olmayan bilgi için "İlan metninde belirtilmiyor." yaz.
-- Cevaplarda eksik bilgi varsa raporu yine de üret; eksik kısımları belirt.
-- Yanıtı SADECE aşağıdaki JSON formatında ver. Başka metin ekleme.
-- report_json içindeki her alan Türkçe, net ve madde madde olsun.
-- progress_step: Kullanıcının cevaplarına göre 1-7 arası hangi adımda olduğunu tahmin et (1=profil, 2=pasaport, 3=CV, 4=belgeler, 5=sponsor, 6=başvuru, 7=son kontrol).
-- next_questions: Kullanıcıya sorulacak 1-3 kısa soru (eksik bilgi veya takip için).
+- score 0-100 arası integer olsun (fit_analysis.score).
+- Pasaport "yok" ise top_actions 1. madde mutlaka pasaport randevusu olsun.
+- Dil seviyesi "hic/a1/a2" ise risk_assessment içinde "Dil riski" mutlaka olsun.
+- İlan kaynağı EURES gibi platform ise where_to_apply buna göre yaz.
+- Maaş/kira tahminleri için kesin rakam uydurma; aralık veya "tahmini" ibaresi kullan.
+- Emoji JSON içine koyma.`;
 
-Çıktı formatı (tek JSON objesi):
-{
-  "report_json": {
-    "summary": "...",
-    "score": 0-100,
-    "top_actions": ["...", "...", "..."],
-    "rehber": "...",
-    "belgeler": "...",
-    "vize_izin": "...",
-    "maas_yasam": "...",
-    "risk": "...",
-    "sana_ozel": "...",
-    "plan_30_gun": "..."
-  },
-  "progress_step": 1,
-  "next_questions": ["...", "..."]
-}
-score: Başvuruya uygunluk skoru (0-100), report_json içinde.`;
-
-    const userPrompt = `İlan metni:\n${jobContent}\n\nKullanıcı cevapları (answers_json):\n${JSON.stringify(answersJson, null, 2)}`;
+    const userPrompt = `job_post:\n${jobContent}\n\nuser_answers:\n${JSON.stringify(answersJson, null, 2)}\n\nchecklist_snapshot:\n${JSON.stringify(checklistSnapshot, null, 2)}`;
 
     const rawText = await callGemini(system, userPrompt);
-    const parsed = extractJson(rawText);
+    const parsed = extractJson(rawText) as {
+      summary?: { one_liner?: string; top_actions?: string[] };
+      how_to_apply?: { steps?: string[]; where_to_apply?: string; cv_language?: string; notes?: string[] };
+      documents?: { required?: string[]; optional?: string[]; warnings?: string[] };
+      work_permit_and_visa?: Record<string, unknown>;
+      salary_and_life_calc?: Record<string, unknown>;
+      risk_assessment?: { level?: string; items?: Array<{ title?: string; level?: string; why?: string; what_to_do?: string }> };
+      fit_analysis?: { score?: number; strengths?: string[]; gaps?: string[]; next_questions?: string[] };
+      plan_30_days?: { week1?: string[]; week2?: string[]; week3?: string[]; week4?: string[] };
+    };
 
-    const reportJson = (parsed.report_json as Record<string, unknown>) ?? {};
-    const progressStep = typeof parsed.progress_step === "number" ? Math.max(1, Math.min(7, parsed.progress_step)) : 1;
-    const nextQuestions = Array.isArray(parsed.next_questions)
-      ? parsed.next_questions.filter((q) => typeof q === "string").slice(0, 3)
-      : [];
+    const summaryObj = parsed.summary ?? {};
+    const topActions = Array.isArray(summaryObj.top_actions) ? summaryObj.top_actions : [];
+    const howTo = parsed.how_to_apply ?? {};
+    const rehberText = Array.isArray(howTo.steps) ? howTo.steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : "";
+    const docs = parsed.documents ?? {};
+    const belgelerText = [
+      Array.isArray(docs.required) ? "Gerekli: " + docs.required.join(", ") : "",
+      Array.isArray(docs.optional) ? "Opsiyonel: " + docs.optional.join(", ") : "",
+      Array.isArray(docs.warnings) ? "Uyarılar: " + docs.warnings.join("; ") : "",
+    ].filter(Boolean).join("\n");
+    const visa = parsed.work_permit_and_visa ?? {};
+    const vizeText = typeof visa === "object" ? JSON.stringify(visa, null, 2).replace(/\n/g, "\n") : String(visa);
+    const salary = parsed.salary_and_life_calc ?? {};
+    const maasText = typeof salary === "object" ? [salary.net_salary_estimate, salary.rent_estimate, salary.food_estimate, salary.remaining_estimate].filter(Boolean).join(" · ") : String(salary);
+    const risk = parsed.risk_assessment ?? {};
+    const riskText = Array.isArray(risk.items) ? risk.items.map((i: { title?: string; why?: string; what_to_do?: string }) => `${i.title ?? ""}: ${i.why ?? ""} ${i.what_to_do ?? ""}`).join("\n") : String(risk.level ?? "");
+    const fit = parsed.fit_analysis ?? {};
+    const nextQuestions = Array.isArray(fit.next_questions) ? fit.next_questions.filter((q): q is string => typeof q === "string").slice(0, 3) : [];
+    const score = typeof fit.score === "number" ? Math.max(0, Math.min(100, fit.score)) : null;
+    const riskLevel = (parsed.risk_assessment?.level === "low" || parsed.risk_assessment?.level === "medium" || parsed.risk_assessment?.level === "high") ? parsed.risk_assessment.level : null;
+    const plan = parsed.plan_30_days ?? {};
+    const planText = [
+      Array.isArray(plan.week1) ? "Hafta 1: " + plan.week1.join("; ") : "",
+      Array.isArray(plan.week2) ? "Hafta 2: " + plan.week2.join("; ") : "",
+      Array.isArray(plan.week3) ? "Hafta 3: " + plan.week3.join("; ") : "",
+      Array.isArray(plan.week4) ? "Hafta 4: " + plan.week4.join("; ") : "",
+    ].filter(Boolean).join("\n");
+    const progressStep = typeof fit.score === "number" ? Math.min(7, Math.max(1, Math.floor((fit.score / 100) * 7))) : 1;
 
-    const score = typeof reportJson.score === "number" ? reportJson.score : null;
+    const reportJson: Record<string, unknown> = {
+      summary: summaryObj.one_liner ?? "",
+      top_actions: topActions,
+      rehber: rehberText,
+      belgeler: belgelerText,
+      vize_izin: vizeText,
+      maas_yasam: maasText,
+      risk: riskText,
+      sana_ozel: [].concat(fit.strengths ?? [], fit.gaps ?? []).join("\n"),
+      plan_30_gun: planText,
+      score: score ?? undefined,
+      _raw: parsed,
+    };
+
     const reportMd = [
-      "# 🔒 Bu İlan İçin Başvuru Rehberi\n",
-      score != null ? `## 🎯 Uygunluk Skoru: ${score}/100\n` : "",
-      `## 📌 Özet\n${String(reportJson.summary ?? "")}\n`,
-      `## 🎯 Öncelikli 3 Aksiyon\n${(reportJson.top_actions as string[] ?? []).map((a, i) => `${i + 1}. ${a}`).join("\n")}\n`,
-      "## Bu İşe Nasıl Başvurulur?\n" + String(reportJson.rehber ?? ""),
-      "\n## Gerekli Belgeler\n" + String(reportJson.belgeler ?? ""),
-      "\n## Çalışma İzni ve Vize\n" + String(reportJson.vize_izin ?? ""),
-      "\n## Maaş ve Yaşam\n" + String(reportJson.maas_yasam ?? ""),
-      "\n## Risk Değerlendirmesi\n" + String(reportJson.risk ?? ""),
+      "# Bu İlan İçin Başvuru Rehberi\n",
+      score != null ? `## Uygunluk Skoru: ${score}/100\n` : "",
+      `## Özet\n${String(reportJson.summary ?? "")}\n`,
+      `## Öncelikli 3 Aksiyon\n${topActions.map((a, i) => `${i + 1}. ${a}`).join("\n")}\n`,
+      "## Bu İşe Nasıl Başvurulur?\n" + rehberText,
+      "\n## Gerekli Belgeler\n" + belgelerText,
+      "\n## Çalışma İzni ve Vize\n" + vizeText,
+      "\n## Maaş ve Yaşam\n" + maasText,
+      "\n## Risk Değerlendirmesi\n" + riskText,
       "\n## Sana Özel Analiz\n" + String(reportJson.sana_ozel ?? ""),
-      "\n## 30 Günlük Plan\n" + String(reportJson.plan_30_gun ?? ""),
+      "\n## 30 Günlük Plan\n" + planText,
     ].join("\n");
+
+    const updatePayload: Record<string, unknown> = {
+      report_json: reportJson,
+      report_md: reportMd,
+      progress_step: progressStep,
+      status: "in_progress",
+    };
+    if (score != null) updatePayload.score = score;
+    if (riskLevel) updatePayload.risk_level = riskLevel;
 
     await auth.supabase
       .from("job_guides")
-      .update({
-        report_json: reportJson,
-        report_md: reportMd,
-        progress_step: progressStep,
-        status: "in_progress",
-      })
+      .update(updatePayload)
       .eq("id", jobGuideId)
       .eq("user_id", auth.user.id);
 
@@ -182,6 +236,8 @@ score: Başvuruya uygunluk skoru (0-100), report_json içinde.`;
       report_md: reportMd,
       progress_step: progressStep,
       next_questions: nextQuestions,
+      score: score ?? undefined,
+      risk_level: riskLevel ?? undefined,
     });
   } catch (e) {
     const msg = String(e instanceof Error ? e.message : "unknown_error");
