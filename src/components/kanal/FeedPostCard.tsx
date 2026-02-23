@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { formatPublishedAt } from "@/lib/formatTime";
 import { isHiddenSourceName } from "@/lib/feedHiddenSources";
 
@@ -75,7 +74,10 @@ export function FeedPostCard({
   const snippet = post.snippet
     ? truncateSnippet(post.snippet, SNIPPET_MAX_LINES)
     : null;
-  const detailHref = post.source_url ? `/r/${post.id}` : null;
+  const externalUrl =
+    post.source_url?.startsWith("http://") || post.source_url?.startsWith("https://")
+      ? post.source_url
+      : null;
   const color = brandColor || "rgb(59, 130, 246)";
   const metaItems = metaParts(post);
 
@@ -134,14 +136,15 @@ export function FeedPostCard({
             {post.source_name || "Kaynak"}
           </span>
         ) : null}
-        {detailHref ? (
-          <Link
-            href={detailHref}
-            prefetch={false}
+        {externalUrl ? (
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex min-h-[44px] w-full shrink-0 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 sm:w-auto sm:py-2.5"
           >
             İlana Git
-          </Link>
+          </a>
         ) : null}
       </div>
     </article>
