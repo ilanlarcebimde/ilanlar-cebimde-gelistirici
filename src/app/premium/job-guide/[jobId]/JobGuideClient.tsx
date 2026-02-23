@@ -244,10 +244,13 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setInitialChatFetched(true);
     setSending(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     (async () => {
       const token = await getSession();
-      if (!token || cancelled) return;
+      if (!token || cancelled) {
+        if (!cancelled) setSending(false);
+        return;
+      }
       try {
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
@@ -283,7 +286,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       } catch (e) {
         if (!cancelled) {
           const isAbort = e instanceof Error && e.name === "AbortError";
-          setMessages([{ role: "assistant", text: isAbort ? "İstek zaman aşımına uğradı. Tekrar deneyin." : "Bağlantı hatası. Lütfen tekrar deneyin." }]);
+          setMessages([{ role: "assistant", text: isAbort ? "Yanıt gecikiyor. Sayfayı yenileyip tekrar deneyin veya aşağıdan bir seçenek yazın." : "Bağlantı hatası. Sayfayı yenileyip tekrar deneyin." }]);
           setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
         }
       } finally {
@@ -308,7 +311,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       setSending(true);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 55000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       try {
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
@@ -346,7 +349,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       } catch (e) {
         clearTimeout(timeoutId);
         const isAbort = e instanceof Error && e.name === "AbortError";
-        setMessages((prev) => [...prev, { role: "assistant", text: isAbort ? "İstek zaman aşımına uğradı. Tekrar deneyin." : "Bir hata oluştu. Lütfen tekrar deneyin." }]);
+        setMessages((prev) => [...prev, { role: "assistant", text: isAbort ? "Yanıt gecikiyor. Sayfayı yenileyin veya tekrar yazın." : "Bir hata oluştu. Sayfayı yenileyip tekrar deneyin." }]);
         setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
       } finally {
         setSending(false);

@@ -5,7 +5,7 @@ import {
   calcProgress,
   getMissingTop,
   answersFromJson,
-} from "@/app/premium/job-guide/[jobId]/checklistRules";
+} from "@/lib/checklistRules";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -84,22 +84,30 @@ async function callGemini(system: string, user: string): Promise<string> {
   if (!apiKey) throw new Error("GEMINI_API_KEY_MISSING");
   const model = (process.env.GEMINI_MODEL || "gemini-2.0-flash").trim().replace(/^models\//, "");
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: `${system}\n\n---\n\nKullanıcı girdisi:\n${user}` }] }],
-      generationConfig: { temperature: 0.3, topP: 0.9, maxOutputTokens: 4096 },
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`GEMINI_HTTP_${res.status}:${t.slice(0, 200)}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 50000);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: `${system}\n\n---\n\nKullanıcı girdisi:\n${user}` }] }],
+        generationConfig: { temperature: 0.3, topP: 0.9, maxOutputTokens: 4096 },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`GEMINI_HTTP_${res.status}:${t.slice(0, 200)}`);
+    }
+    const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("") || "";
+    if (!text.trim()) throw new Error("GEMINI_EMPTY_RESPONSE");
+    return text;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("") || "";
-  if (!text.trim()) throw new Error("GEMINI_EMPTY_RESPONSE");
-  return text;
 }
 
 type NextQuestionOut = { text: string; choices?: string[] };
