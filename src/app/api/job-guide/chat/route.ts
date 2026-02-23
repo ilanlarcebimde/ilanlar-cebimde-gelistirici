@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseForUser, getSupabaseAdmin } from "@/lib/supabase/server";
+import {
+  buildChecklist,
+  calcProgress,
+  getMissingTop,
+  answersFromJson,
+} from "@/app/premium/job-guide/[jobId]/checklistRules";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,6 +36,33 @@ function inferCountry(channelSlug: string | null, locationText: string): string 
   if (/\b(avusturya|austria)\b/.test(loc)) return "Avusturya";
   if (/\b(polonya|poland)\b/.test(loc)) return "Polonya";
   return channelSlug ? channelSlug : loc || "unknown";
+}
+
+/** Serbest metin cevabı answers_json patch'ine çevirir (pasaport, cv, dil, deneyim, meslek, engel). */
+function normalizeUserMessageToAnswers(text: string): Record<string, unknown> {
+  const t = text.toLowerCase().trim();
+  const patch: Record<string, unknown> = {};
+  if (/\b(pasaportum\s*yok|pasaport\s*yok|yok)\b/.test(t)) patch.passport = "yok";
+  else if (/\b(pasaportum\s*var|pasaport\s*var|var)\b/.test(t)) patch.passport = "var";
+  else if (/\b(başvurdum|basvurdum)\b/.test(t)) patch.passport = "basvurdum";
+  if (/\b(cv\s*yok|cv'm\s*yok|cv hazır değil)\b/.test(t)) patch.cv = "yok";
+  else if (/\b(cv\s*var|cv'm\s*var|cv hazır|hazır)\b/.test(t)) patch.cv = "var";
+  if (/\b(b1|b2|ileri)\b/.test(t)) patch.language = "b1";
+  if (/\bb2\b/.test(t) && !patch.language) patch.language = "b2";
+  if (/\b(a2|orta)\b/.test(t)) patch.language = "a2";
+  if (/\b(a1|başlangıç)\b/.test(t)) patch.language = "a1";
+  if (/\b(hiç|yok|bilmiyorum)\b/.test(t) && /dil|ingilizce|almanca/.test(t)) patch.language = "hic";
+  if (/\b(0\s*[-–]?\s*1|1\s*yıl|bir yıl)\b/.test(t)) patch.experience = "0-1";
+  if (/\b(2\s*[-–]?\s*4|3\s*yıl|birkaç yıl)\b/.test(t)) patch.experience = "2-4";
+  if (/\b(5\s*\+|5\s*yıl|beş yıl|çok yıl)\b/.test(t)) patch.experience = "5+";
+  if (/\b(engel|engelim|var)\b/.test(t) && /ülke|gidiş|yok/.test(t)) patch.barrier = "var";
+  if (/\b(engel\s*yok|engelim yok)\b/.test(t)) patch.barrier = "yok";
+  if (t.length >= 2 && t.length <= 40 && !patch.profession && !/^(var|yok|evet|hayır|b1|a2)$/i.test(t)) {
+    const professionMatch = t.match(/(aşçı|kaynakçı|elektrikçi|inşaat|muhasebe|öğretmen|hemşire|mühendis|tekniker|operatör|şoför|garson|temizlik|bakım|usta|uzman)/i);
+    if (professionMatch) patch.profession = professionMatch[1];
+    else if (!/\?(pasaport|cv|dil|deneyim)/.test(t)) patch.profession = t;
+  }
+  return patch;
 }
 
 function extractJson(text: string): Record<string, unknown> {
@@ -69,19 +102,17 @@ async function callGemini(system: string, user: string): Promise<string> {
   return text;
 }
 
-type NextQuestion = { id: string; question: string; type: string; options?: string[] };
-type ReportUpdate = {
-  summary?: string;
-  top_actions?: string[];
-  how_to_apply?: string[];
-  documents?: string[];
-  visa?: string[];
-  budget?: { currency?: string; net?: string; rent?: string; food?: string; remaining?: string; assumptions?: string[] };
-  risk?: Array<{ title?: string; level?: string; what_to_do?: string }>;
-  fit?: { score?: number; strengths?: string[]; gaps?: string[] };
+type NextQuestionOut = { text: string; choices?: string[] };
+type ReportFromGemini = {
+  summary?: { one_liner?: string; top_actions?: string[] };
+  how_to_apply?: { steps?: string[]; where_to_apply?: string; notes?: string[] };
+  documents?: { required?: string[]; optional?: string[]; warnings?: string[] };
+  work_permit_and_visa?: Record<string, unknown>;
+  salary_and_life_calc?: Record<string, unknown>;
+  risk_assessment?: { level?: string; items?: Array<{ title?: string; level?: string; why?: string; what_to_do?: string }> };
+  fit_analysis?: { score?: number; strengths?: string[]; gaps?: string[] };
   plan_30_days?: { week1?: string[]; week2?: string[]; week3?: string[]; week4?: string[] };
 };
-type UiHints = { progress_percent?: number; unlock?: string[]; missing_top3?: string[] };
 
 export async function POST(req: NextRequest) {
   try {
@@ -94,6 +125,7 @@ export async function POST(req: NextRequest) {
       user_message?: string;
       answers_json?: Record<string, unknown>;
       chat_history?: Array<{ role: string; text: string }>;
+      client_context?: { locale?: string };
     };
     try {
       body = await req.json();
@@ -104,6 +136,11 @@ export async function POST(req: NextRequest) {
     if (!jobGuideId || !jobPostId) {
       return NextResponse.json({ error: "jobGuideId and jobPostId required" }, { status: 400 });
     }
+
+    const isStart = user_message === "__start__" || (typeof user_message === "string" && !user_message.trim());
+    const rawUserText = typeof user_message === "string" ? user_message.trim() : "";
+    const normalizedPatch = rawUserText && !isStart ? normalizeUserMessageToAnswers(rawUserText) : {};
+    const mergedAnswers = { ...answers_json, ...normalizedPatch };
 
     const { data: guide } = await auth.supabase
       .from("job_guides")
@@ -116,7 +153,7 @@ export async function POST(req: NextRequest) {
     const admin = getSupabaseAdmin();
     const { data: jobPostRow } = await admin
       .from("job_posts")
-      .select("id, title, position_text, location_text, source_name, snippet, published_at, channels(slug)")
+      .select("id, title, position_text, location_text, source_name, source_url, snippet, published_at, channels(slug)")
       .eq("id", jobPostId)
       .maybeSingle();
     if (!jobPostRow) return NextResponse.json({ error: "Job post not found" }, { status: 404 });
@@ -125,6 +162,7 @@ export async function POST(req: NextRequest) {
     const ch = (jobPost as { channels?: { slug?: string } | Array<{ slug?: string }> | null }).channels;
     const channelSlug = ch == null ? null : Array.isArray(ch) ? ch[0]?.slug ?? null : (ch as { slug?: string })?.slug ?? null;
     const country = inferCountry(channelSlug, jobPost.location_text ?? "");
+    const sourceName = String(jobPost.source_name ?? "").toUpperCase();
 
     const jobContent = [
       `İlan başlığı: ${jobPost.title ?? ""}`,
@@ -135,96 +173,114 @@ export async function POST(req: NextRequest) {
       `Özet: ${jobPost.snippet ?? ""}`,
     ].join("\n");
 
-    const isFirst = !user_message?.trim() && chat_history.length === 0;
-    const system = `Sen yurtdışı iş başvuru asistanısın. Sohbet şeklinde ilerliyorsun: kısa, net, madde madde. Uydurma bilgi yok; ilan metninde yoksa "İlan metninde belirtilmiyor" de.
-where_to_apply: Sadece platform/site adı ve menü yolu (link yok). Maaş/kira: kesin rakam uydurma; tahmini aralık + assumptions zorunlu.
+    const jobForChecklist = {
+      id: jobPostId,
+      title: jobPost.title ?? null,
+      location_text: jobPost.location_text ?? null,
+      source_name: jobPost.source_name ?? null,
+      source_url: jobPost.source_url ?? null,
+      snippet: jobPost.snippet ?? null,
+    };
+    const answersForChecklist = answersFromJson(mergedAnswers as Record<string, unknown>);
+    const modules = buildChecklist(jobForChecklist, answersForChecklist);
+    const progress = calcProgress(modules);
+    const missingTop3 = getMissingTop(modules, 3);
+    const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3 };
+
+    const system = `Sen yurtdışı iş başvuru asistanısın. Kullanıcı lise mezunu/usta profiline uygun; kısa, net, madde madde (en fazla 5-8 madde) yaz.
+KAYNAK YÖNLENDİRMESİ ZORUNLU: İlk mesajda (__start__) mutlaka ilan kaynağına göre adımlar ver:
+- GLASSDOOR ise: hesap açma, "İlana Git" ile ilgili sayfaya gitme, tarayıcıda Türkçe çeviri açma, CV yükleme / başvuru akışı (link verme, adım adım).
+- EURES ise: EURES portal adımları (hesap, arama, başvuru).
+- Diğer kaynaklar: benzer şekilde platform adı + menü yolu (link yok).
+next_question ZORUNLU: Her yanıtta tam olarak 1 soru dön. Boş bırakma. Format: { "text": "Soru metni", "choices": ["Seçenek1","Seçenek2",...] }. choices 3-6 arası öneri (opsiyonel ama tercih edilir). Soru yoksa fallback kullan: "Pasaportun var mı?" ve choices: ["Var", "Başvurdum", "Yok"].
+Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de. Maaş/kira: kesin rakam uydurma; tahmini aralık + assumptions zorunlu. where_to_apply: sadece platform adı ve menü yolu (link yok).
 
 ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok.
 {
-  "assistant_message": "string (1-2 kısa paragraf veya maddeler)",
-  "next_questions": [
-    { "id": "q_xxx", "question": "string", "type": "single_choice", "options": ["A","B","C"] }
-  ],
-  "answers_update": { "key": "value" },
-  "report_update": {
-    "summary": "string",
-    "top_actions": ["string"],
-    "how_to_apply": ["string"],
-    "documents": ["string"],
-    "visa": ["string"],
-    "budget": { "currency": "EUR", "net": "tahmini aralık", "rent": "...", "food": "...", "remaining": "...", "assumptions": ["..."] },
-    "risk": [{ "title": "string", "level": "low|medium|high", "what_to_do": "string" }],
-    "fit": { "score": 0-100, "strengths": ["string"], "gaps": ["string"] },
+  "assistant_message": "string (Türkçe, 5-8 maddeyi geçmesin)",
+  "next_question": { "text": "string (tek soru)", "choices": ["string","string","string"] },
+  "answers_patch": {},
+  "report": {
+    "summary": { "one_liner": "string", "top_actions": ["string","string","string"] },
+    "how_to_apply": { "steps": ["string","string","string","string"], "where_to_apply": "string", "notes": ["string"] },
+    "documents": { "required": ["string"], "optional": ["string"], "warnings": ["string"] },
+    "work_permit_and_visa": { "sponsor_needed": "yes|no|unknown", "process_owner": "employer|candidate|unknown", "estimated_duration": "string", "risk_points": ["string"] },
+    "salary_and_life_calc": { "currency": "string", "net_salary_estimate": "string", "rent_estimate": "string", "food_estimate": "string", "transport_estimate": "string", "remaining_estimate": "string", "assumptions": ["string"] },
+    "risk_assessment": { "level": "low|medium|high", "items": [ { "title": "string", "level": "low|medium|high", "why": "string", "what_to_do": "string" } ] },
+    "fit_analysis": { "score": 0-100, "strengths": ["string"], "gaps": ["string"] },
     "plan_30_days": { "week1": ["string"], "week2": ["string"], "week3": ["string"], "week4": ["string"] }
-  },
-  "ui_hints": { "progress_percent": 0-100, "unlock": ["visa","budget"], "missing_top3": ["string","string","string"] }
-}
-Ülke, başlık ve kaynağa göre 1-3 soru sor (pasaport, CV, dil vb.). Dinamik soru üret.`;
+  }
+}`;
 
-    const userPrompt = isFirst
-      ? `İlk mesaj: Kullanıcı henüz bir şey yazmadı. Bu ilan için hoş geldin mesajı + 2-3 soru öner (next_questions). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(answers_json)}`
-      : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(answers_json)}\n\nSohbet geçmişi:\n${chat_history.map((m) => `${m.role}: ${m.text}`).join("\n")}\n\nSon kullanıcı mesajı: ${user_message}`;
+    const userPrompt = isStart
+      ? `__start__ (ilk mesaj). Bu ilan için kaynak yönlendirmesi yap (${sourceName || "kaynak"}). Sonra ilk soruyu sor (next_question zorunlu). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(mergedAnswers)}`
+      : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(mergedAnswers)}\n\nchecklist_snapshot: ${JSON.stringify(checklistSnapshot)}\n\nSohbet (son kullanıcı mesajı): ${rawUserText}`;
 
     const rawText = await callGemini(system, userPrompt);
     const parsed = extractJson(rawText) as {
       assistant_message?: string;
-      next_questions?: NextQuestion[];
-      answers_update?: Record<string, unknown>;
-      report_update?: ReportUpdate;
-      ui_hints?: UiHints;
+      next_question?: NextQuestionOut;
+      answers_patch?: Record<string, unknown>;
+      report?: ReportFromGemini;
     };
 
-    const assistantMessage = typeof parsed.assistant_message === "string" ? parsed.assistant_message : "";
-    const nextQuestions = Array.isArray(parsed.next_questions) ? parsed.next_questions : [];
-    const answersUpdate = (parsed.answers_update && typeof parsed.answers_update === "object") ? parsed.answers_update : {};
-    const reportUpdate = (parsed.report_update && typeof parsed.report_update === "object") ? parsed.report_update : {};
-    const uiHints = (parsed.ui_hints && typeof parsed.ui_hints === "object") ? parsed.ui_hints : {};
+    let assistantMessage = typeof parsed.assistant_message === "string" ? parsed.assistant_message : "";
+    let nextQuestion: NextQuestionOut = { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] };
+    if (parsed.next_question && typeof parsed.next_question === "object" && typeof parsed.next_question.text === "string") {
+      nextQuestion = {
+        text: parsed.next_question.text,
+        choices: Array.isArray(parsed.next_question.choices) ? parsed.next_question.choices : ["Var", "Başvurdum", "Yok"],
+      };
+    }
+    const answersPatch = (parsed.answers_patch && typeof parsed.answers_patch === "object") ? parsed.answers_patch : {};
+    const finalAnswers = { ...mergedAnswers, ...answersPatch };
+    const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};
+    const reportJson = mapGeminiReportToOur(reportFromGemini);
+    const reportMd = buildReportMd(reportJson, reportFromGemini);
 
-    const newAnswers = { ...answers_json, ...answersUpdate };
-    const existingReport = (guide.report_json as Record<string, unknown>) ?? {};
-    const mergedReport = deepMergeReport(existingReport, reportUpdate);
-
-    const scoreFromFit = typeof reportUpdate.fit?.score === "number"
-      ? Math.max(0, Math.min(100, reportUpdate.fit.score))
+    const score = typeof reportFromGemini.fit_analysis?.score === "number"
+      ? Math.max(0, Math.min(100, reportFromGemini.fit_analysis.score))
       : undefined;
-    const riskLevel = (reportUpdate.risk?.[0] as { level?: string } | undefined)?.level;
-    const validRisk = riskLevel === "low" || riskLevel === "medium" || riskLevel === "high" ? riskLevel : undefined;
+    const riskLevel = (reportFromGemini.risk_assessment?.level === "low" || reportFromGemini.risk_assessment?.level === "medium" || reportFromGemini.risk_assessment?.level === "high")
+      ? reportFromGemini.risk_assessment.level
+      : undefined;
+
     await auth.supabase
       .from("job_guides")
       .update({
-        answers_json: newAnswers,
-        report_json: mergedReport,
+        answers_json: finalAnswers,
+        report_json: reportJson,
+        report_md: reportMd,
         updated_at: new Date().toISOString(),
-        ...(typeof uiHints.progress_percent === "number" && uiHints.progress_percent >= 0 && uiHints.progress_percent <= 100
-          ? { progress_step: Math.max(1, Math.min(7, Math.round((uiHints.progress_percent / 100) * 7))) }
-          : {}),
-        ...(scoreFromFit != null ? { score: scoreFromFit } : {}),
-        ...(validRisk ? { risk_level: validRisk } : {}),
+        status: "in_progress",
+        ...(score != null ? { score } : {}),
+        ...(riskLevel ? { risk_level: riskLevel } : {}),
       })
       .eq("id", jobGuideId)
       .eq("user_id", auth.user.id);
 
-    if (user_message?.trim()) {
+    if (rawUserText && !isStart) {
       await auth.supabase.from("job_guide_events").insert({
         job_guide_id: jobGuideId,
         type: "user_message",
-        content: user_message.trim(),
+        content: rawUserText,
       });
     }
     await auth.supabase.from("job_guide_events").insert({
       job_guide_id: jobGuideId,
       type: "assistant_message",
-      content: JSON.stringify({ message: assistantMessage, next_questions: nextQuestions, ui_hints: uiHints }),
+      content: JSON.stringify({ message: assistantMessage, next_question: nextQuestion }),
     });
 
     return NextResponse.json({
       assistant_message: assistantMessage,
-      next_questions: nextQuestions,
-      answers_update: answersUpdate,
-      report_update: reportUpdate,
-      ui_hints: uiHints,
-      answers_json: newAnswers,
-      report_json: mergedReport,
+      next_question: nextQuestion,
+      report_json: reportJson,
+      report_md: reportMd,
+      checklist_snapshot: checklistSnapshot,
+      score: score ?? undefined,
+      risk_level: riskLevel ?? undefined,
+      answers_json: finalAnswers,
     });
   } catch (e) {
     const msg = String(e instanceof Error ? e.message : "unknown_error");
@@ -233,38 +289,59 @@ where_to_apply: Sadece platform/site adı ve menü yolu (link yok). Maaş/kira: 
   }
 }
 
-function deepMergeReport(
-  existing: Record<string, unknown>,
-  update: ReportUpdate
-): Record<string, unknown> {
-  const out = { ...existing };
-  if (update.summary != null) out.summary = update.summary;
-  if (Array.isArray(update.top_actions)) out.top_actions = update.top_actions;
-  if (Array.isArray(update.how_to_apply)) {
-    out.rehber = update.how_to_apply.map((s, i) => `${i + 1}. ${s}`).join("\n");
-  }
-  if (Array.isArray(update.documents)) out.belgeler = update.documents.join("\n");
-  if (Array.isArray(update.visa)) out.vize_izin = update.visa.join("\n");
-  if (update.budget && typeof update.budget === "object") {
-    const b = update.budget;
-    out.maas_yasam = [b.net, b.rent, b.food, b.remaining].filter(Boolean).join(" · ");
-    if (Array.isArray(b.assumptions)) (out as Record<string, unknown>).budget_assumptions = b.assumptions;
-  }
-  if (Array.isArray(update.risk)) {
-    out.risk = update.risk.map((r) => `${r.title ?? ""}: ${r.what_to_do ?? ""}`).join("\n");
-  }
-  if (update.fit && typeof update.fit === "object") {
-    out.sana_ozel = [...(update.fit.strengths ?? []), ...(update.fit.gaps ?? [])].join("\n");
-    if (typeof update.fit.score === "number") out.score = update.fit.score;
-  }
-  if (update.plan_30_days && typeof update.plan_30_days === "object") {
-    const p = update.plan_30_days;
-    out.plan_30_gun = [
-      p.week1?.length ? "Hafta 1: " + p.week1.join("; ") : "",
-      p.week2?.length ? "Hafta 2: " + p.week2.join("; ") : "",
-      p.week3?.length ? "Hafta 3: " + p.week3.join("; ") : "",
-      p.week4?.length ? "Hafta 4: " + p.week4.join("; ") : "",
-    ].filter(Boolean).join("\n");
-  }
-  return out;
+function mapGeminiReportToOur(r: ReportFromGemini): Record<string, unknown> {
+  const summary = r.summary?.one_liner ?? "";
+  const topActions = r.summary?.top_actions ?? [];
+  const howTo = r.how_to_apply;
+  const rehber = Array.isArray(howTo?.steps) ? howTo.steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : "";
+  const docs = r.documents;
+  const belgeler = [
+    Array.isArray(docs?.required) ? "Gerekli: " + docs.required.join(", ") : "",
+    Array.isArray(docs?.optional) ? "Opsiyonel: " + docs.optional.join(", ") : "",
+    Array.isArray(docs?.warnings) ? "Uyarılar: " + docs.warnings.join("; ") : "",
+  ].filter(Boolean).join("\n");
+  const visa = r.work_permit_and_visa;
+  const vizeText = visa && typeof visa === "object" ? JSON.stringify(visa) : "";
+  const sal = r.salary_and_life_calc as Record<string, unknown> | undefined;
+  const maasText = sal ? [sal.net_salary_estimate, sal.rent_estimate, sal.food_estimate, sal.remaining_estimate].filter(Boolean).join(" · ") : "";
+  const risk = r.risk_assessment;
+  const riskText = Array.isArray(risk?.items) ? risk.items.map((i) => `${i.title ?? ""}: ${i.what_to_do ?? ""}`).join("\n") : (risk?.level ?? "");
+  const fit = r.fit_analysis;
+  const sanaOzel = [...(fit?.strengths ?? []), ...(fit?.gaps ?? [])].join("\n");
+  const plan = r.plan_30_days;
+  const planText = [
+    plan?.week1?.length ? "Hafta 1: " + plan.week1.join("; ") : "",
+    plan?.week2?.length ? "Hafta 2: " + plan.week2.join("; ") : "",
+    plan?.week3?.length ? "Hafta 3: " + plan.week3.join("; ") : "",
+    plan?.week4?.length ? "Hafta 4: " + plan.week4.join("; ") : "",
+  ].filter(Boolean).join("\n");
+  return {
+    summary,
+    top_actions: topActions,
+    rehber,
+    belgeler,
+    vize_izin: vizeText,
+    maas_yasam: maasText,
+    risk: riskText,
+    sana_ozel: sanaOzel,
+    plan_30_gun: planText,
+    score: typeof fit?.score === "number" ? fit.score : undefined,
+  };
+}
+
+function buildReportMd(reportJson: Record<string, unknown>, r: ReportFromGemini): string {
+  const parts = [
+    "# Bu İlan İçin Nasıl Başvururum\n",
+    reportJson.score != null ? `## Uygunluk Skoru: ${reportJson.score}/100\n` : "",
+    `## Özet\n${String(reportJson.summary ?? "")}\n`,
+    Array.isArray(reportJson.top_actions) && reportJson.top_actions.length ? `## Öncelikli 3 Aksiyon\n${reportJson.top_actions.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n")}\n` : "",
+    reportJson.rehber ? "## Bu İşe Nasıl Başvurulur?\n" + reportJson.rehber + "\n" : "",
+    reportJson.belgeler ? "\n## Gerekli Belgeler\n" + reportJson.belgeler + "\n" : "",
+    reportJson.vize_izin ? "\n## Çalışma İzni ve Vize\n" + reportJson.vize_izin + "\n" : "",
+    reportJson.maas_yasam ? "\n## Maaş ve Yaşam\n" + reportJson.maas_yasam + "\n" : "",
+    reportJson.risk ? "\n## Risk Değerlendirmesi\n" + reportJson.risk + "\n" : "",
+    reportJson.sana_ozel ? "\n## Sana Özel Analiz\n" + reportJson.sana_ozel + "\n" : "",
+    reportJson.plan_30_gun ? "\n## 30 Günlük Plan\n" + reportJson.plan_30_gun + "\n" : "",
+  ];
+  return parts.join("");
 }

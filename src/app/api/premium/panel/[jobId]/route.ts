@@ -87,7 +87,7 @@ export async function GET(
       }
     }
 
-    const chatMessages: Array<{ role: "user" | "assistant"; text: string; ts: string; next_questions?: unknown }> = [];
+    const chatMessages: Array<{ role: "user" | "assistant"; text: string; ts: string; next_question?: { text: string; choices?: string[] }; next_questions?: unknown }> = [];
     if (guide) {
       const { data: events } = await auth.supabase
         .from("job_guide_events")
@@ -101,11 +101,12 @@ export async function GET(
             chatMessages.push({ role: "user", text: e.content || "", ts: e.created_at });
           } else if (e.type === "assistant_message") {
             try {
-              const parsed = JSON.parse(e.content || "{}") as { message?: string; next_questions?: unknown };
+              const parsed = JSON.parse(e.content || "{}") as { message?: string; next_question?: { text: string; choices?: string[] }; next_questions?: unknown };
               chatMessages.push({
                 role: "assistant",
                 text: parsed.message ?? e.content ?? "",
                 ts: e.created_at,
+                next_question: parsed.next_question,
                 next_questions: parsed.next_questions,
               });
             } catch {

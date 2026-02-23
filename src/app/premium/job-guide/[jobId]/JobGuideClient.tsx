@@ -26,9 +26,14 @@ type JobGuide = {
   updated_at: string;
 };
 
-type ChatMessage = { role: "user" | "assistant"; text: string; ts?: string; next_questions?: NextQuestion[] };
-type NextQuestion = { id: string; question: string; type: string; options?: string[] };
-type UiHints = { progress_percent?: number; unlock?: string[]; missing_top3?: string[] };
+type NextQuestionSingle = { text: string; choices?: string[] };
+type ChatMessage = {
+  role: "user" | "assistant";
+  text: string;
+  ts?: string;
+  next_question?: NextQuestionSingle;
+  next_questions?: Array<{ id: string; question: string; options?: string[] }>;
+};
 
 function formatRelativeTime(iso: string): string {
   const d = new Date(iso);
@@ -60,21 +65,16 @@ function JobNotFoundShell({ jobId }: { jobId: string }) {
   );
 }
 
-function LoadingShell({ jobId }: { jobId: string }) {
+function LoadingShell() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900">← Başvuru Paneli</Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <h1 className="text-lg font-bold text-slate-900">Premium Başvuru Paneli</h1>
-        <p className="mt-2 text-slate-600">İlan yükleniyor…</p>
-      </main>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+      <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900 mb-4">← Başvuru Paneli</Link>
+      <p className="text-slate-600">İlan yükleniyor…</p>
     </div>
   );
 }
+
+type MobileTab = "sohbet" | "checklist" | "report";
 
 export function JobGuideClient({ jobId }: { jobId: string }) {
   const [job, setJob] = useState<JobSummary | null>(null);
@@ -82,18 +82,17 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [loading, setLoading] = useState(true);
   const [jobLoadError, setJobLoadError] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [nextQuestions, setNextQuestions] = useState<NextQuestion[]>([]);
+  const [nextQuestion, setNextQuestion] = useState<NextQuestionSingle | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [report, setReport] = useState<ReportJson | null>(null);
-  const [uiHints, setUiHints] = useState<UiHints>({});
+  const [checklistSnapshot, setChecklistSnapshot] = useState<{ total: number; done: number; percent: number; missing_top3?: string[] } | null>(null);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
   const [initialChatFetched, setInitialChatFetched] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState<"closed" | "checklist" | "report">("closed");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [reportDrawerOpen, setReportDrawerOpen] = useState(false);
   const [reportUpdating, setReportUpdating] = useState(false);
   const [lastReportUpdate, setLastReportUpdate] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("sohbet");
   const messagesBottomRef = useRef<HTMLDivElement>(null);
 
   const getSession = useCallback(async () => {
@@ -107,10 +106,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setLoading(true);
     setJobLoadError(false);
     setMessages([]);
-    setNextQuestions([]);
+    setNextQuestion(null);
     setAnswers({});
     setReport(null);
-    setUiHints({});
+    setChecklistSnapshot(null);
     setInitialChatFetched(false);
     let cancelled = false;
     const trimmedId = String(jobId).trim();
@@ -134,7 +133,17 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       if (cancelled) return;
 
       if (panelRes.ok) {
-        const data = (await panelRes.json()) as { job: JobSummary; guide: JobGuide; chat_messages?: Array<{ role: "user" | "assistant"; text: string; ts: string; next_questions?: NextQuestion[] }> };
+        const data = (await panelRes.json()) as {
+          job: JobSummary;
+          guide: JobGuide;
+          chat_messages?: Array<{
+            role: "user" | "assistant";
+            text: string;
+            ts: string;
+            next_question?: NextQuestionSingle;
+            next_questions?: unknown;
+          }>;
+        };
         if (cancelled) return;
         setJob(data.job);
         if (data.guide) {
@@ -144,10 +153,20 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
         const chat = data.chat_messages ?? [];
         if (chat.length > 0) {
-          const msgs: ChatMessage[] = chat.map((m) => ({ role: m.role, text: m.text, ts: m.ts, next_questions: m.next_questions }));
+          const msgs: ChatMessage[] = chat.map((m) => ({
+            role: m.role,
+            text: m.text,
+            ts: m.ts,
+            next_question: m.next_question,
+            next_questions: Array.isArray(m.next_questions) ? m.next_questions : undefined,
+          }));
           setMessages(msgs);
           const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
-          if (lastAssistant?.next_questions?.length) setNextQuestions(lastAssistant.next_questions);
+          if (lastAssistant?.next_question) setNextQuestion(lastAssistant.next_question);
+          else if (lastAssistant?.next_questions?.[0]) {
+            const q = lastAssistant.next_questions[0];
+            setNextQuestion({ text: q.question, choices: q.options });
+          }
         }
         setLoading(false);
         return;
@@ -218,15 +237,15 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     return () => { cancelled = true; };
   }, [jobId, getSession]);
 
-  // İlk açılışta sohbet yoksa ilk asistan mesajını al
+  // İlk açılışta __start__ ile ilk asistan mesajını al
   useEffect(() => {
     if (loading || !guide || !job || initialChatFetched || messages.length > 0) return;
     let cancelled = false;
+    setInitialChatFetched(true);
+    setSending(true);
     (async () => {
       const token = await getSession();
       if (!token || cancelled) return;
-      setInitialChatFetched(true);
-      setSending(true);
       try {
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
@@ -234,22 +253,30 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           body: JSON.stringify({
             jobGuideId: guide.id,
             jobPostId: job.id,
+            user_message: "__start__",
             answers_json: guide.answers_json,
-            chat_history: [],
           }),
         });
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok) throw new Error(data.error || "Chat başlatılamadı");
-        const msg: ChatMessage = { role: "assistant", text: data.assistant_message ?? "", next_questions: data.next_questions };
+        const msg: ChatMessage = {
+          role: "assistant",
+          text: data.assistant_message ?? "",
+          next_question: data.next_question ?? undefined,
+        };
         setMessages([msg]);
-        setNextQuestions(Array.isArray(data.next_questions) ? data.next_questions : []);
+        setNextQuestion(data.next_question ?? null);
         if (data.report_json) setReport(data.report_json);
-        if (data.ui_hints && typeof data.ui_hints === "object") setUiHints(data.ui_hints);
-        if (data.answers_json) setGuide((g) => (g ? { ...g, answers_json: data.answers_json } : null));
+        if (data.checklist_snapshot) setChecklistSnapshot(data.checklist_snapshot);
+        if (data.answers_json) {
+          setGuide((g) => (g ? { ...g, answers_json: data.answers_json } : null));
+          setAnswers(answersFromJson(data.answers_json));
+        }
       } catch (e) {
         if (!cancelled) {
           setMessages([{ role: "assistant", text: "Bağlantı hatası. Lütfen tekrar deneyin." }]);
+          setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
         }
       } finally {
         if (!cancelled) setSending(false);
@@ -267,11 +294,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
       const userMsg: ChatMessage = { role: "user", text: trimmed, ts: new Date().toISOString() };
       setMessages((prev) => [...prev, userMsg]);
-      setNextQuestions([]);
+      setNextQuestion(null);
       setInputText("");
       setSending(true);
-
-      const chatHistory = [...messages, userMsg].map((m) => ({ role: m.role, text: m.text }));
 
       try {
         const res = await fetch("/api/job-guide/chat", {
@@ -282,7 +307,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             jobPostId: job.id,
             user_message: trimmed,
             answers_json: guide.answers_json,
-            chat_history: chatHistory.slice(0, -1),
+            chat_history: messages.map((m) => ({ role: m.role, text: m.text })),
           }),
         });
         const data = await res.json();
@@ -292,30 +317,24 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           role: "assistant",
           text: data.assistant_message ?? "",
           ts: new Date().toISOString(),
-          next_questions: data.next_questions,
+          next_question: data.next_question ?? undefined,
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        setNextQuestions(Array.isArray(data.next_questions) ? data.next_questions : []);
+        setNextQuestion(data.next_question ?? null);
         if (data.report_json) setReport(data.report_json);
-        if (data.ui_hints && typeof data.ui_hints === "object") setUiHints(data.ui_hints);
+        if (data.checklist_snapshot) setChecklistSnapshot(data.checklist_snapshot);
         if (data.answers_json) {
           setGuide((g) => (g ? { ...g, answers_json: data.answers_json } : null));
           setAnswers(answersFromJson(data.answers_json));
         }
       } catch (e) {
         setMessages((prev) => [...prev, { role: "assistant", text: "Bir hata oluştu. Lütfen tekrar deneyin." }]);
+        setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
       } finally {
         setSending(false);
       }
     },
     [guide, job, messages, sending, getSession]
-  );
-
-  const handleQuickReply = useCallback(
-    (option: string, questionId: string) => {
-      sendMessage(option);
-    },
-    [sendMessage]
   );
 
   useEffect(() => {
@@ -327,17 +346,17 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     [job]
   );
   const modules = useMemo(() => buildChecklist(jobForChecklist, answers), [jobForChecklist, answers]);
-  const progressFromChecklist = useMemo(() => calcProgress(modules), [modules]);
+  const progress = useMemo(() => calcProgress(modules), [modules]);
   const missingTop3 = useMemo(() => getMissingTop(modules, 3), [modules]);
-  const progressPercent = uiHints.progress_percent ?? progressFromChecklist.pct;
-  const missingLabels = (Array.isArray(uiHints.missing_top3) ? uiHints.missing_top3 : missingTop3).slice(0, 3);
+  const progressPercent = checklistSnapshot?.percent ?? progress.pct;
+  const missingLabels = checklistSnapshot?.missing_top3 ?? missingTop3;
 
   const handleUpdateReport = useCallback(async () => {
     if (!guide || !jobId) return;
     const token = await getSession();
     if (!token) return;
     setReportUpdating(true);
-    const snapshot = { total: progressFromChecklist.total, done: progressFromChecklist.done, percent: progressFromChecklist.pct, missing_top5: getMissingTop(modules, 5) };
+    const snapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top5: getMissingTop(modules, 5) };
     try {
       const res = await fetch("/api/job-guide/update", {
         method: "POST",
@@ -351,7 +370,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     } finally {
       setReportUpdating(false);
     }
-  }, [guide, jobId, getSession, answers, progressFromChecklist, modules]);
+  }, [guide, jobId, getSession, answers, progress, modules]);
 
   const handleSaveReport = useCallback(() => {
     if (!guide) return;
@@ -364,185 +383,282 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         body: JSON.stringify({ jobGuideId: guide.id, status: "completed" }),
       });
     });
-    setSaveStatus("saved");
-    setTimeout(() => setSaveStatus("idle"), 2000);
   }, [guide, getSession]);
 
   if (jobLoadError) return <JobNotFoundShell jobId={jobId} />;
-  if (loading || !job) return <LoadingShell jobId={jobId} />;
+  if (loading || !job) return <LoadingShell />;
 
   const locationLabel = job.location_text ?? "";
   const sourceLabel = job.source_name ?? "";
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header: ilan özeti + ilerleme */}
+      {/* Üst: İlan özeti + ilerleme (tüm ekranlar) */}
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur shrink-0">
-        <div className="mx-auto max-w-4xl px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900">← Başvuru Paneli</Link>
-            <div className="flex items-center gap-2">
-              {saveStatus === "saving" && <span className="text-xs text-slate-500">Kaydediliyor…</span>}
-              {saveStatus === "saved" && <span className="text-xs text-emerald-600">Kaydedildi</span>}
-              <button
-                type="button"
-                onClick={() => setDrawerOpen((d) => (d === "checklist" ? "closed" : "checklist"))}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Kontrol Listesi
-              </button>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen((d) => (d === "report" ? "closed" : "report"))}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Rapor
-              </button>
-            </div>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900 shrink-0">← Başvuru Paneli</Link>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="truncate text-base font-semibold text-slate-900 max-w-[280px] sm:max-w-none" title={job.title ?? ""}>{job.title ?? "—"}</span>
-            {locationLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{locationLabel}</span>}
+            <span className="truncate text-base font-semibold text-slate-900 max-w-[200px] sm:max-w-md" title={job.title ?? ""}>{job.title ?? "—"}</span>
             {sourceLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{sourceLabel}</span>}
+            {locationLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{locationLabel}</span>}
           </div>
           <div className="mt-2 flex items-center gap-3">
             <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%`, background: "linear-gradient(90deg, #2563eb 0%, #22c55e 100%)" }}
+                style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%`, background: "linear-gradient(90deg, #0ea5e9 0%, #22c55e 100%)" }}
               />
             </div>
             <span className="text-sm font-medium text-slate-700 shrink-0">%{progressPercent}</span>
           </div>
           {missingLabels.length > 0 && (
-            <p className="mt-1.5 text-xs text-slate-500">
-              Eksik adımlar: {missingLabels.join(" · ")}
-            </p>
+            <p className="mt-1 text-xs text-slate-500">Bugün bitirmen gereken: {missingLabels.slice(0, 3).join(" · ")}</p>
           )}
+        </div>
+
+        {/* Mobil: Tab bar */}
+        <div className="md:hidden flex border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => setMobileTab("sohbet")}
+            className={`flex-1 py-3 text-sm font-medium ${mobileTab === "sohbet" ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50" : "text-slate-600"}`}
+          >
+            Sohbet
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("checklist")}
+            className={`flex-1 py-3 text-sm font-medium ${mobileTab === "checklist" ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50" : "text-slate-600"}`}
+          >
+            Kontrol Listesi
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("report")}
+            className={`flex-1 py-3 text-sm font-medium ${mobileTab === "report" ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50" : "text-slate-600"}`}
+          >
+            Rapor
+          </button>
         </div>
       </header>
 
-      {/* Ana alan: Sohbet */}
-      <main className="flex-1 overflow-hidden flex flex-col max-w-4xl w-full mx-auto px-4 py-4">
-        <div className="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white min-h-[200px]">
-          <div className="p-4 space-y-4">
-            {messages.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                    m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-900"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{m.text}</p>
-                  {m.role === "assistant" && i === messages.length - 1 && m.next_questions && m.next_questions.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-200/50 flex flex-wrap gap-2">
-                      {m.next_questions.map((q) =>
-                        (q.options ?? []).map((opt) => (
+      {/* Desktop: 3 kolon | Mobil: tek içerik (tab'a göre) */}
+      <div className="flex-1 flex min-h-0">
+        {/* Sol: Kontrol Listesi (sadece desktop) */}
+        <aside className="w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto hidden md:block">
+          <div className="p-4">
+            <h2 className="text-sm font-bold text-slate-900 mb-3">Kontrol Listesi</h2>
+            {job.source_url && (
+              <a href={job.source_url} target="_blank" rel="noreferrer" className="block rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 text-center mb-4">
+                İlana Git
+              </a>
+            )}
+            {modules.map((m) => (
+              <div key={m.id} className="mb-3 rounded-xl border border-slate-200 p-3">
+                <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                  <span>{m.icon}</span> {m.title}
+                </p>
+                <ul className="mt-1.5 space-y-1">
+                  {m.items.slice(0, 3).map((it) => (
+                    <li key={it.id} className="flex items-center justify-between text-xs">
+                      <span className={it.done ? "text-slate-400 line-through" : "text-slate-700"}>{it.label}</span>
+                      <span className={it.done ? "text-green-600" : "text-slate-300"}>✔</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        {/* Mobil checklist tab içeriği */}
+        {mobileTab === "checklist" && (
+          <div className="md:hidden flex-1 overflow-y-auto bg-white p-4">
+            <h2 className="text-base font-bold text-slate-900 mb-3">Kontrol Listesi</h2>
+            {job.source_url && (
+              <a href={job.source_url} target="_blank" rel="noreferrer" className="block rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 text-center mb-4">
+                İlana Git
+              </a>
+            )}
+            {modules.map((m) => (
+              <div key={m.id} className="mb-4 rounded-xl border border-slate-200 p-4">
+                <p className="font-bold text-slate-900 flex items-center gap-2">
+                  <span>{m.icon}</span> {m.title}
+                </p>
+                <ul className="mt-2 space-y-2">
+                  {m.items.map((it) => (
+                    <li key={it.id} className="flex items-center justify-between text-sm">
+                      <span className={it.done ? "text-slate-500 line-through" : "text-slate-800"}>{it.label}</span>
+                      <span className={it.done ? "text-green-600" : "text-slate-300"}>✔</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Orta: Sohbet (desktop her zaman, mobil sadece Sohbet tab'da) */}
+        <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col border-r border-slate-200 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {messages.map((m, i) => (
+                <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
+                    <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+                    {m.role === "assistant" && i === messages.length - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
+                      <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
+                        {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
                           <button
-                            key={`${q.id}-${opt}`}
+                            key={opt}
                             type="button"
-                            onClick={() => handleQuickReply(opt, q.id)}
+                            onClick={() => sendMessage(opt)}
                             disabled={sending}
-                            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                           >
                             {opt}
                           </button>
-                        ))
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
+                </div>
+              )}
+              <div ref={messagesBottomRef} />
+            </div>
+          </div>
+          <div className="p-4 border-t border-slate-200 bg-white">
+            <div className="max-w-2xl mx-auto flex gap-2">
+              <input
+                type="text"
+                placeholder="Mesajınızı yazın..."
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
+                disabled={sending}
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
+              <button
+                type="button"
+                onClick={() => sendMessage(inputText)}
+                disabled={sending || !inputText.trim()}
+                className="rounded-xl bg-sky-600 px-4 py-3 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+              >
+                Gönder
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Mobil: Sohbet tab içeriği */}
+        {mobileTab === "sohbet" && (
+            <div className="md:hidden flex-1 flex flex-col min-h-0 bg-slate-50/50">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((m, i) => (
+                  <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
+                      <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+                      {m.role === "assistant" && i === messages.length - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
+                        <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
+                          {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
+                            <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
+                {sending && (
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
+                  </div>
+                )}
+                <div ref={messagesBottomRef} />
               </div>
-            ))}
-            {sending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-slate-100 px-4 py-2.5 text-sm text-slate-500">Yanıtlanıyor…</div>
+              <div className="p-4 border-t border-slate-200 bg-white flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Mesajınızı yazın..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
+                  disabled={sending}
+                  className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+                <button type="button" onClick={() => sendMessage(inputText)} disabled={sending || !inputText.trim()} className="rounded-xl bg-sky-600 px-4 py-3 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">
+                  Gönder
+                </button>
               </div>
+            </div>
+          )}
+        </section>
+
+        {/* Sağ: İlan bilgisi + Rapor butonu (desktop) | Rapor tab (mobil) */}
+        <aside className="w-72 shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden md:block">
+          <div className="p-4">
+            <h2 className="text-sm font-bold text-slate-900 mb-3">Bu ilan</h2>
+            <p className="text-xs text-slate-500 mb-1">Kaynak</p>
+            <p className="text-sm font-medium text-slate-800">{sourceLabel || "—"}</p>
+            <p className="text-xs text-slate-500 mt-2 mb-1">Konum</p>
+            <p className="text-sm text-slate-700">{locationLabel || "—"}</p>
+            {job.source_url && (
+              <a href={job.source_url} target="_blank" rel="noreferrer" className="mt-4 block w-full rounded-xl bg-slate-800 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">
+                İlana Git
+              </a>
             )}
-            <div ref={messagesBottomRef} />
+            <button
+              type="button"
+              onClick={() => setReportDrawerOpen(true)}
+              className="mt-3 w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Raporu Aç
+            </button>
           </div>
-        </div>
+        </aside>
 
-        {/* Footer: input + gönder + quick reply chips (zaten mesaj içinde) */}
-        <div className="mt-3 flex gap-2">
-          <input
-            type="text"
-            placeholder="Mesajınızı yazın..."
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage(inputText);
-              }
-            }}
-            disabled={sending}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            type="button"
-            onClick={() => sendMessage(inputText)}
-            disabled={sending || !inputText.trim()}
-            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            Gönder
-          </button>
-        </div>
-      </main>
+        {mobileTab === "report" && (
+          <div className="md:hidden flex-1 overflow-y-auto bg-white p-4">
+            <ReportViewer
+              report={report}
+              loading={reportUpdating}
+              onSave={handleSaveReport}
+              onRefresh={handleUpdateReport}
+              lastUpdated={lastReportUpdate ? formatRelativeTime(lastReportUpdate) : null}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* Drawer: Kontrol Listesi veya Rapor (mobil bottom sheet, desktop sağ panel) */}
-      {drawerOpen !== "closed" && (
+      {/* Rapor drawer (desktop) */}
+      {reportDrawerOpen && (
         <>
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setDrawerOpen("closed")} aria-hidden />
-          <aside className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-xl z-50 overflow-y-auto border-l border-slate-200 md:max-w-sm max-md:bottom-0 max-md:top-auto max-md:h-[70vh] max-md:rounded-t-xl max-md:border-t">
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setReportDrawerOpen(false)} aria-hidden />
+          <aside className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto border-l border-slate-200">
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">{drawerOpen === "checklist" ? "Kontrol Listesi" : "Rapor"}</h2>
-              <button type="button" onClick={() => setDrawerOpen("closed")} className="text-slate-500 hover:text-slate-700 text-xl leading-none">×</button>
+              <h2 className="text-lg font-bold text-slate-900">Rapor</h2>
+              <button type="button" onClick={() => setReportDrawerOpen(false)} className="text-slate-500 hover:text-slate-700 text-xl leading-none">×</button>
             </div>
             <div className="p-4">
-              {drawerOpen === "checklist" && (
-                <ChecklistDrawerContent modules={modules} job={job} />
-              )}
-              {drawerOpen === "report" && (
-                <ReportViewer
-                  report={report}
-                  loading={reportUpdating}
-                  onSave={handleSaveReport}
-                  onRefresh={handleUpdateReport}
-                  lastUpdated={lastReportUpdate ? formatRelativeTime(lastReportUpdate) : null}
-                />
-              )}
+              <ReportViewer
+                report={report}
+                loading={reportUpdating}
+                onSave={handleSaveReport}
+                onRefresh={handleUpdateReport}
+                lastUpdated={lastReportUpdate ? formatRelativeTime(lastReportUpdate) : null}
+              />
             </div>
           </aside>
         </>
       )}
-    </div>
-  );
-}
-
-function ChecklistDrawerContent({ modules, job }: { modules: ChecklistModule[]; job: JobSummary }) {
-  return (
-    <div className="space-y-4">
-      {job.source_url && (
-        <a href={job.source_url} target="_blank" rel="noreferrer" className="block rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 text-center">
-          İlana Git
-        </a>
-      )}
-      {modules.map((m) => (
-        <div key={m.id} className="rounded-xl border border-slate-200 p-3">
-          <p className="font-bold text-slate-900 flex items-center gap-2">
-            <span>{m.icon}</span> {m.title}
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {m.items.map((it) => (
-              <li key={it.id} className="flex items-center justify-between text-sm">
-                <span className={it.done ? "text-slate-500 line-through" : "text-slate-800"}>{it.label}</span>
-                <span className={it.done ? "text-green-600" : "text-slate-300"}>✔</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
     </div>
   );
 }
