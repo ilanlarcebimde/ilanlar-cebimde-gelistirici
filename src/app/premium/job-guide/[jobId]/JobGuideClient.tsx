@@ -83,6 +83,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [jobLoadError, setJobLoadError] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [nextQuestion, setNextQuestion] = useState<NextQuestionSingle | null>(null);
+  const [lastAskId, setLastAskId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [report, setReport] = useState<ReportJson | null>(null);
   const [checklistSnapshot, setChecklistSnapshot] = useState<{ total: number; done: number; percent: number; missing_top3?: string[] } | null>(null);
@@ -108,6 +109,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setJobLoadError(false);
     setMessages([]);
     setNextQuestion(null);
+    setLastAskId(null);
     setAnswers({});
     setReport(null);
     setChecklistSnapshot(null);
@@ -283,6 +285,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         const nextQ: NextQuestionSingle | null = ask
           ? { text: ask.question ?? "", choices: ask.choices }
           : (d.next_question ?? null);
+        if (ask?.id) setLastAskId(ask.id);
         const msg: ChatMessage = {
           role: "assistant",
           text,
@@ -341,6 +344,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             jobPostId: job.id,
             mode: "chat",
             message_text: trimmed,
+            last_ask_id: lastAskId ?? undefined,
             answers_json: guide.answers_json,
             chat_history: messages.map((m) => ({ role: m.role, text: m.text })),
           }),
@@ -370,6 +374,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           ts: new Date().toISOString(),
           next_question: nextQ ?? undefined,
         };
+        if (ask?.id) setLastAskId(ask.id);
         setMessages((prev) => [...prev, assistantMsg]);
         setNextQuestion(nextQ);
         if (d.report_json) setReport(d.report_json);
@@ -392,7 +397,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setReportUpdating(false);
       }
     },
-    [guide, job, messages, sending, getSession]
+    [guide, job, messages, sending, lastAskId, getSession]
   );
 
   useEffect(() => {
@@ -591,7 +596,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                 </div>
               ))}
               {sending && (
-                <div className="flex justify-start">
+                <div className="flex justify-start pointer-events-none" aria-hidden>
                   <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
                 </div>
               )}
@@ -599,7 +604,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             </div>
           </div>
           <div className="shrink-0 p-4 border-t border-slate-200 bg-white">
-            <div className="max-w-2xl mx-auto flex gap-2">
+            <form
+              className="max-w-2xl mx-auto flex gap-2"
+              onSubmit={(e) => { e.preventDefault(); sendMessage(inputText); }}
+            >
               <input
                 type="text"
                 placeholder="Mesajınızı yazın..."
@@ -608,16 +616,16 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
                 disabled={sending}
                 className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                aria-label="Mesaj"
               />
               <button
-                type="button"
-                onClick={() => sendMessage(inputText)}
+                type="submit"
                 disabled={sending || !inputText.trim()}
                 className="rounded-xl bg-sky-600 px-4 py-3 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
               >
                 Gönder
               </button>
-            </div>
+            </form>
           </div>
         </section>
 
@@ -642,13 +650,16 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   </div>
                 ))}
                 {sending && (
-                  <div className="flex justify-start">
+                  <div className="flex justify-start pointer-events-none" aria-hidden>
                     <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
                   </div>
                 )}
                 <div ref={messagesBottomRef} />
               </div>
-              <div className="shrink-0 p-4 border-t border-slate-200 bg-white flex gap-2">
+              <form
+                className="shrink-0 p-4 border-t border-slate-200 bg-white flex gap-2"
+                onSubmit={(e) => { e.preventDefault(); sendMessage(inputText); }}
+              >
                 <input
                   type="text"
                   placeholder="Mesajınızı yazın..."
@@ -657,11 +668,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
                   disabled={sending}
                   className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  aria-label="Mesaj"
                 />
-                <button type="button" onClick={() => sendMessage(inputText)} disabled={sending || !inputText.trim()} className="rounded-xl bg-sky-600 px-4 py-3 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">
+                <button type="submit" disabled={sending || !inputText.trim()} className="rounded-xl bg-sky-600 px-4 py-3 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">
                   Gönder
                 </button>
-              </div>
+              </form>
             </div>
         )}
 

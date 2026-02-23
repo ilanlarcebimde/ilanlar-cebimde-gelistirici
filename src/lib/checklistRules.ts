@@ -1,6 +1,6 @@
 /**
- * Deterministik checklist (API ve client tarafında kullanılır).
- * answers'a göre anlık güncellenir.
+ * Kaynak odaklı checklist: 3 modül (SOURCE_APPLY, ACCOUNT_PROFILE, DOCUMENTS).
+ * Sadece kaynak + ilan metninde anlamlı adımlar; ✔ sadece kullanıcı mesajından.
  */
 
 export type Answers = {
@@ -10,6 +10,14 @@ export type Answers = {
   profession?: string;
   experience?: "0-1" | "2-4" | "5+";
   barrier?: "yok" | "var";
+  // Kaynak adımları – sadece kullanıcı onayı ile done
+  has_eu_login?: "var" | "yok";
+  has_glassdoor_account?: "var" | "yok";
+  source_apply_opened?: "var" | "yok";   // How to apply / Başvuru bölümünü açtım
+  source_apply_started?: "var" | "yok";  // Apply adımına geldim / başvuru akışını başlattım
+  source_apply_done?: "var" | "yok";     // Başvuruyu tamamladım
+  profile_complete?: "var" | "yok";       // Profil bilgilerim tam
+  cv_uploaded?: "var" | "yok";          // CV yükledim (ilan istiyorsa)
 };
 
 export type ChecklistItem = { id: string; label: string; done: boolean; hint?: string };
@@ -24,96 +32,105 @@ export type JobForChecklist = {
   snippet?: string | null;
 } | null;
 
-export function buildChecklist(job: JobForChecklist, answers: Answers): ChecklistModule[] {
-  const passportDone = answers.passport === "var";
-  const passportInProgress = answers.passport === "basvurdum";
-  const cvDone = answers.cv === "var";
+function sourceKey(job: JobForChecklist): "eures" | "glassdoor" | "linkedin" | "default" {
+  const name = (job?.source_name ?? "").toLowerCase();
+  if (name.includes("eures")) return "eures";
+  if (name.includes("glassdoor")) return "glassdoor";
+  if (name.includes("linkedin")) return "linkedin";
+  return "default";
+}
 
-  const modules: ChecklistModule[] = [
-    {
-      id: "passport",
-      title: "Pasaport & Kimlik",
-      icon: "🛂",
+/** Done sadece kullanıcı cevabıyla; ilan metninde yoksa madde yok. 3 modül: Kaynakta Başvuru, Hesap & Profil, CV/Belgeler. */
+export function buildChecklist(job: JobForChecklist, answers: Answers): ChecklistModule[] {
+  const src = sourceKey(job);
+  const modules: ChecklistModule[] = [];
+
+  // 1) SOURCE_APPLY – Kaynakta Başvuru (zorunlu)
+  const applyOpened = answers.source_apply_opened === "var";
+  const applyStarted = answers.source_apply_started === "var";
+  const applyDone = answers.source_apply_done === "var";
+  if (src === "eures") {
+    modules.push({
+      id: "source_apply",
+      title: "Kaynakta Başvuru",
+      icon: "📋",
       items: [
-        { id: "p1", label: "Pasaport var", done: passportDone, hint: passportInProgress ? "Başvurduysan takip et" : "Yoksa ilk adım pasaport" },
-        { id: "p2", label: "Süre yeterli (en az 6 ay)", done: passportDone },
-        { id: "p3", label: "En az 2 boş sayfa", done: passportDone },
-        { id: "p4", label: "Biyometrik foto hazır", done: passportDone || passportInProgress },
-        { id: "p5", label: "Nüfus kaydı / kimlik hazır", done: passportDone || passportInProgress },
+        { id: "sa1", label: "EURES sayfasında 'How to apply / Başvuru' bölümünü açtım", done: applyOpened },
+        { id: "sa2", label: "'Apply / Başvur' adımına geldim", done: applyStarted },
+        { id: "sa3", label: "Başvuruyu tamamladım veya başvuru kanalını not aldım", done: applyDone },
       ],
-    },
-    {
-      id: "cv",
-      title: "CV & Belgeler",
-      icon: "📄",
+    });
+  } else if (src === "glassdoor") {
+    modules.push({
+      id: "source_apply",
+      title: "Kaynakta Başvuru",
+      icon: "📋",
       items: [
-        { id: "c1", label: "CV hazır", done: cvDone },
-        { id: "c2", label: "CV dili uygun", done: cvDone },
-        { id: "c3", label: "Deneyim maddeleri net", done: cvDone },
-        { id: "c4", label: "Referans eklendi", done: cvDone },
-        { id: "c5", label: "Sertifika eklendi (varsa)", done: false },
-        { id: "c6", label: "Sabıka kaydı planlandı", done: false },
+        { id: "sa1", label: "Glassdoor ilan sayfasına geldim", done: applyOpened },
+        { id: "sa2", label: "'Apply / Sign in to apply' ekranını gördüm", done: applyStarted },
+        { id: "sa3", label: "Başvuru akışını başlattım", done: applyDone },
       ],
-    },
-    {
-      id: "visa",
-      title: "Vize & Çalışma İzni",
-      icon: "🌍",
+    });
+  } else {
+    modules.push({
+      id: "source_apply",
+      title: "Kaynakta Başvuru",
+      icon: "📋",
       items: [
-        { id: "v1", label: "Sponsor gerekliliği kontrol edildi", done: false },
-        { id: "v2", label: "İşveren başvurusu netleşti", done: false },
-        { id: "v3", label: "Ortalama süre biliniyor", done: false },
-        { id: "v4", label: "Randevu / takip planı hazır", done: false },
+        { id: "sa1", label: "İlan sayfasında başvuru bölümünü açtım", done: applyOpened },
+        { id: "sa2", label: "Başvuru adımına geldim", done: applyStarted },
+        { id: "sa3", label: "Başvuruyu tamamladım veya kanalı not aldım", done: applyDone },
       ],
-    },
-    {
-      id: "salary",
-      title: "Maaş & Yaşam Hesabı",
-      icon: "💰",
+    });
+  }
+
+  // 2) ACCOUNT_PROFILE – Hesap & Profil (kaynağa bağlı)
+  const hasEulogin = answers.has_eu_login === "var";
+  const hasGlassdoor = answers.has_glassdoor_account === "var";
+  const profileOk = answers.profile_complete === "var";
+  if (src === "eures") {
+    modules.push({
+      id: "account_profile",
+      title: "Hesap & Profil",
+      icon: "👤",
       items: [
-        { id: "s1", label: "Net maaş hesaplandı", done: false },
-        { id: "s2", label: "Kira tahmini", done: false },
-        { id: "s3", label: "Gıda tahmini", done: false },
-        { id: "s4", label: "Ulaşım tahmini", done: false },
-        { id: "s5", label: "Aylık kalan hesaplandı", done: false },
+        { id: "ap1", label: "EU Login ile giriş yaptım / hesabım var", done: hasEulogin },
+        { id: "ap2", label: "Profil bilgilerim (ad, iletişim) tam", done: profileOk },
       ],
-    },
-    {
-      id: "risk",
-      title: "Risk Değerlendirmesi",
-      icon: "⚠️",
+    });
+  } else if (src === "glassdoor") {
+    modules.push({
+      id: "account_profile",
+      title: "Hesap & Profil",
+      icon: "👤",
       items: [
-        { id: "r1", label: "Dolandırıcılık kontrolü", done: false },
-        { id: "r2", label: "Dil riski değerlendirildi", done: false },
-        { id: "r3", label: "Sponsor riski değerlendirildi", done: false },
-        { id: "r4", label: "Fiziksel iş riski not edildi", done: false },
+        { id: "ap1", label: "Glassdoor hesabı açtım / giriş yaptım", done: hasGlassdoor },
+        { id: "ap2", label: "Profil bilgilerim tam", done: profileOk },
       ],
-    },
-    {
-      id: "fit",
-      title: "Sana Uygunluk",
-      icon: "🎯",
+    });
+  } else {
+    modules.push({
+      id: "account_profile",
+      title: "Hesap & Profil",
+      icon: "👤",
       items: [
-        { id: "f1", label: "Meslek uyumu", done: !!answers.profession },
-        { id: "f2", label: "Deneyim uyumu", done: !!answers.experience },
-        { id: "f3", label: "Dil uyumu", done: !!answers.language },
+        { id: "ap1", label: "Platform hesabım var / giriş yaptım", done: hasEulogin || hasGlassdoor || profileOk },
+        { id: "ap2", label: "Profil bilgilerim tam", done: profileOk },
       ],
-    },
-    {
-      id: "plan",
-      title: "30 Gün Yol Haritası",
-      icon: "🗓",
-      items: [
-        { id: "pl1", label: "1. Hafta: CV tamamla", done: cvDone },
-        { id: "pl2", label: "1. Hafta: Pasaport kontrol", done: passportDone || passportInProgress },
-        { id: "pl3", label: "2. Hafta: 10 ilana başvur", done: false },
-        { id: "pl4", label: "2. Hafta: Referans topla", done: false },
-        { id: "pl5", label: "3. Hafta: Sertifikaları hazırla", done: false },
-        { id: "pl6", label: "3. Hafta: Sponsorlu ilanları filtrele", done: false },
-        { id: "pl7", label: "4. Hafta: Görüşme hazırlığı", done: false },
-      ],
-    },
-  ];
+    });
+  }
+
+  // 3) DOCUMENTS – CV/Belgeler (ilan metninde isteniyorsa; yoksa minimal)
+  const cvDone = answers.cv === "var" || answers.cv_uploaded === "var";
+  modules.push({
+    id: "documents",
+    title: "CV & Belgeler",
+    icon: "📄",
+    items: [
+      { id: "d1", label: "CV hazır (PDF)", done: cvDone },
+      { id: "d2", label: "İlanda istenen ek belge(ler) hazır (ilan metninde belirtiliyorsa)", done: false },
+    ],
+  });
 
   return modules;
 }
@@ -125,6 +142,7 @@ export function calcProgress(modules: ChecklistModule[]): { total: number; done:
   return { total, done, pct };
 }
 
+/** Kaynak modülündeki ilk yapılmamış adımlar – "Bugün bitirmen gereken" için (kaynak odaklı). */
 export function getMissingTop(modules: ChecklistModule[], n: number): string[] {
   const labels: string[] = [];
   for (const m of modules) {
@@ -139,7 +157,6 @@ function normalizeEnum(v: unknown): unknown {
   if (typeof v === "string") return v.toLowerCase().trim();
   return v;
 }
-
 function asPassport(v: unknown): Answers["passport"] {
   if (v === "var" || v === "basvurdum" || v === "yok") return v;
   return undefined;
@@ -160,6 +177,10 @@ function asBarrier(v: unknown): Answers["barrier"] {
   if (v === "yok" || v === "var") return v;
   return undefined;
 }
+function asVarYok(v: unknown): "var" | "yok" | undefined {
+  if (v === "var" || v === "yok") return v;
+  return undefined;
+}
 
 export function answersFromJson(json: Record<string, unknown>): Answers {
   return {
@@ -169,5 +190,12 @@ export function answersFromJson(json: Record<string, unknown>): Answers {
     profession: typeof json.profession === "string" ? json.profession.trim() || undefined : undefined,
     experience: asExp(json.experience),
     barrier: asBarrier(normalizeEnum(json.barrier)),
+    has_eu_login: asVarYok(normalizeEnum(json.has_eu_login)),
+    has_glassdoor_account: asVarYok(normalizeEnum(json.has_glassdoor_account)),
+    source_apply_opened: asVarYok(normalizeEnum(json.source_apply_opened)),
+    source_apply_started: asVarYok(normalizeEnum(json.source_apply_started)),
+    source_apply_done: asVarYok(normalizeEnum(json.source_apply_done)),
+    profile_complete: asVarYok(normalizeEnum(json.profile_complete)),
+    cv_uploaded: asVarYok(normalizeEnum(json.cv_uploaded)),
   };
 }
