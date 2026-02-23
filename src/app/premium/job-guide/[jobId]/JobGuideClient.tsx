@@ -240,7 +240,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     return () => { cancelled = true; };
   }, [jobId, getSession]);
 
-  // İlk açılışta bootstrap ile ilk asistan mesajını al (10s'de açılır, 25s abort)
+  // Bootstrap: sending=true kullanıyoruz ama "Yanıtlanıyor…" sadece kullanıcı mesajı sonrası gösterilecek (aşağıda koşul)
   useEffect(() => {
     if (loading || !guide || !job || initialChatFetched || messages.length > 0) return;
     let cancelled = false;
@@ -277,7 +277,14 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         clearTimeout(timeoutId);
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
-        if (!res.ok) throw new Error((data as { error?: string; detail?: string }).detail ?? (data as { error?: string }).error ?? "Chat başlatılamadı");
+        if (!res.ok) {
+          const errMsg = (data as { error?: string })?.error === "Unauthorized"
+            ? "Oturum süren dolmuş olabilir. Lütfen tekrar giriş yap."
+            : (data as { detail?: string; error?: string })?.detail ?? (data as { error?: string })?.error ?? "Chat başlatılamadı";
+          setMessages([{ role: "assistant", text: `⚠️ ${errMsg}` }]);
+          setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+          return;
+        }
         // Yeni şema (assistant/state_patch) veya eski alanlar
         const d = data as {
           assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[] } };
@@ -338,7 +345,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       const trimmed = text.trim();
       if (!trimmed || !guide || !job || sending) return;
       const token = await getSession();
-      if (!token) return;
+      if (!token) {
+        setMessages((prev) => [...prev, { role: "assistant", text: "⚠️ Giriş bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin." }]);
+        return;
+      }
 
       const userMsg: ChatMessage = { role: "user", text: trimmed, ts: new Date().toISOString() };
       setMessages((prev) => [...prev, userMsg]);
@@ -350,6 +360,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       const timeoutId = setTimeout(() => controller.abort(), 25000);
       const safetyId = setTimeout(() => setSending(false), 30000);
       try {
+        if (typeof window !== "undefined") console.log("CHAT_SEND", { jobGuideId: guide.id, jobPostId: job.id });
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -366,8 +377,20 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         });
         clearTimeout(timeoutId);
         clearTimeout(safetyId);
+        if (typeof window !== "undefined") console.log("CHAT_RES", res.status);
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((data as { detail?: string; error?: string }).detail ?? (data as { error?: string }).error ?? "Gönderilemedi");
+
+        if (!res.ok) {
+          const errMsg =
+            (data as { error?: string })?.error === "Unauthorized"
+              ? "Oturum süren dolmuş olabilir. Lütfen tekrar giriş yap."
+              : (data as { error?: string })?.error === "gemini_not_configured"
+                ? "AI yapılandırılmamış (GEMINI_API_KEY eksik)."
+                : (data as { detail?: string; error?: string })?.detail ?? (data as { error?: string })?.error ?? "Bir hata oluştu. Tekrar deneyin.";
+          setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${errMsg}` }]);
+          setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+          return;
+        }
 
         const d = data as {
           assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[] } };
@@ -385,7 +408,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           : (d.next_question ?? null);
         const assistantMsg: ChatMessage = {
           role: "assistant",
-          text,
+          text: text || "Tamam. Devam edelim.",
           ts: new Date().toISOString(),
           next_question: nextQ ?? undefined,
         };
@@ -405,8 +428,14 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       } catch (e) {
         clearTimeout(timeoutId);
         clearTimeout(safetyId);
-        const isAbort = e instanceof Error && e.name === "AbortError";
-        setMessages((prev) => [...prev, { role: "assistant", text: isAbort ? "Yanıt gecikiyor. Sayfayı yenileyin veya tekrar yazın." : "Bir hata oluştu. Sayfayı yenileyip tekrar deneyin." }]);
+        if (typeof window !== "undefined") console.error("CHAT_ERR", e);
+        const msg =
+          e instanceof Error && e.message === "NO_TOKEN"
+            ? "Giriş bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin."
+            : e instanceof Error && e.name === "AbortError"
+              ? "Yanıt gecikiyor. Sayfayı yenileyin veya tekrar yazın."
+              : "Bağlantı sorunu oldu. Tekrar dener misin?";
+        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
         setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
       } finally {
         clearTimeout(safetyId);
@@ -618,7 +647,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   </div>
                 </div>
               ))}
-              {sending && (
+              {sending && messages.length > 0 && messages[messages.length - 1].role === "user" && (
                 <div className="flex justify-start pointer-events-none" aria-hidden>
                   <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
                 </div>
@@ -671,7 +700,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                     </div>
                   </div>
                 ))}
-                {sending && (
+                {sending && messages.length > 0 && messages[messages.length - 1].role === "user" && (
                   <div className="flex justify-start pointer-events-none" aria-hidden>
                     <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
                   </div>

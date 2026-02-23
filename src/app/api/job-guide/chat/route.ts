@@ -344,7 +344,7 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
     try {
       parsed = extractJson(rawText) as typeof parsed;
     } catch (parseErr) {
-      // JSON parse fail: event'e yaz ki UI'da görünsün / debug edilebilsin
+      // Parse fail: 500 dönme, 200 + fallback dön ki UI takılmasın
       const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
       try {
         await auth.supabase.from("job_guide_events").insert({
@@ -355,10 +355,29 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
       } catch {
         /* event yazılamazsa devam et */
       }
-      return NextResponse.json(
-        { error: "gemini_parse_failed", detail: "Yanıt işlenemedi. Lütfen tekrar deneyin." },
-        { status: 500 }
-      );
+      const fallbackMessage = "Şu an AI yanıtını işleyemedim. Yine de devam edelim: İlan sayfasında 'How to apply' veya 'Başvuru' bölümünü görüyor musun?";
+      const fallbackQuestion: NextQuestionOut = { text: "İlan sayfasında başvuru bölümünü görüyor musun?", choices: ["Evet", "Hayır", "Emin değilim"] };
+      const fallbackAssistant = {
+        message_md: fallbackMessage,
+        quick_replies: fallbackQuestion.choices ?? [],
+        ask: { id: "fallback_seen", question: fallbackQuestion.text, type: "choice" as const, choices: fallbackQuestion.choices ?? ["Evet", "Hayır", "Emin değilim"] },
+      };
+      const fallbackStatePatch = {
+        answers_patch: {} as Record<string, unknown>,
+        checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
+        progress: { total: progress.total, done: progress.done, percent: progress.pct },
+      };
+      return NextResponse.json({
+        assistant_message: fallbackMessage,
+        next_question: fallbackQuestion,
+        report_json: {},
+        report_md: null,
+        checklist_snapshot: checklistSnapshot,
+        answers_json: mergedAnswers,
+        assistant: fallbackAssistant,
+        state_patch: fallbackStatePatch,
+        next: { should_finalize: false, reason: "" },
+      });
     }
 
     let assistantMessage = typeof parsed.assistant_message === "string" ? parsed.assistant_message : "";
