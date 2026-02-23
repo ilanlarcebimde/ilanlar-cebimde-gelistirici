@@ -15,7 +15,7 @@ export type ReportJson = {
 };
 
 const TABS = [
-  { id: "rehber", label: "Rehber", key: "rehber" as keyof ReportJson },
+  { id: "rehber", label: "Nasıl Başvururum", key: "rehber" as keyof ReportJson },
   { id: "belgeler", label: "Belgeler", key: "belgeler" as keyof ReportJson },
   { id: "vize", label: "Vize/İzin", key: "vize_izin" as keyof ReportJson },
   { id: "maas", label: "Maaş/Yaşam", key: "maas_yasam" as keyof ReportJson },
@@ -63,9 +63,9 @@ export function ReportViewer({
   if (!report) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">🔒 Bu İlan İçin Başvuru Rehberi</h2>
+        <h2 className="text-lg font-bold text-slate-900">Bu İlan İçin Nasıl Başvururum</h2>
         <p className="mt-4 text-sm text-slate-600">
-          Soru-cevap asistanına cevap verip &quot;Raporu Güncelle&quot; butonuna tıklayarak kişiselleştirilmiş rehberi oluşturun.
+          Ülke, ilan başlığı ve kaynağa göre adım adım rehber oluşturulur. Soruları cevaplayıp &quot;Raporu Güncelle&quot; ile kişiselleştirin.
         </p>
       </div>
     );
@@ -79,7 +79,7 @@ export function ReportViewer({
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-bold text-slate-900">🔒 Bu İlan İçin Başvuru Rehberi</h2>
+        <h2 className="text-base font-bold text-slate-900">Bu İlan İçin Nasıl Başvururum</h2>
         <div className="flex items-center gap-2">
           {lastUpdated && (
             <span className="text-xs text-slate-500">Son güncelleme: {lastUpdated}</span>

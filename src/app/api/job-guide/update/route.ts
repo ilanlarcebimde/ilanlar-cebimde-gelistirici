@@ -169,16 +169,16 @@ export async function POST(req: NextRequest) {
       `Başlık: ${jobPost.title ?? ""}`,
       `Pozisyon: ${jobPost.position_text ?? ""}`,
       `Konum: ${jobPost.location_text ?? ""}`,
-      `Ülke (inferred): ${country}`,
-      `Kaynak: ${jobPost.source_name ?? ""}`,
+      `Ülke: ${country}`,
+      `İlan kaynağı (başvuru adımları buna göre üretilecek): ${jobPost.source_name ?? "belirtilmedi"}`,
       `Özet: ${jobPost.snippet ?? ""}`,
     ].join("\n");
 
-    const system = `Sen, "yurtdışı iş başvuru asistanı"sın. Kullanıcının eğitim seviyesi düşük olabilir. Kısa, net, adım adım yaz.
-Asla uzun paragraf yazma. Her bölümde madde madde ilerle.
+    const system = `Sen, "yurtdışı iş başvuru asistanı"sın. Analizi SADECE ilandaki verilerden üret: ülke, ilan başlığı, konum, ilan kaynağı (EURES, şirket sitesi vb.) ve kullanıcı cevapları. Kullanıcıyı dış bir URL'ye yönlendirme; tüm "Nasıl başvururum" bilgisini bu ilana özel, adım adım, basit ve anlaşılır metin olarak yaz.
+Kullanıcının eğitim seviyesi düşük olabilir. Kısa, net, madde madde yaz. Uzun paragraf yazma.
 Uydurma bilgi yazma. İlan verisinde olmayan şeylere "İlan metninde belirtilmiyor" de.
 
-Girdi: job_post, user_answers, checklist_snapshot.
+Girdi: job_post (başlık, konum, ülke, kaynak, özet), user_answers, checklist_snapshot.
 
 ÇIKTI: SADECE JSON DÖNDÜR. Başka hiçbir metin yazma.
 
@@ -195,12 +195,11 @@ JSON ŞEMASI (zorunlu):
 }
 
 Kurallar:
-- score 0-100 arası integer olsun (fit_analysis.score).
-- Pasaport "yok" ise top_actions 1. madde mutlaka pasaport randevusu olsun.
-- Dil seviyesi "hic/a1/a2" ise risk_assessment içinde "Dil riski" mutlaka olsun.
-- İlan kaynağı EURES gibi platform ise where_to_apply buna göre yaz.
-- Maaş/kira tahminleri için kesin rakam uydurma; aralık veya "tahmini" ibaresi kullan.
-- Emoji JSON içine koyma.`;
+- how_to_apply.steps: Bu ilanın ülkesi, başlığı ve kaynağına göre (EURES, şirket portalı vb.) gerçek başvuru adımlarını numaralı yaz. Link verme; "X sitesine gir, Y bölümüne tıkla" gibi net adımlar yaz.
+- where_to_apply: İlan kaynağına göre nereye başvurulacağını kısaca yaz (site/platform adı, "İlan metninde belirtilmiyor" vb.).
+- score 0-100 arası integer (fit_analysis.score). Pasaport "yok" ise top_actions 1. madde pasaport randevusu olsun.
+- Dil seviyesi "hic/a1/a2" ise risk_assessment içinde "Dil riski" olsun.
+- Maaş/kira için kesin rakam uydurma; aralık veya "tahmini" kullan. Emoji JSON içine koyma.`;
 
     const userPrompt = `job_post:\n${jobContent}\n\nuser_answers:\n${JSON.stringify(answersJson, null, 2)}\n\nchecklist_snapshot:\n${JSON.stringify(checklistSnapshot, null, 2)}`;
 
@@ -261,7 +260,7 @@ Kurallar:
     };
 
     const reportMd = [
-      "# Bu İlan İçin Başvuru Rehberi\n",
+      "# Bu İlan İçin Nasıl Başvururum\n",
       score != null ? `## Uygunluk Skoru: ${score}/100\n` : "",
       `## Özet\n${String(reportJson.summary ?? "")}\n`,
       `## Öncelikli 3 Aksiyon\n${topActions.map((a, i) => `${i + 1}. ${a}`).join("\n")}\n`,
