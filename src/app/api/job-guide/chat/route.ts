@@ -186,9 +186,13 @@ type ReportFromGemini = {
 };
 
 export async function POST(req: NextRequest) {
+  const hasAuth = !!req.headers.get("authorization");
   try {
     const auth = await getUserFromRequest(req);
-    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth) {
+      console.log("[job-guide/chat] hit", { hasAuth, status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     let body: {
       jobGuideId?: string;
@@ -214,6 +218,7 @@ export async function POST(req: NextRequest) {
     // bootstrap = ilk asistan mesajı; chat = kullanıcı cevabı sonrası
     const isBootstrap = mode === "bootstrap" || user_message === "__start__" || (typeof user_message === "string" && !user_message.trim());
     const rawUserText = (typeof message_text === "string" ? message_text : typeof user_message === "string" ? user_message : "").trim();
+    console.log("[job-guide/chat] body", { hasMessage: !!rawUserText, jobGuideId, jobPostId, mode: body.mode, isBootstrap });
     const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
     const mergedAnswers = { ...answers_json, ...normalizedPatch };
 
@@ -335,34 +340,33 @@ export async function POST(req: NextRequest) {
     const system = `Sen yurtdışı iş başvuru asistanısın. Kullanıcı lise mezunu/usta profiline uygun; kısa, net, madde madde (en fazla 5-8 madde) yaz.
 
 KRİTİK - next_question ZORUNLU: Her yanıtta tam 1 soru dön. Format: { "text": "Soru metni", "choices": ["Var", "Yok", "Emin değilim"] }. Asla boş bırakma.
-KRİTİK - checklist_patch: Cevaba göre ilgili maddeyi işaretle. Örn. kullanıcı "Var" derse answers_patch ve raporla uyumlu checklist_patch ver.
+answers_patch: Kullanıcı cevabına göre (örn. "Var" → ilgili alanı doldur).
 
-USTALIK BELGESİ: Meslek/pozisyon (aşçı, kaynakçı, elektrikçi, forklift vb.) belli olduktan sonra mutlaka sor: "Ustalık belgesi / mesleki yeterlilik belgen var mı?" options: ["Var", "Yok", "Emin değilim"]. Yoksa kısa bilgilendir: "Başvuru yine yapılır; bazı işverenler belge isteyebilir. Yapabileceğin: (1) sertifika/ustalık planı (2) deneyimi CV'de + referans ile kanıtlamak."
+USTALIK BELGESİ: Meslek/pozisyon belli olduktan sonra mutlaka sor: "Ustalık belgesi / mesleki yeterlilik belgen var mı?" options: ["Var", "Yok", "Emin değilim"].
 YouTube: Link uydurma. "YouTube'da şunu arat: [ifade]" şeklinde yönlendir.
 Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
 
-ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok. next_question ve answers_patch zorunlu.
+ÇIKTI: SADECE aşağıdaki JSON. Başka metin yok. next_question ve answers_patch zorunlu. report isteğe bağlı (kısa özet yeterli).
 {
   "assistant_message": "string (Türkçe, 5-8 madde)",
   "next_question": { "text": "Tek soru metni - ZORUNLU", "choices": ["Seçenek1", "Seçenek2", "Seçenek3"] },
   "answers_patch": {},
-  "report": {
-    "summary": { "one_liner": "string", "top_actions": ["string","string","string"] },
-    "how_to_apply": { "steps": ["string","string","string","string"], "where_to_apply": "string", "notes": ["string"] },
-    "documents": { "required": ["string"], "optional": ["string"], "warnings": ["string"] },
-    "work_permit_and_visa": { "sponsor_needed": "yes|no|unknown", "process_owner": "employer|candidate|unknown", "estimated_duration": "string", "risk_points": ["string"] },
-    "salary_and_life_calc": { "currency": "string", "net_salary_estimate": "string", "rent_estimate": "string", "food_estimate": "string", "transport_estimate": "string", "remaining_estimate": "string", "assumptions": ["string"] },
-    "risk_assessment": { "level": "low|medium|high", "items": [ { "title": "string", "level": "low|medium|high", "why": "string", "what_to_do": "string" } ] },
-    "fit_analysis": { "score": 0-100, "strengths": ["string"], "gaps": ["string"] },
-    "plan_30_days": { "week1": ["string"], "week2": ["string"], "week3": ["string"], "week4": ["string"] }
-  }
+  "report": { "summary": { "one_liner": "string", "top_actions": ["string","string"] }, "how_to_apply": { "steps": ["string","string","string"], "notes": ["string"] } }
 }`;
 
     const userPrompt = isBootstrap
       ? `__start__ (ilk mesaj). Bu ilan için kaynak yönlendirmesi yap (${sourceName || "kaynak"}). Sonra MUTLAKA next_question ile tek bir soru sor (örn: "GLASSDOOR hesabın var mı?" veya "Pasaportun var mı?"). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(mergedAnswers)}\n\nYanıtında next_question objesini mutlaka doldur.`
       : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(mergedAnswers)}\n\nchecklist_snapshot: ${JSON.stringify(checklistSnapshot)}\n\nSohbet (son kullanıcı mesajı): ${rawUserText}\n\nYanıtında next_question ile bir sonraki soruyu mutlaka dön.`;
 
-    const rawText = await callGemini(system, userPrompt);
+    console.log("[job-guide/chat] calling Gemini");
+    let rawText: string;
+    try {
+      rawText = await callGemini(system, userPrompt);
+      console.log("[job-guide/chat] gemini ok", { len: rawText?.length ?? 0 });
+    } catch (geminiErr) {
+      console.error("[job-guide/chat] gemini fail", geminiErr);
+      throw geminiErr;
+    }
     let parsed: {
       assistant_message?: string;
       next_question?: NextQuestionOut;
@@ -372,6 +376,7 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
     try {
       parsed = extractJson(rawText) as typeof parsed;
     } catch (parseErr) {
+      console.error("[job-guide/chat] parse fail", parseErr);
       // Parse fail: 500 dönme, 200 + fallback dön ki UI takılmasın
       const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
       try {
@@ -487,6 +492,7 @@ Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor" de.
     });
   } catch (e) {
     const msg = String(e instanceof Error ? e.message : "unknown_error");
+    console.error("[job-guide/chat] error", msg, e);
     if (msg.includes("GEMINI_API_KEY_MISSING")) return NextResponse.json({ error: "gemini_not_configured" }, { status: 503 });
     return NextResponse.json({ error: "internal_error", detail: msg.slice(0, 200) }, { status: 500 });
   }

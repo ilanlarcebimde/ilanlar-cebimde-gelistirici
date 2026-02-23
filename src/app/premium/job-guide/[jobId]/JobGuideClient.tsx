@@ -295,7 +295,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] };
           answers_json?: Record<string, unknown>;
         };
-        const text = d.assistant?.message_md ?? d.assistant_message ?? "";
+        const text = (d.assistant?.message_md ?? d.assistant_message ?? "").trim() || "Başvuru rehberini hazırlıyorum. Devam edelim.";
         const ask = d.assistant?.ask;
         const nextQ: NextQuestionSingle | null = ask
           ? { text: ask.question ?? "", choices: ask.choices }
@@ -307,7 +307,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           next_question: nextQ ?? undefined,
         };
         setMessages([msg]);
-        setNextQuestion(nextQ);
+        setNextQuestion(nextQ ?? { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
         if (d.report_json) setReport(d.report_json);
         if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
         else {
@@ -317,10 +317,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         if (d.answers_json) {
           setGuide((g) => (g ? { ...g, answers_json: d.answers_json! } : null));
           setAnswers(answersFromJson(d.answers_json));
-        }
-        if (!text && !nextQ && !cancelled) {
-          setMessages([{ role: "assistant", text: "Rehber yüklenemedi. Sayfayı yenileyin veya aşağıdaki seçenekten devam edin." }]);
-          setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
         }
       } catch (e) {
         if (!cancelled) {
@@ -379,6 +375,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         clearTimeout(safetyId);
         if (typeof window !== "undefined") console.log("CHAT_RES", res.status);
         const data = await res.json().catch(() => ({}));
+        if (typeof window !== "undefined") console.log("CHAT_DATA_KEYS", Object.keys(data ?? {}));
 
         if (!res.ok) {
           const errMsg =
@@ -621,15 +618,15 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           </div>
         )}
 
-        {/* Orta: Sohbet — flex-col + min-h-0 ile input her zaman altta (sticky bottom) */}
+        {/* Orta: Sohbet — flex-col + min-h-0 ile input her zaman altta (sticky bottom). Boşken placeholder göster. */}
         <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col md:overflow-hidden border-r border-slate-200 bg-slate-50/50">
           <div className="flex-1 min-h-0 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-4">
-              {messages.map((m, i) => (
+              {(messages.length ? messages : [{ role: "assistant" as const, text: "Rehber yükleniyor…" }]).map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
                     <p className="text-sm whitespace-pre-wrap">{m.text}</p>
-                    {m.role === "assistant" && i === messages.length - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
+                    {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
                       <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
                         {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
                           <button
@@ -684,11 +681,11 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         {mobileTab === "sohbet" && (
             <div className="md:hidden flex-1 flex flex-col min-h-0 bg-slate-50/50">
               <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-                {messages.map((m, i) => (
+                {(messages.length ? messages : [{ role: "assistant" as const, text: "Rehber yükleniyor…" }]).map((m, i) => (
                   <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                     <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
                       <p className="text-sm whitespace-pre-wrap">{m.text}</p>
-                      {m.role === "assistant" && i === messages.length - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
+                      {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
                         <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
                           {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
                             <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
