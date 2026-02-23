@@ -201,6 +201,38 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
       }
 
+      const { data: clientJob } = await supabase
+        .from("job_posts")
+        .select("id, title, position_text, location_text, source_name, source_url, snippet, published_at")
+        .eq("id", trimmedId)
+        .eq("status", "published")
+        .maybeSingle();
+      if (cancelled) return;
+      if (clientJob) {
+        const jobData = clientJob as JobSummary;
+        const guideRes = await fetch(`/api/job-guide?jobPostId=${encodeURIComponent(trimmedId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        let guideData: JobGuide | null = null;
+        if (guideRes.ok) {
+          guideData = (await guideRes.json()) as JobGuide;
+        } else {
+          const createRes = await fetch("/api/job-guide", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ jobPostId: trimmedId }),
+          });
+          if (createRes.ok) guideData = (await createRes.json()) as JobGuide;
+        }
+        if (!cancelled && guideData) {
+          setJob(jobData);
+          setGuide(guideData);
+          setAnswers(answersFromJson((guideData.answers_json as Record<string, unknown>) ?? {}));
+        }
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
       console.warn("[JobGuideClient] panel fetch failed", { jobId: trimmedId, status: panelRes.status });
       if (!cancelled) {
         setJobLoadError(true);
