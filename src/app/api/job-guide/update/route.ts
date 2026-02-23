@@ -166,19 +166,19 @@ export async function POST(req: NextRequest) {
     const country = inferCountry(channelSlug, jobPost.location_text ?? "");
 
     const jobContent = [
-      `Başlık: ${jobPost.title ?? ""}`,
-      `Pozisyon: ${jobPost.position_text ?? ""}`,
+      `İlan başlığı: ${jobPost.title ?? ""}`,
+      `Sektör/Pozisyon: ${jobPost.position_text ?? ""}`,
       `Konum: ${jobPost.location_text ?? ""}`,
       `Ülke: ${country}`,
       `İlan kaynağı (başvuru adımları buna göre üretilecek): ${jobPost.source_name ?? "belirtilmedi"}`,
       `Özet: ${jobPost.snippet ?? ""}`,
     ].join("\n");
 
-    const system = `Sen, "yurtdışı iş başvuru asistanı"sın. Analizi SADECE ilandaki verilerden üret: ülke, ilan başlığı, konum, ilan kaynağı (EURES, şirket sitesi vb.) ve kullanıcı cevapları. Kullanıcıyı dış bir URL'ye yönlendirme; tüm "Nasıl başvururum" bilgisini bu ilana özel, adım adım, basit ve anlaşılır metin olarak yaz.
+    const system = `Sen, "yurtdışı iş başvuru asistanı"sın. Analizi SADECE bu ilandaki verilerden üret: ülke, iş ilanı başlığı, sektör (pozisyon), konum, ilan kaynağı ve kullanıcı cevapları. "Nasıl başvururum" = bu ilana özel (ülke + başlık + sektör ile) adım adım rehber; dış URL'ye yönlendirme yapma.
 Kullanıcının eğitim seviyesi düşük olabilir. Kısa, net, madde madde yaz. Uzun paragraf yazma.
 Uydurma bilgi yazma. İlan verisinde olmayan şeylere "İlan metninde belirtilmiyor" de.
 
-Girdi: job_post (başlık, konum, ülke, kaynak, özet), user_answers, checklist_snapshot.
+Girdi: job_post (ilan başlığı, sektör/pozisyon, konum, ülke, kaynak, özet), user_answers, checklist_snapshot.
 
 ÇIKTI: SADECE JSON DÖNDÜR. Başka hiçbir metin yazma.
 

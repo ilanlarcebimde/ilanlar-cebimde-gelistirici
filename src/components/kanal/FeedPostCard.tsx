@@ -74,6 +74,7 @@ export function FeedPostCard({
   const snippet = post.snippet
     ? truncateSnippet(post.snippet, SNIPPET_MAX_LINES)
     : null;
+  /** İlana Git: iş ilanının kendi URL'sine (kaynak sayfa) gider. */
   const externalUrl =
     post.source_url?.startsWith("http://") || post.source_url?.startsWith("https://")
       ? post.source_url
@@ -99,6 +100,7 @@ export function FeedPostCard({
             <button
               type="button"
               onClick={handleApplyClick}
+              title="Bu ilana özel ülke, başlık ve sektör ile Nasıl Başvururum panelini aç"
               className="rounded-xl border-2 font-semibold min-h-[44px] px-4 py-2.5 text-sm w-full sm:w-auto shrink-0 border-brand-600 text-brand-600 bg-transparent hover:bg-brand-50 transition"
               aria-label="Nasıl başvurulur rehberini aç"
             >
@@ -141,6 +143,7 @@ export function FeedPostCard({
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
+            title="İş ilanı sayfasına git"
             className="flex min-h-[44px] w-full shrink-0 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 sm:w-auto sm:py-2.5"
           >
             İlana Git
