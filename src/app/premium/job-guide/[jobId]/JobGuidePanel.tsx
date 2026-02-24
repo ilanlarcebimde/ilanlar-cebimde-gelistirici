@@ -19,7 +19,14 @@ import {
   getRegionFromLocation,
   getPassportVisaContentForCountry,
   getSalaryLifeContentForCountry,
+  CV_IMPORTANCE_TITLE,
+  CV_IMPORTANCE_ITEMS,
+  CV_PACKAGE_URL,
+  CV_PACKAGE_ITEMS,
+  CV_COUPON_TEXT,
 } from "./guideContent";
+import { JobGuideModal } from "@/components/JobGuideModal";
+import { getMockGuideJson } from "./mockGuideJson";
 
 type Job = {
   id: string;
@@ -27,6 +34,7 @@ type Job = {
   position_text: string | null;
   location_text: string | null;
   source_name: string | null;
+  source_url?: string | null;
 };
 
 type Guide = {
@@ -47,6 +55,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
+  const [readingModalOpen, setReadingModalOpen] = useState(false);
 
   const fetchPanel = useCallback(async () => {
     if (!user?.id || !jobId) return;
@@ -149,14 +158,39 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
-      <Link href="/premium/job-guides" className="mb-4 inline-block text-sm font-medium text-slate-600 hover:text-slate-900">
-        ← Başvuru Paneli
-      </Link>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+          ← Başvuru Paneli
+        </Link>
+        <button
+          type="button"
+          onClick={() => setReadingModalOpen(true)}
+          className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-100"
+        >
+          Rehberi oku (modal)
+        </button>
+      </div>
+      <JobGuideModal
+        open={readingModalOpen}
+        onClose={() => setReadingModalOpen(false)}
+        guideJson={
+          job
+            ? getMockGuideJson({
+                title: job.title ?? "İlan",
+                location: job.location_text ?? undefined,
+                source_name: job.source_name ?? undefined,
+                source_url: job.source_url ?? undefined,
+              })
+            : null
+        }
+        sourceUrl={job?.source_url ?? undefined}
+      />
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h1 className="text-lg font-bold text-slate-900 sm:text-xl">{job.title ?? "İlan"}</h1>
         {job.location_text && <p className="mt-1 text-sm text-slate-500">{job.location_text}</p>}
 
-        {sourceGuide && (
+        {/* Adım adım: sadece o anki adıma ait içerik gösterilir (stepIndex === N) */}
+        {stepIndex === 0 && sourceGuide && (
           <section className="mt-6 rounded-xl border border-slate-100 bg-slate-50/50 p-4 sm:p-5" aria-label="Başvuru rehberi">
             <h2 className="text-base font-bold text-slate-900 sm:text-lg">{sourceGuide.title}</h2>
             <div className="mt-3 prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 sm:text-[15px]">
@@ -165,7 +199,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
           </section>
         )}
 
-        {stepIndex >= 1 && answers.want_translation === "Evet" && (
+        {stepIndex === 1 && answers.want_translation === "Evet" && (
           <section className="mt-6 rounded-xl border border-slate-100 bg-sky-50/50 p-4 sm:p-5" aria-label="Türkçe çeviri rehberi">
             <h2 className="text-base font-bold text-slate-900 sm:text-lg">{TRANSLATION_GUIDE_TITLE}</h2>
             <div className="mt-3 prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 sm:text-[15px]">
@@ -174,7 +208,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
           </section>
         )}
 
-        {stepIndex >= 1 && (() => {
+        {stepIndex === 1 && (() => {
           const region = getRegionFromLocation(job.location_text);
           const regionLabel = region === "europe" ? "Avrupa" : region === "arab" ? "Arap ülkeleri" : region === "america" ? "Amerika / Kanada" : null;
           return (
@@ -198,7 +232,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
           );
         })()}
 
-        {stepIndex >= 2 && answers.want_passport_visa === "Evet" && (
+        {stepIndex === 2 && answers.want_passport_visa === "Evet" && (
           <section className="mt-6 rounded-xl border border-slate-200 bg-violet-50/50 p-4 sm:p-5" aria-label="Pasaport ve vize rehberi">
             {passportVisaGuide ? (
               <>
@@ -213,7 +247,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
           </section>
         )}
 
-        {stepIndex >= 3 && answers.want_salary_life === "Evet" && (
+        {stepIndex === 3 && answers.want_salary_life === "Evet" && (
           <section className="mt-6 rounded-xl border border-slate-200 bg-emerald-50/50 p-4 sm:p-5" aria-label="Maaş ve yaşam gider hesabı">
             {salaryLifeGuide ? (
               <>
@@ -229,15 +263,47 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
         )}
 
         {isDone ? (
-          <div className="mt-6 rounded-xl bg-emerald-50 p-4 text-emerald-800">
-            <p className="font-medium">Tercihleriniz kaydedildi.</p>
-            <p className="mt-1 text-sm">Bu ilan için rehberiniz panelde görünecek.</p>
-            <Link
-              href="/premium/job-guides"
-              className="mt-4 inline-block rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            >
-              Panele dön
-            </Link>
+          <div className="mt-6 space-y-6">
+            <div className="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+              <p className="font-medium">Tercihleriniz kaydedildi.</p>
+              <p className="mt-1 text-sm">Bu ilan için rehberiniz panelde görünecek.</p>
+              <Link
+                href="/premium/job-guides"
+                className="mt-4 inline-block rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                Panele dön
+              </Link>
+            </div>
+            {answers.cv_ready === "Hayır" && (
+              <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5" aria-label="CV paketi önerisi">
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">{CV_IMPORTANCE_TITLE}</h2>
+                <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                  {CV_IMPORTANCE_ITEMS.map((item, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="shrink-0 font-semibold text-brand-600">{i + 1}.</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={CV_PACKAGE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 flex w-full items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-700 sm:w-auto sm:min-w-[200px]"
+                >
+                  Yurtdışı CV Paketi — 349 TL
+                </a>
+                <ul className="mt-4 space-y-1 text-sm text-slate-600">
+                  {CV_PACKAGE_ITEMS.map((item, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="text-emerald-600" aria-hidden>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-slate-500">{CV_COUPON_TEXT}</p>
+              </section>
+            )}
           </div>
         ) : step ? (
           <StepBlock

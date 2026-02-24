@@ -3,6 +3,23 @@
  * Sistem ilk olarak ilan kaynağına göre bu rehberi sunar.
  */
 
+/** CV "Hayır" yanıtında gösterilecek CTA: 5 kritik önem başlıkları (liste için). */
+export const CV_IMPORTANCE_TITLE = "CV Sahibi Olmanın 5 Kritik Önemi";
+export const CV_IMPORTANCE_ITEMS = [
+  "İlk İzlenim ve Profesyonellik: CV, yurtdışındaki işverene sunduğunuz dijital yüzünüzdür; profesyonel bir dille hazırlanmış bir dosya, yetkinliğinizi saniyeler içinde kanıtlar.",
+  "Vize ve Çalışma İzni Kolaylığı: Birçok ülke, çalışma vizesi başvurularında resmi iş deneyiminizi belgeleyen detaylı bir CV'yi zorunlu tutar.",
+  "Yapay Zeka (ATS) Filtrelerini Geçmek: Modern şirketler başvuruları önce yazılımlarla tarar; doğru anahtar kelimeleri içeren bir CV, binlerce aday arasından öne çıkmanızı sağlar.",
+  "Niteliklerin Somutlaştırılması: Ustalık belgeleriniz, sertifikalarınız ve geçmiş projeleriniz CV üzerinde net bir liste halinde sunulduğunda, işverenin size güven duymasını sağlar.",
+  "Maaş Pazarlığı Gücü: Düzenli ve dolu bir CV, sadece işe girmenizi değil, sahip olduğunuz tecrübeyi kanıtlayarak daha yüksek bir maaş teklifi almanızı sağlar.",
+] as const;
+export const CV_PACKAGE_URL = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
+export const CV_PACKAGE_ITEMS = [
+  "Türkçe CV (uluslararası standartlara uygun)",
+  "İngilizce CV (uluslararası standartlara uygun)",
+  "İş başvuru mektubu (yurtdışı başvurularına uyumlu)",
+] as const;
+export const CV_COUPON_TEXT = "CV79 kuponu ile 79 TL'lik indirim size özel.";
+
 export const EURES_GUIDE_TITLE = "EURES ve Ulusal İş Portalları Üzerinden İş Başvurusu Rehberi";
 
 export const EURES_GUIDE_CONTENT = `EURES portalı genellikle başvuruları kendi içinde tutmak yerine, sizi işverenin kendi kariyer sayfasına veya o ülkenin ulusal iş bulma kurumunun (örneğin İrlanda için JobsIreland.ie) web sitesine yönlendirir. Bu tarz ilanlara başvururken şu genel adımları izlemelisiniz:
