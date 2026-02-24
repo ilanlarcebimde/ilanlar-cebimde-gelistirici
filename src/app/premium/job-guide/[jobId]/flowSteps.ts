@@ -51,19 +51,6 @@ export const FLOW_STEPS: FlowStepDef[] = [
     ],
   },
   {
-    id: "services",
-    answerKey: "services_selected",
-    question: "Hangi hizmetleri kullanmak istiyorsunuz?",
-    type: "multiselect",
-    options: [
-      { value: "apply_guide", label: "Adım adım başvuru rehberi" },
-      { value: "docs_list", label: "Gerekli belgeler listesi" },
-      { value: "salary_life_calc", label: "Maaş ve yaşam gider hesabı" },
-      { value: "risk_assessment", label: "Risk değerlendirmesi" },
-      { value: "one_week_plan", label: "1 haftalık başvuru planı" },
-    ],
-  },
-  {
     id: "channel",
     answerKey: "apply_channel",
     question: "Başvuruyu hangi kanaldan yapacaksınız?",
