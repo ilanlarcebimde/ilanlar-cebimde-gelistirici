@@ -55,7 +55,7 @@ export function ChannelsLayout() {
           clearToast();
           return;
         }
-        const target = "/premium/job-guides?jobId=" + encodeURIComponent(post.id);
+        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
         console.log("[ChannelsLayout] opening panel", target);
         setTimeout(() => {
           router.push(target);

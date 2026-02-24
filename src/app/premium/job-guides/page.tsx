@@ -114,7 +114,7 @@ export default function PremiumJobGuidesPage() {
               return (
                 <li key={row.id}>
                   <Link
-                    href={"/premium/job-guides?jobId=" + encodeURIComponent(row.job_post_id)}
+                    href={"/premium/job-guide/" + encodeURIComponent(row.job_post_id)}
                     className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-2">

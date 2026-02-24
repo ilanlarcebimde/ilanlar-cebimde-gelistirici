@@ -56,6 +56,16 @@ export function KanalFeedClient({ slug }: { slug: string }) {
         setTimeout(() => setApplyToast(null), 2000);
       };
       try {
+        if (!user) {
+          try {
+            sessionStorage.setItem("premium_pending_job_id", post.id);
+          } catch {
+            // ignore
+          }
+          router.replace("/giris?next=" + encodeURIComponent("/premium/job-guide/" + post.id));
+          clearToast();
+          return;
+        }
         if (!subscriptionLoading && !subscriptionActive) {
           setPendingJobId(post.id);
           try {
@@ -67,7 +77,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
           clearToast();
           return;
         }
-        const target = "/premium/job-guides?jobId=" + encodeURIComponent(post.id);
+        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
         console.log("[KanalFeed] opening panel", target);
         setTimeout(() => {
           router.push(target);

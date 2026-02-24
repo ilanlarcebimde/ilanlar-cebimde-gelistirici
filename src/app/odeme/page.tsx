@@ -86,13 +86,12 @@ export default function OdemePage() {
           let saved = sessionStorage.getItem("premium_after_payment_redirect");
           if (saved && saved.startsWith("/premium/job-guide/")) {
             sessionStorage.removeItem("premium_after_payment_redirect");
-            const id = saved.replace(/^\/premium\/job-guide\/?/, "").split("/")[0]?.trim();
-            if (id) target = "/premium/job-guides?jobId=" + encodeURIComponent(id);
+            target = saved;
           } else {
             const jobId = sessionStorage.getItem("premium_pending_job_id");
             if (jobId) {
               sessionStorage.removeItem("premium_pending_job_id");
-              target = "/premium/job-guides?jobId=" + encodeURIComponent(jobId);
+              target = "/premium/job-guide/" + jobId;
             }
           }
         } catch {

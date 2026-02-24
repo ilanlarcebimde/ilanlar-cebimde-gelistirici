@@ -82,7 +82,7 @@ export function UcretsizPanelClient() {
           setTimeout(() => setApplyToast(null), 3000);
           return;
         }
-        const target = "/premium/job-guides?jobId=" + encodeURIComponent(post.id);
+        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
         console.log("[UcretsizPanel] opening panel", target);
         setApplyToast("Yönlendiriliyor…");
         setTimeout(() => {

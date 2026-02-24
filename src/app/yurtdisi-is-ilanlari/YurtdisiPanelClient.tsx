@@ -43,6 +43,16 @@ export function YurtdisiPanelClient() {
         setTimeout(() => setApplyToast(null), 2000);
       };
       try {
+        if (!user) {
+          try {
+            sessionStorage.setItem("premium_pending_job_id", post.id);
+          } catch {
+            // ignore
+          }
+          router.replace("/giris?next=" + encodeURIComponent("/premium/job-guide/" + post.id));
+          clearToast();
+          return;
+        }
         if (!subscriptionLoading && !subscriptionActive) {
           setPendingJobId(post.id);
           try {
@@ -54,7 +64,7 @@ export function YurtdisiPanelClient() {
           clearToast();
           return;
         }
-        const target = "/premium/job-guides?jobId=" + encodeURIComponent(post.id);
+        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
         console.log("[YurtdisiPanel] opening panel", target);
         setTimeout(() => {
           router.push(target);
@@ -66,7 +76,7 @@ export function YurtdisiPanelClient() {
         clearToast();
       }
     },
-    [subscriptionActive, subscriptionLoading, router]
+    [user, subscriptionActive, subscriptionLoading, router]
   );
 
   // URL'den c ve q oku

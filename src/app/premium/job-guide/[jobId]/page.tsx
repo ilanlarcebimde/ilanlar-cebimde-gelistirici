@@ -1,22 +1,76 @@
 "use client";
 
-import { useRouter, useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
+import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { JobGuidePanel } from "./JobGuidePanel";
 
-/** Rehber sohbet kaldırıldı; ilan id’yi koruyup başvuru paneline yönlendir. */
-export default function PremiumJobGuideRedirectPage() {
-  const router = useRouter();
-  const params = useParams();
-  const jobId = typeof params?.jobId === "string" ? params.jobId.trim() : "";
-
-  useEffect(() => {
-    const target = jobId ? `/premium/job-guides?jobId=${encodeURIComponent(jobId)}` : "/premium/job-guides";
-    router.replace(target);
-  }, [jobId, router]);
-
+function LoadingShell() {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <p className="text-slate-600">Yönlendiriliyorsunuz…</p>
+    <div className="flex min-h-[50vh] items-center justify-center p-4">
+      <p className="text-slate-600">Kontrol ediliyor…</p>
     </div>
   );
+}
+
+export default function PremiumJobGuidePage() {
+  const params = useParams();
+  const jobId = typeof params?.jobId === "string" ? params.jobId.trim() : "";
+  const { user, loading: authLoading } = useAuth();
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const [showPayModal, setShowPayModal] = useState(false);
+
+  useEffect(() => {
+    if (authLoading || subscriptionLoading) return;
+    if (user && !subscriptionActive && jobId) {
+      setShowPayModal(true);
+    }
+  }, [user, subscriptionActive, subscriptionLoading, jobId]);
+
+  if (!jobId) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-4">
+        <p className="text-slate-600">İlan bulunamadı.</p>
+      </div>
+    );
+  }
+
+  if (authLoading || subscriptionLoading) {
+    return <LoadingShell />;
+  }
+
+  if (!user) {
+    return <LoadingShell />;
+  }
+
+  // Abonelik yok: 89 TL popup göster (layout bu sayfayı render etmeye izin veriyor)
+  if (!subscriptionActive) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">Nasıl Başvururum Paneli</h1>
+          <p className="mt-2 text-slate-600">
+            Bu ilan için rehber ve soru akışına erişmek için haftalık premium aboneliği başlatın veya kupon kodunuzu girin.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowPayModal(true)}
+            className="mt-4 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Haftalık 89 TL ile Başla
+          </button>
+        </div>
+        <PremiumIntroModal
+          open={showPayModal}
+          onClose={() => setShowPayModal(false)}
+          initialJobId={jobId}
+        />
+      </div>
+    );
+  }
+
+  // Abonelik var: ilan bilgisi ile soru akışı paneli
+  return <JobGuidePanel jobId={jobId} />;
 }

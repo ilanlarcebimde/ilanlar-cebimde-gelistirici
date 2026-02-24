@@ -58,6 +58,11 @@ export default function PremiumLayout({
     }
 
     if (!subscriptionActive) {
+      // /premium/job-guide/[jobId] sayfasında abonelik yoksa yönlendirme yapma; sayfa 89 TL popup gösterecek
+      const isJobGuidePage = pathname?.startsWith("/premium/job-guide/") && pathname !== "/premium/job-guide" && pathname !== "/premium/job-guides";
+      if (isJobGuidePage) {
+        return;
+      }
       retryCancelledRef.current = false;
       (async () => {
         const delays = [0, 600, 1200];
@@ -95,7 +100,9 @@ export default function PremiumLayout({
   if (!user) {
     return <LoadingUI showLoginLink />;
   }
-  if (!subscriptionActive) {
+  // Abonelik yoksa sadece /premium/job-guide/[jobId] sayfasında içeriği render et (sayfa 89 TL modal gösterecek)
+  const isJobGuidePage = pathname?.startsWith("/premium/job-guide/") && pathname !== "/premium/job-guide" && pathname !== "/premium/job-guides";
+  if (!subscriptionActive && !isJobGuidePage) {
     return <LoadingUI />;
   }
 
