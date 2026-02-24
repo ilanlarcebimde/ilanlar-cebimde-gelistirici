@@ -16,6 +16,10 @@ const BASKET_CV_PACKAGE = "Yurtdışı CV Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
 /** Haftalık premium test kuponu (7 gün abonelik, giriş gerekli) */
 const PREMIUM_COUPON_CODE = "ADMIN89";
+/** Yurtdışı CV Paketi 79 TL indirim (349 - 79 = 270 TL) */
+const CV_PACKAGE_DISCOUNT_CODE = "CV79";
+const CV_PACKAGE_DISCOUNT_AMOUNT = 79;
+const AMOUNT_CV_PACKAGE_DISCOUNTED = AMOUNT_CV_PACKAGE - CV_PACKAGE_DISCOUNT_AMOUNT;
 
 function generateMerchantOid(): string {
   return "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
@@ -32,6 +36,7 @@ export default function OdemePage() {
   const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [freeWithCoupon, setFreeWithCoupon] = useState(false);
   const [showPayHint, setShowPayHint] = useState(false);
+  const [cv79Applied, setCv79Applied] = useState(false);
 
   const scrollToPayForm = useCallback(() => {
     paytrIframeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -98,6 +103,66 @@ export default function OdemePage() {
       }
       return;
     }
+    if (code === CV_PACKAGE_DISCOUNT_CODE) {
+      const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+      const parsed = pending ? (JSON.parse(pending) as { plan?: string }) : null;
+      if (parsed?.plan !== "cv_package") {
+        setCouponMessage({ type: "error", text: "CV79 kuponu sadece Yurtdışı CV Paketi için geçerlidir." });
+        return;
+      }
+      setCouponMessage({ type: "success", text: "79 TL indirim uygulandı. Ödemeniz: 270 TL." });
+      try {
+        const full = JSON.parse(pending!) as Record<string, unknown>;
+        sessionStorage.setItem("paytr_pending", JSON.stringify({ ...full, cv79_discount: true }));
+      } catch {
+        setCouponMessage({ type: "error", text: "Oturum güncellenemedi. Sayfayı yenileyip tekrar deneyin." });
+        return;
+      }
+      setCv79Applied(true);
+      setIframeUrl(null);
+      setLoading(true);
+      try {
+        const full = JSON.parse(sessionStorage.getItem("paytr_pending")!) as {
+          email?: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string;
+          answers?: Record<string, unknown>; photo_url?: string | null; plan?: string; user_id?: string; profile_snapshot?: unknown;
+        };
+        const email = full?.email?.trim();
+        if (!email) {
+          setError("E-posta bulunamadı.");
+          setLoading(false);
+          return;
+        }
+        const user_name = (full?.user_name && String(full.user_name).trim()) || email.split("@")[0] || "Müşteri";
+        const profile_snapshot = full?.method != null
+          ? { method: full.method, country: full.country ?? null, job_area: full.job_area ?? null, job_branch: full.job_branch ?? null, answers: full.answers ?? {}, photo_url: full.photo_url ?? null }
+          : undefined;
+        const res = await fetch("/api/paytr/initiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            merchant_oid: "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11),
+            email,
+            amount: AMOUNT_CV_PACKAGE_DISCOUNTED,
+            user_name: user_name.slice(0, 60),
+            user_address: "Adres girilmedi",
+            user_phone: "5550000000",
+            merchant_ok_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarili`,
+            merchant_fail_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarisiz`,
+            basket_description: BASKET_CV_PACKAGE,
+            profile_snapshot,
+            ...(full?.user_id && { user_id: full.user_id }),
+          }),
+        });
+        const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, { logPrefix: "[paytr/initiate]" });
+        if (data.success && data.iframe_url) setIframeUrl(data.iframe_url);
+        else setError(data.error || "Ödeme başlatılamadı");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ödeme yüklenemedi.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (code === FREE_COUPON_CODE) {
       setCouponMessage({ type: "success", text: "Kupon uygulandı. Sipariş tamamlanıyor…" });
       setFreeWithCoupon(true);
@@ -158,6 +223,7 @@ export default function OdemePage() {
           photo_url?: string | null;
           plan?: string;
           user_id?: string;
+          cv79_discount?: boolean;
         })
       : null;
     const email = parsed?.email?.trim() ?? null;
@@ -168,8 +234,10 @@ export default function OdemePage() {
 
     const isWeekly = parsed?.plan === "weekly";
     const isCvPackage = parsed?.plan === "cv_package";
-    const amount = isWeekly ? AMOUNT_WEEKLY : isCvPackage ? AMOUNT_CV_PACKAGE : AMOUNT_FULL;
+    const useCv79 = isCvPackage && !!parsed?.cv79_discount;
+    const amount = isWeekly ? AMOUNT_WEEKLY : isCvPackage ? (useCv79 ? AMOUNT_CV_PACKAGE_DISCOUNTED : AMOUNT_CV_PACKAGE) : AMOUNT_FULL;
     const basketDescription = isWeekly ? BASKET_WEEKLY : isCvPackage ? BASKET_CV_PACKAGE : BASKET_FULL;
+    setCv79Applied(!!useCv79);
 
     const user_name =
       (parsed?.user_name && String(parsed.user_name).trim()) ||
@@ -332,9 +400,9 @@ export default function OdemePage() {
             <span className="text-slate-900">
               {(() => {
                 const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-                const plan = p ? (JSON.parse(p) as { plan?: string })?.plan : null;
-                if (plan === "weekly") return "89,00 TL";
-                if (plan === "cv_package") return "349,00 TL";
+                const data = p ? (JSON.parse(p) as { plan?: string; cv79_discount?: boolean }) : null;
+                if (data?.plan === "weekly") return "89,00 TL";
+                if (data?.plan === "cv_package") return data?.cv79_discount ? "270,00 TL" : "349,00 TL";
                 return "549,00 TL";
               })()}
             </span>
