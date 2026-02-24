@@ -80,6 +80,28 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
             </span>
           </Link>
 
+          {/* Masaüstü: menü butonları sırayla (popup yok) */}
+          <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Ana menü">
+            <Link
+              href="/#yontem-secimi"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              Usta Başvuru Paketi
+            </Link>
+            <Link
+              href="/yurtdisi-cv-paketi"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              Yurtdışı CV Paketi
+            </Link>
+            <Link
+              href={FEED_PATH}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              Ücretsiz Yurtdışı İş İlanları
+            </Link>
+          </nav>
+
           {/* Sağ: Duruma göre Aboneliklerim + Bildirim + Menü veya Giriş Yap + Abone Ol + Menü */}
           <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2">
             {loggedIn ? (
@@ -125,9 +147,9 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               </>
             )}
 
-            {/* Hamburger sadece oturum açıkken */}
+            {/* Hamburger sadece mobilde (masaüstünde menü popup yok) */}
             {loggedIn && (
-            <div className="relative flex shrink-0" ref={menuRef}>
+            <div className="relative flex shrink-0 md:hidden" ref={menuRef}>
               <button
                 ref={hamburgerRef}
                 type="button"
@@ -152,8 +174,30 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                     role="dialog"
                     aria-label="Menü"
                   >
+                    <Link
+                      href="/#yontem-secimi"
+                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Usta Başvuru Paketi
+                    </Link>
+                    <Link
+                      href="/yurtdisi-cv-paketi"
+                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Yurtdışı CV Paketi
+                    </Link>
+                    <Link
+                      href={FEED_PATH}
+                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Ücretsiz Yurtdışı İş İlanları
+                    </Link>
                     {loggedIn ? (
                       <>
+                        <div className="my-1 border-t border-slate-100" />
                         <Link
                           href="/panel"
                           className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
@@ -171,6 +215,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                       </>
                     ) : (
                       <>
+                        <div className="my-1 border-t border-slate-100" />
                         <button
                           type="button"
                           className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
@@ -181,13 +226,6 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                         >
                           Giriş Yap
                         </button>
-                        <Link
-                          href={FEED_PATH}
-                          className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Abone Ol
-                        </Link>
                       </>
                     )}
                   </div>
