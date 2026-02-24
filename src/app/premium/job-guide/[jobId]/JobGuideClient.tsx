@@ -89,13 +89,13 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [checklistSnapshot, setChecklistSnapshot] = useState<{ total: number; done: number; percent: number; missing_top3?: string[] } | null>(null);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
-  const [initialChatFetched, setInitialChatFetched] = useState(false);
   const [reportDrawerOpen, setReportDrawerOpen] = useState(false);
   const [reportUpdating, setReportUpdating] = useState(false);
   const [reportUpdateError, setReportUpdateError] = useState<string | null>(null);
   const [lastReportUpdate, setLastReportUpdate] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("sohbet");
   const messagesBottomRef = useRef<HTMLDivElement>(null);
+  const bootstrapInFlightRef = useRef(false);
 
   const getSession = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -113,7 +113,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setAnswers({});
     setReport(null);
     setChecklistSnapshot(null);
-    setInitialChatFetched(false);
     let cancelled = false;
     const trimmedId = String(jobId).trim();
     if (!trimmedId) {
@@ -240,11 +239,11 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     return () => { cancelled = true; };
   }, [jobId, getSession]);
 
-  // Bootstrap: sending=true kullanıyoruz ama "Yanıtlanıyor…" sadece kullanıcı mesajı sonrası gösterilecek (aşağıda koşul)
+  // Bootstrap: guide + job hazır, mesaj yoksa rehberi çek. Ref ile çift istek engellenir; abort/retry sonrası tekrar dener.
   useEffect(() => {
-    if (loading || !guide || !job || initialChatFetched || messages.length > 0) return;
+    if (loading || !guide || !job || messages.length > 0 || bootstrapInFlightRef.current) return;
     let cancelled = false;
-    setInitialChatFetched(true);
+    bootstrapInFlightRef.current = true;
     setSending(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
@@ -255,11 +254,13 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setMessages((prev) => (prev.length === 0 ? [{ role: "assistant" as const, text: "Bağlantı gecikiyor. Aşağıdan yazıp gönderin veya sayfayı yenileyin." }] : prev));
         setNextQuestion((q) => q ?? { text: "Devam etmek için bir seçenek yazın veya tıklayın.", choices: ["Var", "Yok", "Emin değilim"] });
       }
+      bootstrapInFlightRef.current = false;
     }, 10000);
     (async () => {
       const token = await getSession();
       if (!token || cancelled) {
         if (!cancelled) setSending(false);
+        bootstrapInFlightRef.current = false;
         return;
       }
       try {
@@ -327,14 +328,15 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       } finally {
         clearTimeout(timeoutId);
         clearTimeout(safetyId);
+        bootstrapInFlightRef.current = false;
         if (!cancelled) {
           setSending(false);
           setReportUpdating(false);
         }
       }
     })();
-    return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); clearTimeout(safetyId); };
-  }, [loading, guide, job, initialChatFetched, messages.length, getSession]);
+    return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); clearTimeout(safetyId); bootstrapInFlightRef.current = false; };
+  }, [loading, guide, job, messages.length, getSession]);
 
   const sendMessage = useCallback(
     async (text: string) => {
