@@ -99,6 +99,24 @@ function JobNotFoundShell({ jobId }: { jobId: string }) {
   );
 }
 
+function AuthRequiredShell({ jobId }: { jobId: string }) {
+  const loginHref = `/giris?next=${encodeURIComponent(`/premium/job-guide/${jobId}`)}`;
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
+      <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+        <p className="text-slate-800 font-medium mb-2">Giriş yapmanız gerekiyor</p>
+        <p className="text-sm text-slate-600 mb-6">
+          Bu sayfayı kullanmak için lütfen giriş yapın. Oturumunuz sonlanmış olabilir.
+        </p>
+        <div className="flex flex-col gap-3">
+          <Link href={loginHref} className="rounded-xl bg-sky-600 px-4 py-3 font-medium text-white hover:bg-sky-700">Giriş Yap</Link>
+          <Link href="/premium/job-guides" className="rounded-xl border border-slate-300 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50">Başvuru Paneline Dön</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LoadingShell() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
@@ -115,6 +133,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [guide, setGuide] = useState<JobGuide | null>(null);
   const [loading, setLoading] = useState(true);
   const [jobLoadError, setJobLoadError] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [nextQuestion, setNextQuestion] = useState<NextQuestionSingle | null>(null);
   const [lastAskId, setLastAskId] = useState<string | null>(null);
@@ -146,6 +165,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setGuide(null);
     setLoading(true);
     setJobLoadError(false);
+    setAuthError(false);
     setMessages([]);
     setNextQuestion(null);
     setLastAskId(null);
@@ -161,11 +181,19 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     }
 
     async function run() {
-      const token = await getSession();
+      let token = await getSession();
       if (cancelled) return;
       if (!token) {
-        setJobLoadError(true);
-        setLoading(false);
+        await new Promise((r) => setTimeout(r, 800));
+        if (cancelled) return;
+        token = await getSession();
+      }
+      if (cancelled) return;
+      if (!token) {
+        if (!cancelled) {
+          setAuthError(true);
+          setLoading(false);
+        }
         return;
       }
 
@@ -180,7 +208,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
       if (panelRes.status === 401) {
         if (!cancelled) {
-          setJobLoadError(true);
+          setAuthError(true);
           setLoading(false);
         }
         return;
@@ -586,6 +614,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     });
   }, [guide, getSession]);
 
+  if (authError) return <AuthRequiredShell jobId={jobId} />;
   if (jobLoadError) return <JobNotFoundShell jobId={jobId} />;
   if (loading || !job || !guide) return <LoadingShell />;
 
