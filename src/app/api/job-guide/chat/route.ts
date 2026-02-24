@@ -632,7 +632,7 @@ export async function POST(req: NextRequest) {
       groundingContext,
       live: liveItems,
       cvUpsellUrl: "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi",
-      cvDiscountCode: "USTA79",
+      cvDiscountCode: "CV79",
     });
 
     console.log("[job-guide/chat] calling Gemini", { liveCount: liveItems.length });
@@ -728,7 +728,7 @@ export async function POST(req: NextRequest) {
       (last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
     if (shouldInjectCvCta) {
       const link = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
-      const codeLine = "Sizin için indirim kodu: USTA79";
+      const codeLine = "Sizin için indirim kodu: CV79";
       const cta = mergedAnswers.cv_offer_if_missing === "Evet yönlendir"
         ? `CV Paketi'ne buradan geçebilirsin:\n${link}\n\n${codeLine}`
         : `İstersen CV Paketi ile 1 gün içinde hazırlanıp teslim edebiliriz:\n${link}\n\n${codeLine}`;

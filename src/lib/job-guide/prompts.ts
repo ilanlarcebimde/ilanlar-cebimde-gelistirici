@@ -1,6 +1,6 @@
 /**
  * Başvuru Paneli — Gemini system + user prompt (halüsinasyon engelleyen, context-only).
- * 30 gün planı yok; sadece finalde 1 haftalık plan. CV paketi: USTA79.
+ * 30 gün planı yok; sadece finalde 1 haftalık plan. CV paketi: CV79.
  */
 
 export function buildGeminiSystemPrompt(): string {
@@ -48,7 +48,7 @@ AKIŞ STRATEJİSİ:
 CV PAKET KURALI:
 - Kullanıcı CV yok / hazır değil derse:
   - flags.should_offer_cv_package=true
-  - assistant_message içinde: "CV hazır değilse bizim CV paketinden hızlıca yaptırabilirsin" + "İndirim kodun: USTA79" diye yaz (link sunucu ekleyecek).
+  - assistant_message içinde: "CV hazır değilse bizim CV paketinden hızlıca yaptırabilirsin" + "İndirim kodun: CV79" diye yaz (link sunucu ekleyecek).
 
 MESLEKİ KANITLAR:
 - Mesleğe göre 1 soru sor: "Ustalık belgesi / MYK / SGK dökümü / referans mektubu / sertifika" hangileri var?
