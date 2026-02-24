@@ -683,128 +683,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               {(messages.length ? messages : [{ role: "assistant" as const, text: "Rehber yükleniyor…" }]).map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
-                      {m.role === "assistant" ? (
-                        <div className="text-sm whitespace-pre-wrap">{renderMessageWithCvButton(m.text)}</div>
-                      ) : (
-                        <p className="text-sm whitespace-pre-wrap">{m.text === "__continue__" ? "Devam" : m.text}</p>
-                      )}
-                      {m.role === "assistant" && i === (messages.length || 1) - 1 && (
-                      (m.next_question || (m.next_questions && m.next_questions.length > 0))
-                        ? (
-                      <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
-                        {m.next_question?.input?.type === "multiselect" ? (
-                          <>
-                            <div className="w-full flex flex-wrap gap-2">
-                              {(m.next_question.choices ?? []).map((opt) => {
-                                const active = inlineMultiSelected.includes(opt);
-                                return (
-                                  <button
-                                    key={opt}
-                                    type="button"
-                                    onClick={() => {
-                                      setInlineMultiSelected((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]);
-                                    }}
-                                    disabled={sending}
-                                    className={active
-                                      ? "rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-700 disabled:opacity-50"
-                                      : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}
-                                  >
-                                    {opt}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (inlineMultiSelected.length > 0) {
-                                  const choiceIds = m.next_question?.choice_ids;
-                                  const ids = choiceIds && choiceIds.length === (m.next_question?.choices?.length ?? 0)
-                                    ? inlineMultiSelected.map((label) => {
-                                        const i = (m.next_question!.choices ?? []).indexOf(label);
-                                        return i >= 0 ? choiceIds[i] : label;
-                                      })
-                                    : inlineMultiSelected;
-                                  sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
-                                  setInlineMultiSelected([]);
-                                }
-                              }}
-                              disabled={sending || inlineMultiSelected.length === 0}
-                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-                            >
-                              Devam
-                            </button>
-                          </>
-                        ) : m.next_question?.input?.type === "text" ? (
-                          <>
-                            <input
-                              value={inlineTextareaValue}
-                              onChange={(e) => setInlineTextareaValue(e.target.value)}
-                              placeholder={m.next_question.input.placeholder}
-                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                              aria-label="Yanıt"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const v = inlineTextareaValue.trim();
-                                if (v) { sendMessage(v); setInlineTextareaValue(""); }
-                              }}
-                              disabled={sending || !inlineTextareaValue.trim()}
-                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-                            >
-                              Gönder
-                            </button>
-                          </>
-                        ) : m.next_question?.id === "blocking_issue_text" ? (
-                          <>
-                            <textarea
-                              value={inlineTextareaValue}
-                              onChange={(e) => setInlineTextareaValue(e.target.value)}
-                              placeholder={m.next_question.input?.placeholder ?? "Sorunu yazın…"}
-                              rows={3}
-                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
-                              aria-label="Yanıt"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const v = inlineTextareaValue.trim();
-                                if (v) { sendMessage(v); setInlineTextareaValue(""); }
-                              }}
-                              disabled={sending || !inlineTextareaValue.trim()}
-                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-                            >
-                              Gönder
-                            </button>
-                          </>
-                        ) : (
-                          (m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => sendMessage(opt)}
-                              disabled={sending}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                              {opt}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                        )
-                        : messages.length === 1 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <button
-                          type="button"
-                          onClick={() => sendMessage("__continue__")}
-                          disabled={sending}
-                          className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-                        >
-                          Devam
-                        </button>
-                      </div>
-                        )
+                    {m.role === "assistant" ? (
+                      <div className="text-sm whitespace-pre-wrap">{renderMessageWithCvButton(m.text)}</div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{m.text === "__continue__" ? "Devam" : m.text}</p>
                     )}
                   </div>
                 </div>
@@ -812,6 +694,77 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               {sending && messages.length > 0 && messages[messages.length - 1].role === "user" && (
                 <div className="flex justify-start pointer-events-none" aria-live="polite" aria-busy="true">
                   <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-400 italic">Cevaplanıyor…</div>
+                </div>
+              )}
+              {/* Tek aktif soru kartı — sadece nextQuestion state'inden; mesaj içinden render yok */}
+              {nextQuestion && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-sm font-medium text-slate-900 mb-3">{nextQuestion.text}</p>
+                  {nextQuestion.input?.type === "multiselect" ? (
+                    <div className="flex flex-wrap gap-2">
+                      {(nextQuestion.choices ?? []).map((opt) => {
+                        const active = inlineMultiSelected.includes(opt);
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setInlineMultiSelected((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])}
+                            disabled={sending}
+                            className={active ? "rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-700 disabled:opacity-50" : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inlineMultiSelected.length > 0) {
+                            const choiceIds = nextQuestion.choice_ids;
+                            const ids = choiceIds && choiceIds.length === (nextQuestion.choices?.length ?? 0)
+                              ? inlineMultiSelected.map((label) => {
+                                  const idx = (nextQuestion.choices ?? []).indexOf(label);
+                                  return idx >= 0 ? choiceIds[idx] : label;
+                                })
+                              : inlineMultiSelected;
+                            sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
+                            setInlineMultiSelected([]);
+                          }
+                        }}
+                        disabled={sending || inlineMultiSelected.length === 0}
+                        className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                      >
+                        Devam
+                      </button>
+                    </div>
+                  ) : nextQuestion.input?.type === "text" ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={inlineTextareaValue}
+                        onChange={(e) => setInlineTextareaValue(e.target.value)}
+                        placeholder={nextQuestion.input.placeholder}
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        aria-label="Yanıt"
+                      />
+                      <button type="button" onClick={() => { const v = inlineTextareaValue.trim(); if (v) { sendMessage(v); setInlineTextareaValue(""); } }} disabled={sending || !inlineTextareaValue.trim()} className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">Gönder</button>
+                    </div>
+                  ) : nextQuestion.id === "blocking_issue_text" ? (
+                    <div className="flex flex-col gap-2">
+                      <textarea value={inlineTextareaValue} onChange={(e) => setInlineTextareaValue(e.target.value)} placeholder={nextQuestion.input?.placeholder ?? "Sorunu yazın…"} rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none" aria-label="Yanıt" />
+                      <button type="button" onClick={() => { const v = inlineTextareaValue.trim(); if (v) { sendMessage(v); setInlineTextareaValue(""); } }} disabled={sending || !inlineTextareaValue.trim()} className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end">Gönder</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(nextQuestion.choices ?? []).map((opt) => (
+                        <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">{opt}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {messages.length === 1 && !nextQuestion && !sending && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <button type="button" onClick={() => sendMessage("__continue__")} disabled={sending} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">Devam</button>
                 </div>
               )}
               <div ref={messagesBottomRef} />
@@ -870,116 +823,59 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                       ) : (
                         <p className="text-sm whitespace-pre-wrap">{m.text === "__continue__" ? "Devam" : m.text}</p>
                       )}
-                      {m.role === "assistant" && i === (messages.length || 1) - 1 && (
-                        (m.next_question || (m.next_questions && m.next_questions.length > 0))
-                          ? (
-                        <div className="mt-3 pt-3 border-t border-slate-200 flex flex-col gap-2">
-                          {m.next_question?.input?.type === "multiselect" ? (
-                            <>
-                              <div className="w-full flex flex-wrap gap-2">
-                                {(m.next_question.choices ?? []).map((opt) => {
-                                  const active = inlineMultiSelected.includes(opt);
-                                  return (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      onClick={() => {
-                                        setInlineMultiSelected((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]);
-                                      }}
-                                      disabled={sending}
-                                      className={active
-                                        ? "rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-700 disabled:opacity-50"
-                                        : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}
-                                    >
-                                      {opt}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (inlineMultiSelected.length > 0) {
-                                    const choiceIds = m.next_question?.choice_ids;
-                                    const ids = choiceIds && choiceIds.length === (m.next_question?.choices?.length ?? 0)
-                                      ? inlineMultiSelected.map((label) => {
-                                          const i = (m.next_question!.choices ?? []).indexOf(label);
-                                          return i >= 0 ? choiceIds[i] : label;
-                                        })
-                                      : inlineMultiSelected;
-                                    sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
-                                    setInlineMultiSelected([]);
-                                  }
-                                }}
-                                disabled={sending || inlineMultiSelected.length === 0}
-                                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
-                              >
-                                Devam
-                              </button>
-                            </>
-                          ) : m.next_question?.input?.type === "text" ? (
-                            <>
-                              <input
-                                value={inlineTextareaValue}
-                                onChange={(e) => setInlineTextareaValue(e.target.value)}
-                                placeholder={m.next_question.input.placeholder}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                aria-label="Yanıt"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const v = inlineTextareaValue.trim();
-                                  if (v) { sendMessage(v); setInlineTextareaValue(""); }
-                                }}
-                                disabled={sending || !inlineTextareaValue.trim()}
-                                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
-                              >
-                                Gönder
-                              </button>
-                            </>
-                          ) : m.next_question?.id === "blocking_issue_text" ? (
-                            <>
-                              <textarea
-                                value={inlineTextareaValue}
-                                onChange={(e) => setInlineTextareaValue(e.target.value)}
-                                placeholder={m.next_question.input?.placeholder ?? "Sorunu yazın…"}
-                                rows={3}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
-                                aria-label="Yanıt"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const v = inlineTextareaValue.trim();
-                                  if (v) { sendMessage(v); setInlineTextareaValue(""); }
-                                }}
-                                disabled={sending || !inlineTextareaValue.trim()}
-                                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
-                              >
-                                Gönder
-                              </button>
-                            </>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
-                                <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                          )
-                          : messages.length === 1 && (
-                        <div className="mt-3 pt-3 border-t border-slate-200">
-                          <button type="button" onClick={() => sendMessage("__continue__")} disabled={sending} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">Devam</button>
-                        </div>
-                          )
-                      )}
                     </div>
                   </div>
                 ))}
+                {/* Tek aktif soru kartı — mobilde de sadece nextQuestion */}
+                {nextQuestion && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm font-medium text-slate-900 mb-3">{nextQuestion.text}</p>
+                    {nextQuestion.input?.type === "multiselect" ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-2">
+                          {(nextQuestion.choices ?? []).map((opt) => {
+                            const active = inlineMultiSelected.includes(opt);
+                            return (
+                              <button key={opt} type="button" onClick={() => setInlineMultiSelected((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt])} disabled={sending}
+                                className={active ? "rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-700 disabled:opacity-50" : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}>
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button type="button" onClick={() => {
+                          if (inlineMultiSelected.length > 0) {
+                            const choiceIds = nextQuestion.choice_ids;
+                            const ids = choiceIds && choiceIds.length === (nextQuestion.choices?.length ?? 0) ? inlineMultiSelected.map((label) => { const idx = (nextQuestion.choices ?? []).indexOf(label); return idx >= 0 ? choiceIds[idx] : label; }) : inlineMultiSelected;
+                            sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
+                            setInlineMultiSelected([]);
+                          }
+                        }} disabled={sending || inlineMultiSelected.length === 0} className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end">Devam</button>
+                      </div>
+                    ) : nextQuestion.input?.type === "text" ? (
+                      <div className="flex flex-col gap-2">
+                        <input value={inlineTextareaValue} onChange={(e) => setInlineTextareaValue(e.target.value)} placeholder={nextQuestion.input.placeholder} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Yanıt" />
+                        <button type="button" onClick={() => { const v = inlineTextareaValue.trim(); if (v) { sendMessage(v); setInlineTextareaValue(""); } }} disabled={sending || !inlineTextareaValue.trim()} className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end">Gönder</button>
+                      </div>
+                    ) : nextQuestion.id === "blocking_issue_text" ? (
+                      <div className="flex flex-col gap-2">
+                        <textarea value={inlineTextareaValue} onChange={(e) => setInlineTextareaValue(e.target.value)} placeholder={nextQuestion.input?.placeholder ?? "Sorunu yazın…"} rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none" aria-label="Yanıt" />
+                        <button type="button" onClick={() => { const v = inlineTextareaValue.trim(); if (v) { sendMessage(v); setInlineTextareaValue(""); } }} disabled={sending || !inlineTextareaValue.trim()} className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end">Gönder</button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(nextQuestion.choices ?? []).map((opt) => (
+                          <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">{opt}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {messages.length === 1 && !nextQuestion && !sending && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <button type="button" onClick={() => sendMessage("__continue__")} disabled={sending} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">Devam</button>
+                  </div>
+                )}
                 {sending && messages.length > 0 && messages[messages.length - 1].role === "user" && (
                   <div className="flex justify-start pointer-events-none" aria-live="polite" aria-busy="true">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-400 italic">Cevaplanıyor…</div>

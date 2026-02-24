@@ -471,6 +471,9 @@ export async function POST(req: NextRequest) {
     }
     if (last_ask_id === "service_pick") {
       mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) };
+      if (Array.isArray(mergedAnswers.services_selected) && (mergedAnswers.services_selected as unknown[]).length >= 1) {
+        mergedAnswers = { ...mergedAnswers, services_locked: true };
+      }
     }
     console.log("[job-guide/chat] mergedAnswers.services_selected", {
       type: Array.isArray(mergedAnswers.services_selected) ? "array" : typeof mergedAnswers.services_selected,

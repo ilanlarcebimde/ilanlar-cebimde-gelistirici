@@ -436,9 +436,11 @@ export function getNextStep(
   lastAskId?: string | null
 ): FlowStep | null {
   const steps = getActiveFlowSteps(source);
+  const servicesLocked = answers.services_locked === true;
   let next: FlowStep | null = null;
   for (const step of steps) {
     if (step.showIf && !isShowIfMatch(answers, step.showIf)) continue;
+    if (step.id === "service_pick" && servicesLocked) continue;
     if (isStepAnswered(answers, step)) continue;
     next = step;
     break;
