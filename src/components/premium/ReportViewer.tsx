@@ -55,7 +55,7 @@ export function ReportViewer({
             <div key={i} className="h-4 w-full animate-pulse rounded bg-slate-100" />
           ))}
         </div>
-        <p className="mt-4 text-sm text-slate-500">Rapor güncelleniyor…</p>
+        <p className="mt-4 text-sm text-slate-500">Yapılacaklar güncelleniyor…</p>
       </div>
     );
   }
@@ -65,7 +65,7 @@ export function ReportViewer({
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Bu İlan İçin Nasıl Başvururum</h2>
         <p className="mt-4 text-sm text-slate-600">
-          Ülke, ilan başlığı ve kaynağa göre adım adım rehber oluşturulur. Soruları cevaplayıp &quot;Raporu Güncelle&quot; ile kişiselleştirin.
+          Ülke, ilan başlığı ve kaynağa göre adım adım rehber oluşturulur. Soruları cevaplayıp &quot;Yapılacakları Güncelle&quot; ile kişiselleştirin.
         </p>
       </div>
     );
@@ -90,7 +90,7 @@ export function ReportViewer({
               onClick={onSave}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              📌 Raporu Kaydet
+              📌 Yapılacakları Kaydet
             </button>
           )}
           {onRefresh && (

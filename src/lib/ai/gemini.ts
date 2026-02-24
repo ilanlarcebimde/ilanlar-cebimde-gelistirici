@@ -116,7 +116,8 @@ export function applyGuardrails(
 ): string {
   let out = redactForbiddenPhrases(message).cleaned;
 
-  const hasPassportAnswer = opts.answers?.passport_status != null && String(opts.answers.passport_status).trim() !== "";
+  const passportVal = opts.answers?.passport_status ?? opts.answers?.has_passport;
+  const hasPassportAnswer = passportVal != null && String(passportVal).trim() !== "";
   if (!hasPassportAnswer) {
     out = out
       .replace(/\bpasaportun\s+var\b/gi, "pasaport durumunu bir sonraki soruda belirteceksin")

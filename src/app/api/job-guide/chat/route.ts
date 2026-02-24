@@ -66,31 +66,21 @@ function getQuestionTextAndChoices(step: FlowStep): { text: string; choices?: st
   return getStepDisplay(step);
 }
 
-/** Hızlı Rehber — deterministik, kaynağa göre (Gemini'ye gerek yok). */
+/** Hızlı Rehber — deterministik, kaynağa göre; ilk mesajda sadece bilgi, soru yok. */
 function getQuickGuideText(source: SourceKind): string {
-  const stripMd = (s: string) => s.replace(/\*\*(.*?)\*\*/g, "$1");
-  if (source === "glassdoor") {
-    const t = QUICK_GUIDE_TEMPLATES.GLASSDOOR;
-    return [stripMd(t.title), ...t.bullets.map((b) => `• ${stripMd(b)}`)].join("\n");
-  }
-  if (source === "eures") {
-    const t = QUICK_GUIDE_TEMPLATES.EURES;
-    return [stripMd(t.title), ...t.bullets.map((b) => `• ${stripMd(b)}`)].join("\n");
-  }
-  return [
-    "Bu ilan harici bir platformdan gelmektedir.",
-    "İlana Git ile sayfayı açın; başvuru / Apply bölümünü bulun.",
-    "Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
-  ].join("\n");
+  if (source === "glassdoor") return QUICK_GUIDE_TEMPLATES.GLASSDOOR.fullText;
+  if (source === "eures") return QUICK_GUIDE_TEMPLATES.EURES.fullText;
+  return QUICK_GUIDE_TEMPLATES.GLASSDOOR.fullText; // default
 }
 
 /** Cevap sonrası onay cümlesi — asistan varsayım yapmaz, cevaba göre tek cümle. */
 function getConfirmationMessage(askId: string, value: unknown): string | null {
   const v = String(value ?? "").toLowerCase().trim();
+  const valTrim = String(value ?? "").trim();
   if (askId === "passport") {
-    if (v === "var") return "Tamam, pasaportun var. Şimdi geçerlilik süresini raporda kontrol edeceğiz.";
-    if (v === "basvurdum") return "Tamam, başvurmuşsun. Takip numarası / süre bilgisi raporda not edilecek.";
-    if (v === "yok") return "Tamam, pasaport yok. Bu ilan için kritik bir engel olabilir; raporda önceliklendireceğiz.";
+    if (v === "var") return "Tamam, pasaportun var. Şimdi geçerlilik süresini yapılacaklar listesinde kontrol edeceğiz.";
+    if (v === "basvurdum") return "Tamam, başvurmuşsun. Takip numarası / süre bilgisi yapılacaklar listesinde not edilecek.";
+    if (v === "yok") return "Tamam, pasaport yok. Bu ilan için kritik bir engel olabilir; yapılacaklar listesinde önceliklendireceğiz.";
   }
   if (askId === "source_apply_opened") {
     if (v === "var") return "Tamam, sayfayı açtın. Sırada başvuru alanını bulmak var.";
@@ -103,21 +93,22 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
   if (askId === "cv") {
     if (v === "var") return "PDF hazır, iyi. Başvuruda ekleyeceğiz.";
     if (v === "var_not_pdf") return "Tamam. Mümkünse PDF’e çevirip yüklemek başvuruda daha iyi görünür.";
-    if (v === "yok") return "Tamam. Önce CV’yi hazırlamak gerekiyor; raporda kısa rehber var.";
+    if (v === "yok") return "Tamam. Önce CV’yi hazırlamak gerekiyor; yapılacaklar listesinde kısa rehber var.";
   }
   if (askId === "language") return "Tamam, dil seviyesini kaydettim. Raporda buna göre öneri vereceğiz.";
   if (askId === "has_trade_certificate") return "Tamam, mesleki belge durumunu not ettim.";
   if (askId === "barrier") {
     if (v === "yok") return "Tamam, şu an tıkayan bir şey yok.";
-    if (v === "var") return "Tamam. Ne olduğunu yazdığında raporda değerlendireceğiz.";
+    if (v === "var") return "Tamam. Ne olduğunu yazdığında yapılacaklar listesinde değerlendireceğiz.";
   }
-  if (askId === "passport_status") {
-    if (String(value).trim() === "Var") return "Tamam, pasaportun var. Şimdi geçerlilik süresini raporda kontrol edeceğiz.";
-    if (v === "başvurdum" || String(value).trim() === "Başvurdum") return "Tamam, başvurmuşsun. Takip numarası / süre bilgisi raporda not edilecek.";
-    if (String(value).trim() === "Yok") return "Tamam, pasaport yok. Bu ilan için kritik bir engel olabilir; raporda önceliklendireceğiz.";
+  if (askId === "passport_status" || askId === "has_passport") {
+    if (valTrim === "Evet" || String(value).trim() === "Var") return "Tamam, pasaportunuz var. Geçerlilik süresini yapılacaklar listesinde not edeceğiz.";
+    if (v === "başvurdum" || valTrim === "Başvurdum") return "Tamam, başvurmuşsunuz. Takip / süre bilgisi yapılacaklar listesinde yer alacak.";
+    if (valTrim === "Hayır" || String(value).trim() === "Yok") return "Tamam. Pasaport yoksa aşağıda kısa rehber var.";
+    if (valTrim === "Emin değilim") return "Tamam, not ettim. Yapılacaklar listesinde pasaport adımı yer alacak.";
   }
   if (askId === "opened_source_page") {
-    if (String(value).trim() === "Açtım") return "Tamam, sayfayı açtın. Sırada başvuru alanını bulmak var.";
+    if (valTrim === "Açtım") return "Tamam, sayfayı açtın. Sırada başvuru alanını bulmak var.";
     if (String(value).trim() === "Açamadım") return "Tamam. İlana Git butonuna tıklayıp sayfayı açmayı dene; açmazsa birlikte bakacağız.";
   }
   if (askId === "found_apply_section" || askId === "saw_signin_to_apply" || askId === "how_to_apply_method") {
@@ -212,18 +203,43 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
         if (/gördüm|evet/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Gördüm";
         else if (/göremedim|görmedim|hayır/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Göremedim";
         else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
-      } else if (step.answerKey === "passport_status") {
-        if (/^var$/i.test(t)) (patch as Record<string, unknown>).passport_status = "Var";
+      } else if (step.answerKey === "passport_status" || step.answerKey === "has_passport") {
+        if (/^evet$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Evet";
+        else if (/^hayır$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Hayır";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
+        else if (/^var$/i.test(t)) (patch as Record<string, unknown>).passport_status = "Var";
         else if (/başvurdum|basvurdum/.test(t)) (patch as Record<string, unknown>).passport_status = "Başvurdum";
-        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>).passport_status = "Yok";
-      } else if (step.answerKey === "cv_status") {
-        if (/pdf\s*hazır|hazır\s*pdf/.test(t)) (patch as Record<string, unknown>).cv_status = "PDF hazır";
+        else if (/^yok$/i.test(t)) { (patch as Record<string, unknown>).passport_status = "Yok"; if (step.answerKey === "has_passport") (patch as Record<string, unknown>).has_passport = "Hayır"; }
+      } else if (step.answerKey === "cv_status" || step.answerKey === "cv_ready") {
+        if (/^evet$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Evet";
+        else if (/^hayır$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Hayır";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
+        else if (/pdf\s*hazır|hazır\s*pdf/.test(t)) (patch as Record<string, unknown>).cv_status = "PDF hazır";
         else if (/hazır\s*ama\s*pdf\s*değil/.test(t)) (patch as Record<string, unknown>).cv_status = "Hazır ama PDF değil";
         else if (/hazır\s*değil/.test(t)) (patch as Record<string, unknown>).cv_status = "Hazır değil";
+      } else if (["needs_eu_login", "is_eu_eea_citizen", "has_glassdoor_account", "redirects_to_company_site"].includes(step.answerKey)) {
+        if (/^evet$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Evet";
+        else if (/^hayır$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Hayır";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
+      } else if (step.answerKey === "apply_method") {
+        if (/form\s*\/?\s*portal|portal/i.test(t)) (patch as Record<string, unknown>).apply_method = "Form/Portal";
+        else if (/e-?posta|mail/i.test(t)) (patch as Record<string, unknown>).apply_method = "E-posta";
+        else if (/şirket\s*sitesi|sitesine/i.test(t)) (patch as Record<string, unknown>).apply_method = "Şirket sitesi";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).apply_method = "Emin değilim";
+      } else if (step.answerKey === "proof_docs") {
+        const docOpts = ["Ustalık belgesi / MYK", "Kalfalık belgesi", "SGK hizmet dökümü", "Sertifika", "Referans mektubu", "Portföy (foto/video)", "Hiçbiri"];
+        const selected = t.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+        const valid = selected.filter((s) => docOpts.some((o) => o === s || o.includes(s) || s.includes(o)));
+        if (valid.length > 0) (patch as Record<string, unknown>).proof_docs = valid.length === 1 ? valid : valid;
+        else if (docOpts.some((o) => t === o || t.includes(o))) (patch as Record<string, unknown>).proof_docs = [t.trim()];
+      } else if (step.answerKey === "screen_headings" && t.length >= 3) {
+        (patch as Record<string, unknown>).screen_headings = t;
       } else if (step.answerKey === "language_level") {
-        if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).language_level = "A1–A2";
+        if (/a0\b/i.test(t)) (patch as Record<string, unknown>).language_level = "A0";
+        else if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).language_level = "A1–A2";
         else if (/\bb1\b/.test(t)) (patch as Record<string, unknown>).language_level = "B1";
-        else if (/b2\+|b2\s*artı/.test(t)) (patch as Record<string, unknown>).language_level = "B2+";
+        else if (/\bb2\b/.test(t)) (patch as Record<string, unknown>).language_level = "B2";
+        else if (/c1\+|c1\s*artı/.test(t)) (patch as Record<string, unknown>).language_level = "C1+";
         else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).language_level = "Emin değilim";
       } else if (step.answerKey === "blocking_issue") {
         if (/^yok$/i.test(t)) (patch as Record<string, unknown>).blocking_issue = "Yok";
@@ -469,25 +485,12 @@ export async function POST(req: NextRequest) {
 
     const quickGuideText = getQuickGuideText(sourceKey);
     if (isBootstrap) {
-      const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
-      const firstQuestion = nextStep ? getQuestionTextAndChoices(nextStep) : { text: "Adımlar tamamlandı.", choices: [] as string[] };
-      const askId = nextStep?.id ?? "done";
-      const nextQuestionPayload = nextStep
-        ? { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input }
-        : null;
-      const bootstrapMessage = "Merhaba! 👋 Yukarıdaki Hızlı Rehber'e göz at; aşağıdaki soruyla devam edelim.";
+      // İlk mesajda sadece Hızlı Rehber; soru yok. Kullanıcı "Devam" ile ilk soruyu başlatır.
+      const bootstrapMessage = quickGuideText;
       const assistant = {
         message_md: bootstrapMessage,
-        quick_replies: firstQuestion.choices ?? [],
-        ask: nextQuestionPayload
-          ? {
-              id: askId,
-              question: firstQuestion.text,
-              type: (firstQuestion.input ? "textarea" : "choice") as "choice" | "textarea",
-              choices: firstQuestion.choices,
-              input: firstQuestion.input,
-            }
-          : undefined,
+        quick_replies: [] as string[],
+        ask: undefined as { id: string; question: string; type: "choice" | "textarea"; choices?: string[]; input?: unknown } | undefined,
       };
       const state_patch = {
         answers_patch: {},
@@ -496,7 +499,7 @@ export async function POST(req: NextRequest) {
       };
       return NextResponse.json({
         assistant_message: bootstrapMessage,
-        next_question: nextQuestionPayload,
+        next_question: null,
         quick_guide_text: quickGuideText,
         report_json: guide?.report_json ?? {},
         report_md: null,
@@ -506,6 +509,39 @@ export async function POST(req: NextRequest) {
         state_patch,
         next: { should_finalize: false, reason: "" },
       });
+    }
+
+    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise Gemini çağrılmadan ilk soru döndürülür.
+    const isContinueStart = (!rawUserText || rawUserText.trim() === "" || rawUserText.trim().toLowerCase() === "__continue__") && Object.keys(mergedAnswers as object).length === 0;
+    if (isContinueStart) {
+      const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+      if (nextStep) {
+        const firstQuestion = getQuestionTextAndChoices(nextStep);
+        const askId = nextStep.id;
+        const nextQuestionPayload = { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input };
+        return NextResponse.json({
+          assistant_message: "İlk soruyla devam ediyoruz.",
+          next_question: nextQuestionPayload,
+          quick_guide_text: quickGuideText,
+          report_json: guide?.report_json ?? {},
+          report_md: null,
+          checklist_snapshot: checklistSnapshot,
+          answers_json: mergedAnswers,
+          assistant: {
+            message_md: "İlk soruyla devam ediyoruz.",
+            quick_replies: firstQuestion.choices ?? [],
+            ask: {
+              id: askId,
+              question: firstQuestion.text,
+              type: (firstQuestion.input ? "textarea" : "choice") as "choice" | "textarea",
+              choices: firstQuestion.choices,
+              input: firstQuestion.input,
+            },
+          },
+          state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
+          next: { should_finalize: false, reason: "" },
+        });
+      }
     }
 
     // Chat: tek otorite = config. Sıradaki soru her zaman config'ten; no-repeat: aynı soru tekrar dönmesin.
@@ -547,8 +583,8 @@ export async function POST(req: NextRequest) {
       }
       const doneMessage =
         reportMdFinal && reportMdFinal.length > 50
-          ? "Tüm sorular tamamlandı. Rapor aşağıda."
-          : "Tüm sorular tamamlandı. Rapor hazırlanıyor; sayfayı yenileyebilir veya birkaç saniye sonra tekrar bakabilirsin.";
+          ? "Tüm sorular tamamlandı. Şu an netleşen yapılacaklar aşağıda."
+          : "Tüm sorular tamamlandı. Yapılacaklar hazırlanıyor; sayfayı yenileyebilir veya birkaç saniye sonra tekrar bakabilirsin.";
       const state_patch = {
         answers_patch: {} as Record<string, unknown>,
         checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
@@ -579,7 +615,7 @@ export async function POST(req: NextRequest) {
     const jobPageExcerpt = jobPageResult.text ? jobPageResult.text.slice(0, 15000) : "";
 
     const liveItems: LiveContextItem[] = [];
-    const wantsVisa = wants_live_visa === true || /visa_need_clarity|passport_status|visa/i.test(currentStepId);
+    const wantsVisa = wants_live_visa === true || /visa_need_clarity|passport_status|has_passport|citizenship_eu|visa/i.test(currentStepId);
     if (wantsVisa && country) {
       const countrySources = await getCountrySources(country, "visa", 2);
       for (const s of countrySources) {
@@ -749,7 +785,7 @@ export async function POST(req: NextRequest) {
     const { cleaned: redactedMessage, hadForbidden } = redactForbiddenPhrases(assistantMessage);
     if (hadForbidden) assistantMessage = redactedMessage;
     // CV hazır değil cevabında "şu noktalara dikkat edin" deyip liste vermeyen yanıtları tamamla
-    const cvNotReady = last_ask_id === "cv_status" && mergedAnswers.cv_status === "Hazır değil";
+    const cvNotReady = (last_ask_id === "cv_status" || last_ask_id === "cv_ready") && (mergedAnswers.cv_status === "Hazır değil" || mergedAnswers.cv_ready === "Hayır");
     const hasNumberedList = /\n[1-9]\.\s|\n[1-9]\.\)|^[1-9]\.\s/m.test(assistantMessage);
     const endsWithDikkatEdin = /dikkat\s+edin\s*:?\s*$/i.test(assistantMessage.trim());
     if (cvNotReady && (endsWithDikkatEdin || !hasNumberedList)) {
@@ -764,10 +800,10 @@ export async function POST(req: NextRequest) {
       assistantMessage = (assistantMessage ? assistantMessage + "\n\n" : "") + defaultCvGuide;
     }
 
-    // CV Paketi CTA: sadece cv_status "Hazır değil" veya "Yok" iken, tek mesaj + link + CV79 (tek kod)
-    const cvMissing = mergedAnswers.cv_status === "Hazır değil" || mergedAnswers.cv_status === "Yok";
+    // CV Paketi CTA: cv_ready "Hayır" veya cv_status "Hazır değil"/"Yok" iken, tek mesaj + link + CV79
+    const cvMissing = mergedAnswers.cv_ready === "Hayır" || mergedAnswers.cv_status === "Hazır değil" || mergedAnswers.cv_status === "Yok";
     const shouldInjectCvCta =
-      cvMissing && (last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
+      cvMissing && (last_ask_id === "cv_ready" || last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
     if (shouldInjectCvCta) {
       const link = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
       const cta = `CV hazır değilse buradan 24 saat içinde hazırlatabilirsin.\n${link}\nİndirim kodu: CV79`;
@@ -775,6 +811,17 @@ export async function POST(req: NextRequest) {
     }
     if (confirmationMsg) {
       assistantMessage = confirmationMsg + "\n\n" + assistantMessage;
+    }
+    // Ülke-özel mini rehber: Pasaport "Hayır" cevabında anında kısa yol (araştırın yok)
+    const passportNo = (last_ask_id === "passport_status" || last_ask_id === "has_passport") &&
+      (mergedAnswers.has_passport === "Hayır" || mergedAnswers.passport_status === "Yok");
+    if (passportNo) {
+      const miniGuide = [
+        "🛂 **Pasaport:** Türkiye'de Nüfus Müdürlüğü'nden randevu alıp başvurunuzu yapın; kimlik ve fotoğraf gerekli.",
+        `🌍 **Vize/Çalışma izni:** ${country ? `${country} için ` : ""}AB/AEA vatandaşı değilseniz genelde işveren sponsorluğu veya çalışma izni gerekir. İlandaki "How to apply" koşullarına bakacağız.`,
+        "⏱️ **Süre:** Pasaport başvurusu birkaç hafta sürebilir; en erken bu adımı tamamlayın.",
+      ].join("\n\n");
+      assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n---\n\n" + miniGuide : miniGuide;
     }
     const finalAnswers = mergedAnswers as Record<string, unknown>;
     const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};

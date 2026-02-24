@@ -349,7 +349,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           next_question: nextQ ?? undefined,
         };
         setMessages([msg]);
-        setNextQuestion(nextQ ?? { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+        setNextQuestion(nextQ ?? null);
         setInlineTextareaValue("");
         setInlineMultiSelected([]);
         if (d.report_json) setReport(d.report_json);
@@ -625,7 +625,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             onClick={() => setMobileTab("report")}
             className={`flex-1 py-3 text-sm font-medium ${mobileTab === "report" ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50" : "text-slate-600"}`}
           >
-            Rapor
+            Yapılacaklar
           </button>
         </div>
       </header>
@@ -714,7 +714,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">{m.text}</p>
                     )}
-                    {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
+                    {m.role === "assistant" && i === (messages.length || 1) - 1 && (
+                      (m.next_question || (m.next_questions && m.next_questions.length > 0))
+                        ? (
                       <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
                         {m.next_question?.input?.type === "multiselect" ? (
                           <>
@@ -809,6 +811,19 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                           ))
                         )}
                       </div>
+                        )
+                        : messages.length === 1 && (
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => sendMessage("__continue__")}
+                          disabled={sending}
+                          className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                        >
+                          Devam
+                        </button>
+                      </div>
+                        )
                     )}
                   </div>
                 </div>
@@ -874,7 +889,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                       ) : (
                         <p className="text-sm whitespace-pre-wrap">{m.text}</p>
                       )}
-                      {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
+                      {m.role === "assistant" && i === (messages.length || 1) - 1 && (
+                        (m.next_question || (m.next_questions && m.next_questions.length > 0))
+                          ? (
                         <div className="mt-3 pt-3 border-t border-slate-200 flex flex-col gap-2">
                           {m.next_question?.input?.type === "multiselect" ? (
                             <>
@@ -965,6 +982,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                             </div>
                           )}
                         </div>
+                          )
+                          : messages.length === 1 && (
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <button type="button" onClick={() => sendMessage("__continue__")} disabled={sending} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">Devam</button>
+                        </div>
+                          )
                       )}
                     </div>
                   </div>
@@ -996,7 +1019,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             </div>
         )}
 
-        {/* Sağ: İlan bilgisi + Rapor butonu (desktop) | Rapor tab (mobil) */}
+        {/* Sağ: İlan bilgisi + Yapılacaklar butonu (desktop) | Yapılacaklar tab (mobil) */}
         <aside className="w-72 shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden md:block">
           <div className="p-4">
             <h2 className="text-sm font-bold text-slate-900 mb-3">Bu ilan</h2>
@@ -1014,7 +1037,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               onClick={() => setReportDrawerOpen(true)}
               className="mt-3 w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Raporu Aç
+              Yapılacakları Aç
             </button>
           </div>
         </aside>
@@ -1038,13 +1061,13 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         )}
       </div>
 
-      {/* Rapor drawer (desktop) */}
+      {/* Yapılacaklar drawer (desktop) */}
       {reportDrawerOpen && (
         <>
           <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setReportDrawerOpen(false)} aria-hidden />
           <aside className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto border-l border-slate-200">
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Rapor</h2>
+              <h2 className="text-lg font-bold text-slate-900">Yapılacaklar</h2>
               <button type="button" onClick={() => setReportDrawerOpen(false)} className="text-slate-500 hover:text-slate-700 text-xl leading-none">×</button>
             </div>
             <div className="p-4">

@@ -71,7 +71,7 @@ export function AssistantChat({
         {updating && (
           <div className="flex justify-start">
             <div className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm text-slate-500">
-              Rapor güncelleniyor…
+              Yapılacaklar güncelleniyor…
             </div>
           </div>
         )}
@@ -116,7 +116,7 @@ export function AssistantChat({
           disabled={updating}
           className="w-full rounded-xl border-2 border-brand-600 bg-brand-50 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 min-h-[44px]"
         >
-          🔄 Raporu Güncelle
+          🔄 Yapılacakları Güncelle
         </button>
       </div>
     </div>
