@@ -162,7 +162,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
     async function run() {
       const token = await getSession();
-      if (!token || cancelled) return;
+      if (cancelled) return;
+      if (!token) {
+        setJobLoadError(true);
+        setLoading(false);
+        return;
+      }
 
       let panelRes = await fetch(`/api/premium/panel/${trimmedId}`, { headers: { Authorization: `Bearer ${token}` } });
       if (cancelled) return;
@@ -172,6 +177,14 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         panelRes = await fetch(`/api/premium/panel/${trimmedId}`, { headers: { Authorization: `Bearer ${token}` } });
       }
       if (cancelled) return;
+
+      if (panelRes.status === 401) {
+        if (!cancelled) {
+          setJobLoadError(true);
+          setLoading(false);
+        }
+        return;
+      }
 
       if (panelRes.ok) {
         const data = (await panelRes.json()) as {
@@ -274,7 +287,13 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setLoading(false);
       }
     }
-    run();
+    run().catch((err) => {
+      if (!cancelled) {
+        console.error("[JobGuideClient] load error", err);
+        setJobLoadError(true);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [jobId, getSession]);
 
