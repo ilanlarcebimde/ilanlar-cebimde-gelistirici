@@ -39,7 +39,7 @@ function isQuestionAnswered(answers: Answers, id: string): boolean {
 
 /** İlerleme = 7 sorudan kaçı cevaplandı (soru tamamlama oranı). */
 export function getProgressFromSevenQuestions(answers: Answers): { total: number; done: number; pct: number } {
-  const total = QUESTION_IDS_7.length;
+  const total: number = QUESTION_IDS_7.length;
   const done = QUESTION_IDS_7.filter((id) => isQuestionAnswered(answers, id)).length;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return { total, done, pct };
