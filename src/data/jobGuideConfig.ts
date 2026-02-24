@@ -1,27 +1,55 @@
 /**
- * Job Guide config — 2026-02-24+extras
- * blocking_issue = "Var (yazacağım)" → blocking_issue_text (free-text)
- * found_apply_section = "Göremedim" → visible_headings_text (once)
+ * Job Guide config — 2026-02-24+v2
+ * Deterministic flow: showIf koşulu tutmuyorsa atla; answerKey doluysa asla tekrar gösterme; ilk cevaplanmamış soruyu göster.
  * Rule: answerKey doluysa asla tekrar gösterme. showIf koşulu tutmuyorsa atla. İlk cevaplanmamış soruyu göster.
  */
 
-export const JOB_GUIDE_CONFIG_VERSION = "2026-02-24+extras";
+export const JOB_GUIDE_CONFIG_VERSION = "2026-02-24+v2";
+
+export const QUICK_GUIDE_TEMPLATES = {
+  GLASSDOOR: {
+    title: "Hızlı Rehber",
+    bullets: [
+      "**Bu ilan kaynağı: GLASSDOOR.** Başvuru genelde “Apply / Sign in to apply” alanından yapılır.",
+      "Sayfa İngilizceyse: **Chrome → sağ tık → Türkçeye çevir** (telefon: ⋮ → Çevir).",
+      "Başvuru şirket sitesine yönlenirse: **aynı pozisyonu şirketin kariyer sayfasında** bulup oradan devam edeceğiz.",
+      "Ben senden gerekli bilgileri alacağım, her cevap sonrası **Rapor** otomatik güncellenecek.",
+    ],
+  },
+  EURES: {
+    title: "Hızlı Rehber",
+    bullets: [
+      "**Bu ilan kaynağı: EURES.** Başvuru adımı genelde ilandaki “How to apply / Apply” bölümünden ilerler.",
+      "Sayfa İngilizceyse: **Chrome → sağ tık → Türkçeye çevir** (telefon: ⋮ → Çevir).",
+      "Bazı ilanlarda giriş gerekebilir: **EU Login / EURES hesabı** istenebilir.",
+      "Ben senden gerekli bilgileri alacağım, her cevap sonrası **Rapor** otomatik güncellenecek.",
+    ],
+  },
+} as const;
 
 export type DoneRule =
   | { type: "equals"; answerKey: string; value: string }
   | { type: "equalsAny"; answerKey: string; values: string[] }
-  | { type: "minLength"; answerKey: string; value: number };
+  | { type: "minLength"; answerKey: string; value: number }
+  | { type: "notEmpty"; answerKey: string }
+  | { type: "minSelected"; answerKey: string; value: number };
 
 export type ShowIfCondition =
   | { answerKey: string; equals: string }
-  | { answerKey: string; isEmpty: true };
+  | { answerKey: string; isEmpty: true }
+  | { answerKey: string; includes: string };
+
+export type FlowInput =
+  | { type: "text"; placeholder: string }
+  | { type: "textarea"; placeholder: string }
+  | { type: "multiselect" };
 
 export type FlowStep = {
   id: string;
   checklistLabel: string;
   text: string;
   choices?: string[];
-  input?: { type: "textarea"; placeholder: string };
+  input?: FlowInput;
   answerKey: string;
   askOnce?: boolean;
   showIf?: { all: ShowIfCondition[] };
@@ -33,7 +61,7 @@ export const QUESTION_FLOW = {
     {
       id: "opened_source_page",
       checklistLabel: "Kaynak sayfayı açtım",
-      text: "\"İlana Git\" butonuna tıklayıp kaynak sayfayı açabildin mi?",
+      text: "✅ Kaynak sayfayı açabildin mi? (“İlana Git” ile)",
       choices: ["Açtım", "Açamadım"],
       answerKey: "opened_source_page",
       doneRule: { type: "equals", answerKey: "opened_source_page", value: "Açtım" },
@@ -41,16 +69,16 @@ export const QUESTION_FLOW = {
     {
       id: "found_apply_section",
       checklistLabel: "Başvuru alanını buldum",
-      text: "Sayfada başvuru alanını (\"Apply / How to apply / Apply Now\") gördün mü?",
-      choices: ["Gördüm", "Göremedim", "Emin değilim"],
+      text: "🔎 Başvuru alanını gördün mü? (Apply / How to apply / Apply Now / Sign in to apply)",
+      choices: ["Gördüm", "Göremedim"],
       answerKey: "found_apply_section",
-      doneRule: { type: "equalsAny", answerKey: "found_apply_section", values: ["Gördüm", "Göremedim", "Emin değilim"] },
+      doneRule: { type: "equals", answerKey: "found_apply_section", value: "Gördüm" },
     },
     {
       id: "visible_headings_text",
-      checklistLabel: "Ekrandaki başlıkları yazdım",
-      text: "Tamam. Şu an ekranda hangi başlıkları/sekme adlarını görüyorsun? (Örn: Company / Reviews / Salaries / Jobs / Apply…)",
-      input: { type: "textarea", placeholder: "Gördüğün başlıkları alt alta yazabilirsin…" },
+      checklistLabel: "Ekran başlıklarını yazdım",
+      text: "🧭 Tamam. Şu an ekranda hangi sekmeleri/başlıkları görüyorsun? (Örn: Company / Reviews / Salaries / Jobs / Apply…)",
+      input: { type: "textarea", placeholder: "Gördüklerini yaz…" },
       answerKey: "visible_headings_text",
       askOnce: true,
       showIf: {
@@ -62,49 +90,112 @@ export const QUESTION_FLOW = {
       doneRule: { type: "minLength", answerKey: "visible_headings_text", value: 3 },
     },
     {
+      id: "apply_method",
+      checklistLabel: "Başvuru yöntemi belli",
+      text: "📝 Başvuru hangi şekilde ilerliyor?",
+      choices: ["Platform içi form", "Şirket sitesine yönlendirdi", "E-posta ile başvuru", "Henüz anlayamadım"],
+      answerKey: "apply_method",
+      doneRule: { type: "notEmpty", answerKey: "apply_method" },
+    },
+    {
       id: "passport_status",
-      checklistLabel: "Pasaport durumum net",
-      text: "Pasaport durumun nedir?",
+      checklistLabel: "Pasaport durumu net",
+      text: "🛂 Pasaport durumun nedir?",
       choices: ["Var", "Başvurdum", "Yok"],
       answerKey: "passport_status",
-      doneRule: { type: "equalsAny", answerKey: "passport_status", values: ["Var", "Başvurdum", "Yok"] },
+      doneRule: { type: "notEmpty", answerKey: "passport_status" },
+    },
+    {
+      id: "passport_followup_if_applied",
+      checklistLabel: "Pasaport süre bilgisi var",
+      text: "⏱️ Pasaport için yaklaşık kaç gün/hafta içinde çıkacak? (Bilmiyorsan ‘Emin değilim’ yazabilirsin.)",
+      input: { type: "text", placeholder: "Örn: 2 hafta / 10 gün / Emin değilim" },
+      answerKey: "passport_eta",
+      showIf: { all: [{ answerKey: "passport_status", equals: "Başvurdum" }] },
+      doneRule: { type: "minLength", answerKey: "passport_eta", value: 2 },
     },
     {
       id: "cv_status",
-      checklistLabel: "CV durumum net",
-      text: "CV durumun nedir?",
+      checklistLabel: "CV durumu net",
+      text: "📄 CV durumun nedir?",
       choices: ["PDF hazır", "Hazır ama PDF değil", "Hazır değil"],
       answerKey: "cv_status",
-      doneRule: { type: "equalsAny", answerKey: "cv_status", values: ["PDF hazır", "Hazır ama PDF değil", "Hazır değil"] },
+      doneRule: { type: "notEmpty", answerKey: "cv_status" },
     },
     {
-      id: "english_level",
-      checklistLabel: "Dil seviyem net",
-      text: "İngilizce seviyen hangisine daha yakın?",
+      id: "cv_offer_if_missing",
+      checklistLabel: "CV destek seçimi yapıldı",
+      text: "💡 CV’n hazır değilse biz 1 gün içinde hazırlayıp teslim edebiliriz. İstersen şimdi yönlendireyim.",
+      choices: ["Evet yönlendir", "Şimdilik hayır"],
+      answerKey: "cv_offer_if_missing",
+      askOnce: true,
+      showIf: {
+        all: [
+          { answerKey: "cv_status", equals: "Hazır değil" },
+          { answerKey: "cv_offer_if_missing", isEmpty: true },
+        ],
+      },
+      doneRule: { type: "notEmpty", answerKey: "cv_offer_if_missing" },
+    },
+    {
+      id: "qualification_proof_bundle",
+      checklistLabel: "Nitelik kanıtları seçildi",
+      text: "🏅 Bu iş için elinde hangi kanıtlar var? (Birden fazla seçebilirsin.)",
+      choices: [
+        "Ustalık belgesi / MYK",
+        "Kalfalık belgesi",
+        "SGK/iş geçmişi kayıtlı",
+        "Sertifika (kurs/eğitim)",
+        "Referans (usta/işveren)",
+        "Portföy (fotoğraf/video)",
+        "Hiçbiri",
+      ],
+      input: { type: "multiselect" },
+      answerKey: "qualification_proof_bundle",
+      doneRule: { type: "minSelected", answerKey: "qualification_proof_bundle", value: 1 },
+    },
+    {
+      id: "qualification_missing_followup",
+      checklistLabel: "Belgesiz alternatif plan yazıldı",
+      text: "🧩 Tamam. Elinde belge yoksa bile başvuru yapılabilir. Hangi alternatifi hazırlayalım? (Kısa yaz)",
+      input: { type: "textarea", placeholder: "Örn: Usta referansı alacağım / Portföy çıkaracağım / SGK dökümü alacağım" },
+      answerKey: "qualification_plan_text",
+      showIf: {
+        all: [
+          { answerKey: "qualification_proof_bundle", includes: "Hiçbiri" },
+          { answerKey: "qualification_plan_text", isEmpty: true },
+        ],
+      },
+      doneRule: { type: "minLength", answerKey: "qualification_plan_text", value: 5 },
+    },
+    {
+      id: "language_level",
+      checklistLabel: "Dil seviyesi net",
+      text: "🗣️ Dil seviyen hangisine yakın?",
       choices: ["A1–A2", "B1", "B2+", "Emin değilim"],
-      answerKey: "english_level",
-      doneRule: { type: "equalsAny", answerKey: "english_level", values: ["A1–A2", "B1", "B2+", "Emin değilim"] },
+      answerKey: "language_level",
+      doneRule: { type: "notEmpty", answerKey: "language_level" },
     },
     {
-      id: "trade_certificate",
-      checklistLabel: "Mesleki yeterlilik/ustalık belgesi durumu net",
-      text: "Mesleki yeterlilik / ustalık belgen var mı?",
+      id: "visa_need_clarity",
+      checklistLabel: "İş teklifi durumu net",
+      text: "🌍 Bu ülke için vize/çalışma izni sürecini anlatalım: Şu an elinde iş teklifi (offer) var mı?",
       choices: ["Var", "Yok", "Emin değilim"],
-      answerKey: "trade_certificate",
-      doneRule: { type: "equalsAny", answerKey: "trade_certificate", values: ["Var", "Yok", "Emin değilim"] },
+      answerKey: "has_job_offer",
+      doneRule: { type: "notEmpty", answerKey: "has_job_offer" },
     },
     {
       id: "blocking_issue",
       checklistLabel: "Engel durumu net",
-      text: "Başvuruyu şu an tıkayan bir sorun var mı?",
+      text: "🚧 Şu an başvuruyu tıkayan bir sorun var mı?",
       choices: ["Yok", "Var (yazacağım)"],
       answerKey: "blocking_issue",
-      doneRule: { type: "equalsAny", answerKey: "blocking_issue", values: ["Yok", "Var (yazacağım)"] },
+      doneRule: { type: "notEmpty", answerKey: "blocking_issue" },
     },
     {
       id: "blocking_issue_text",
-      checklistLabel: "Engeli yazdım",
-      text: "Kısa ve net yaz: Seni tıkayan sorun ne? (Örn: buton görünmüyor / giriş olmuyor / hata kodu / CV yüklenmiyor)",
+      checklistLabel: "Engel yazıldı",
+      text: "✍️ Kısa yaz: Seni tıkayan sorun ne? (Örn: Apply butonu yok / giriş olmuyor / CV yüklenmiyor / vize)",
       input: { type: "textarea", placeholder: "Sorunu yaz…" },
       answerKey: "blocking_issue_text",
       askOnce: true,
@@ -114,47 +205,20 @@ export const QUESTION_FLOW = {
           { answerKey: "blocking_issue_text", isEmpty: true },
         ],
       },
-      doneRule: { type: "minLength", answerKey: "blocking_issue_text", value: 5 },
+      doneRule: { type: "minLength", answerKey: "blocking_issue_text", value: 3 },
+    },
+    {
+      id: "finalize_and_week_plan",
+      checklistLabel: "Haftalık zaman planı alındı",
+      text: "✅ Tamam. Son olarak 1 haftalık planı üretmem için: Bu hafta günde kaç saat ayırabilirsin?",
+      choices: ["0–1 saat", "1–2 saat", "2+ saat"],
+      answerKey: "weekly_time_budget",
+      doneRule: { type: "notEmpty", answerKey: "weekly_time_budget" },
     },
   ] as FlowStep[],
 
-  GLASSDOOR: [
-    {
-      id: "glassdoor_account",
-      checklistLabel: "Glassdoor hesabım var / giriş yaptım",
-      text: "Glassdoor hesabın var mı / giriş yapabildin mi?",
-      choices: ["Var / Giriş yaptım", "Yok", "Emin değilim"],
-      answerKey: "glassdoor_account",
-      doneRule: { type: "equalsAny", answerKey: "glassdoor_account", values: ["Var / Giriş yaptım", "Yok", "Emin değilim"] },
-    },
-    {
-      id: "saw_signin_to_apply",
-      checklistLabel: "\"Sign in to apply / Apply\" alanını gördüm",
-      text: "İlan sayfasında \"Sign in to apply\" veya \"Apply\" alanını gördün mü?",
-      choices: ["Gördüm", "Göremedim", "Emin değilim"],
-      answerKey: "saw_signin_to_apply",
-      doneRule: { type: "equals", answerKey: "saw_signin_to_apply", value: "Gördüm" },
-    },
-  ] as FlowStep[],
-
-  EURES: [
-    {
-      id: "eu_login",
-      checklistLabel: "EU Login / EURES girişim var",
-      text: "EU Login / EURES hesabın var mı?",
-      choices: ["Var / Giriş yaptım", "Yok", "Emin değilim"],
-      answerKey: "eu_login",
-      doneRule: { type: "equalsAny", answerKey: "eu_login", values: ["Var / Giriş yaptım", "Yok", "Emin değilim"] },
-    },
-    {
-      id: "how_to_apply_method",
-      checklistLabel: "Başvuru yöntemi belli",
-      text: "\"How to apply / Apply\" bölümünde başvuru nasıl isteniyor?",
-      choices: ["Portal/Form", "E-posta", "Şirket sitesi", "Göremedim"],
-      answerKey: "how_to_apply_method",
-      doneRule: { type: "equalsAny", answerKey: "how_to_apply_method", values: ["Portal/Form", "E-posta", "Şirket sitesi", "Göremedim"] },
-    },
-  ] as FlowStep[],
+  GLASSDOOR: [] as FlowStep[],
+  EURES: [] as FlowStep[],
 };
 
 export const FLOW_ENGINE_RULES = {
@@ -178,6 +242,15 @@ function isDoneRuleSatisfied(answers: Record<string, unknown>, rule: DoneRule): 
       return rule.values.includes(str);
     case "minLength":
       return str.length >= rule.value;
+    case "notEmpty":
+      return str.length > 0;
+    case "minSelected":
+      if (Array.isArray(v)) return v.length >= rule.value;
+      if (typeof v === "string") {
+        const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
+        return parts.length >= rule.value;
+      }
+      return false;
     default:
       return false;
   }
@@ -189,6 +262,14 @@ function isShowIfMatch(answers: Record<string, unknown>, showIf: { all: ShowIfCo
       const v = getAnswer(answers, cond.answerKey);
       const str = v !== undefined && v !== null ? String(v).trim() : "";
       if (str !== cond.equals) return false;
+    } else if ("includes" in cond) {
+      const v = getAnswer(answers, cond.answerKey);
+      if (Array.isArray(v)) {
+        if (!v.map(String).includes(cond.includes)) return false;
+      } else {
+        const str = v !== undefined && v !== null ? String(v).trim() : "";
+        if (!str.includes(cond.includes)) return false;
+      }
     } else {
       const v = getAnswer(answers, cond.answerKey);
       const isEmpty = v === undefined || v === null || String(v).trim() === "";
@@ -200,7 +281,11 @@ function isShowIfMatch(answers: Record<string, unknown>, showIf: { all: ShowIfCo
 
 function isStepAnswered(answers: Record<string, unknown>, step: FlowStep): boolean {
   const v = getAnswer(answers, step.answerKey);
-  if (v !== undefined && v !== null && String(v).trim() !== "") return true;
+  if (Array.isArray(v)) {
+    if (v.length > 0) return true;
+  } else if (v !== undefined && v !== null && String(v).trim() !== "") {
+    return true;
+  }
   return isDoneRuleSatisfied(answers, step.doneRule);
 }
 
@@ -229,10 +314,9 @@ export function getNextStep(
 export function getStepDisplay(step: FlowStep): {
   text: string;
   choices?: string[];
-  input?: { type: "textarea"; placeholder: string };
+  input?: FlowInput;
 } {
-  if (step.input) return { text: step.text, input: step.input };
-  return { text: step.text, choices: step.choices ?? [] };
+  return { text: step.text, choices: step.choices ?? [], input: step.input };
 }
 
 /** İlerleme: soru tamamlama oranı. Aktif flow'daki adımlardan (showIf dahil edilmiş) kaçı cevaplandı. */

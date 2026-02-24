@@ -27,7 +27,12 @@ type JobGuide = {
   updated_at: string;
 };
 
-type NextQuestionSingle = { id?: string; text: string; choices?: string[]; input?: { type: "textarea"; placeholder: string } };
+type NextQuestionSingle = {
+  id?: string;
+  text: string;
+  choices?: string[];
+  input?: { type: "text"; placeholder: string } | { type: "textarea"; placeholder: string } | { type: "multiselect" };
+};
 type ChatMessage = {
   role: "user" | "assistant";
   text: string;
@@ -98,6 +103,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [quickGuideText, setQuickGuideText] = useState<string | null>(null);
   const [quickGuideCollapsed, setQuickGuideCollapsed] = useState(false);
   const [inlineTextareaValue, setInlineTextareaValue] = useState("");
+  const [inlineMultiSelected, setInlineMultiSelected] = useState<string[]>([]);
   const messagesBottomRef = useRef<HTMLDivElement>(null);
   const bootstrapInFlightRef = useRef(false);
   const chatFallback12sRef = useRef(false);
@@ -317,6 +323,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setMessages([msg]);
         setNextQuestion(nextQ ?? { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
         setInlineTextareaValue("");
+        setInlineMultiSelected([]);
         if (d.report_json) setReport(d.report_json);
         if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
         else {
@@ -441,6 +448,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setMessages((prev) => [...prev, assistantMsg]);
         setNextQuestion(nextQ);
         setInlineTextareaValue("");
+        setInlineMultiSelected([]);
         if (d.report_json) setReport(d.report_json);
         if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
         else {
@@ -676,7 +684,64 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                     <p className="text-sm whitespace-pre-wrap">{m.text}</p>
                     {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
                       <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
-                        {m.next_question?.input ? (
+                        {m.next_question?.input?.type === "multiselect" ? (
+                          <>
+                            <div className="w-full flex flex-wrap gap-2">
+                              {(m.next_question.choices ?? []).map((opt) => {
+                                const active = inlineMultiSelected.includes(opt);
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() => {
+                                      setInlineMultiSelected((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]);
+                                    }}
+                                    disabled={sending}
+                                    className={active
+                                      ? "rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-700 disabled:opacity-50"
+                                      : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}
+                                  >
+                                    {opt}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (inlineMultiSelected.length > 0) {
+                                  sendMessage(inlineMultiSelected.join(", "));
+                                  setInlineMultiSelected([]);
+                                }
+                              }}
+                              disabled={sending || inlineMultiSelected.length === 0}
+                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              Devam
+                            </button>
+                          </>
+                        ) : m.next_question?.input?.type === "text" ? (
+                          <>
+                            <input
+                              value={inlineTextareaValue}
+                              onChange={(e) => setInlineTextareaValue(e.target.value)}
+                              placeholder={m.next_question.input.placeholder}
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                              aria-label="Yanıt"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const v = inlineTextareaValue.trim();
+                                if (v) { sendMessage(v); setInlineTextareaValue(""); }
+                              }}
+                              disabled={sending || !inlineTextareaValue.trim()}
+                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              Gönder
+                            </button>
+                          </>
+                        ) : m.next_question?.input?.type === "textarea" ? (
                           <>
                             <textarea
                               value={inlineTextareaValue}
@@ -775,7 +840,64 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                       <p className="text-sm whitespace-pre-wrap">{m.text}</p>
                       {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
                         <div className="mt-3 pt-3 border-t border-slate-200 flex flex-col gap-2">
-                          {m.next_question?.input ? (
+                          {m.next_question?.input?.type === "multiselect" ? (
+                            <>
+                              <div className="w-full flex flex-wrap gap-2">
+                                {(m.next_question.choices ?? []).map((opt) => {
+                                  const active = inlineMultiSelected.includes(opt);
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      onClick={() => {
+                                        setInlineMultiSelected((prev) => prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]);
+                                      }}
+                                      disabled={sending}
+                                      className={active
+                                        ? "rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-700 disabled:opacity-50"
+                                        : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"}
+                                    >
+                                      {opt}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (inlineMultiSelected.length > 0) {
+                                    sendMessage(inlineMultiSelected.join(", "));
+                                    setInlineMultiSelected([]);
+                                  }
+                                }}
+                                disabled={sending || inlineMultiSelected.length === 0}
+                                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
+                              >
+                                Devam
+                              </button>
+                            </>
+                          ) : m.next_question?.input?.type === "text" ? (
+                            <>
+                              <input
+                                value={inlineTextareaValue}
+                                onChange={(e) => setInlineTextareaValue(e.target.value)}
+                                placeholder={m.next_question.input.placeholder}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                aria-label="Yanıt"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const v = inlineTextareaValue.trim();
+                                  if (v) { sendMessage(v); setInlineTextareaValue(""); }
+                                }}
+                                disabled={sending || !inlineTextareaValue.trim()}
+                                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
+                              >
+                                Gönder
+                              </button>
+                            </>
+                          ) : m.next_question?.input?.type === "textarea" ? (
                             <>
                               <textarea
                                 value={inlineTextareaValue}

@@ -6,6 +6,8 @@ import {
   getProgressFromConfig,
   getStepById,
   type FlowStep,
+  type FlowInput,
+  QUICK_GUIDE_TEMPLATES,
 } from "@/data/jobGuideConfig";
 import {
   buildChecklist,
@@ -53,27 +55,20 @@ function getSourceKind(sourceName: string | null): SourceKind {
 }
 
 /** Config'teki adım için metin + choices veya input. */
-function getQuestionTextAndChoices(step: FlowStep): { text: string; choices?: string[]; input?: { type: "textarea"; placeholder: string } } {
+function getQuestionTextAndChoices(step: FlowStep): { text: string; choices?: string[]; input?: FlowInput } {
   return getStepDisplay(step);
 }
 
 /** Hızlı Rehber — deterministik, kaynağa göre (Gemini'ye gerek yok). */
 function getQuickGuideText(source: SourceKind): string {
-  if (source === "eures") {
-    return [
-      "Bu ilan kaynağı EURES platformundandır.",
-      "Başvuru çoğu ilanda EU Login ile giriş ister.",
-      "\"How to apply / Apply\" bölümünde yöntem yazar (portal / e-posta / form).",
-      "Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
-    ].join("\n");
-  }
+  const stripMd = (s: string) => s.replace(/\*\*(.*?)\*\*/g, "$1");
   if (source === "glassdoor") {
-    return [
-      "Bu ilan kaynağı GLASSDOOR platformundandır.",
-      "Başvuru genelde Apply / Sign in to apply alanından yapılır.",
-      "Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
-      "Şirket sayfasına yönlendirirse: aynı ilanı şirket sitesinde bulup başvuracağız.",
-    ].join("\n");
+    const t = QUICK_GUIDE_TEMPLATES.GLASSDOOR;
+    return [stripMd(t.title), ...t.bullets.map((b) => `• ${stripMd(b)}`)].join("\n");
+  }
+  if (source === "eures") {
+    const t = QUICK_GUIDE_TEMPLATES.EURES;
+    return [stripMd(t.title), ...t.bullets.map((b) => `• ${stripMd(b)}`)].join("\n");
   }
   return [
     "Bu ilan harici bir platformdan gelmektedir.",
@@ -127,16 +122,24 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     const val = String(value).trim();
     if (val === "PDF hazır") return "PDF hazır, iyi. Başvuruda ekleyeceğiz.";
     if (val === "Hazır ama PDF değil") return "Tamam. Mümkünse PDF'e çevirip yüklemek başvuruda daha iyi görünür.";
-    if (val === "Hazır değil") return "Tamam. Önce CV'yi hazırlamak gerekiyor; raporda kısa rehber var.";
+    if (val === "Hazır değil") return "Tamam. CV hazır değilse başvuru zayıf kalır; önce CV'yi netleştirelim.";
   }
-  if (askId === "english_level") return "Tamam, dil seviyesini kaydettim. Raporda buna göre öneri vereceğiz.";
-  if (askId === "trade_certificate") return "Tamam, mesleki belge durumunu not ettim.";
+  if (askId === "language_level") return "Tamam, dil seviyeni not ettim.";
+  if (askId === "apply_method") return "Tamam, başvuru yöntemi netleşti.";
+  if (askId === "qualification_proof_bundle") return "Tamam, elindeki kanıtları not ettim.";
+  if (askId === "qualification_plan_text") return "Tamam, belgesiz alternatif planını not ettim.";
+  if (askId === "passport_eta") return "Tamam, pasaport süre bilgisini not ettim.";
+  if (askId === "has_job_offer") return "Tamam, iş teklifi durumunu not ettim.";
+  if (askId === "weekly_time_budget") return "Tamam, zaman bütçene göre 1 haftalık planı oluşturacağım.";
+  if (askId === "cv_offer_if_missing") {
+    if (String(value).trim() === "Evet yönlendir") return "Tamam, CV Paketi sayfasına yönlendireceğim.";
+    if (String(value).trim() === "Şimdilik hayır") return "Tamam. İstersen CV'yi kendin hazırlayarak devam edebiliriz.";
+  }
   if (askId === "blocking_issue") {
     if (String(value).trim() === "Yok") return "Tamam, şu an tıkayan bir şey yok.";
     if (String(value).trim() === "Var (yazacağım)") return "Tamam. Aşağıya tıkayan sorunu yaz.";
   }
-  if (askId === "blocking_issue_text") return "Tamam, sorunu not ettim. Raporda değerlendireceğiz.";
-  if (askId === "glassdoor_account" || askId === "eu_login") return "Tamam, hesap durumunu kaydettim.";
+  if (askId === "blocking_issue_text") return "Tamam, sorunu not ettim.";
   return null;
 }
 
@@ -165,10 +168,25 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
   } else {
     const step = getStepById(lastAskId);
     if (step) {
-      if (step.input?.type === "textarea") {
+      if (step.input?.type === "textarea" || step.input?.type === "text") {
         const trimmed = text.trim();
         const minLen = step.doneRule.type === "minLength" ? step.doneRule.value : 1;
         if (trimmed.length >= minLen) (patch as Record<string, unknown>)[step.answerKey] = trimmed;
+        return patch;
+      }
+      if (step.input?.type === "multiselect") {
+        const parts = text
+          .split(/[,;\n|]+/g)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const selected = (step.choices ?? []).filter((c) => {
+          const cNorm = c.toLowerCase().replace(/\s+/g, " ");
+          return parts.some((p) => {
+            const pNorm = p.toLowerCase().replace(/\s+/g, " ");
+            return pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm);
+          });
+        });
+        if (selected.length > 0) (patch as Record<string, unknown>)[step.answerKey] = selected;
         return patch;
       }
       const choice = step.choices?.find((c) => {
@@ -195,27 +213,14 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
         if (/pdf\s*hazır|hazır\s*pdf/.test(t)) (patch as Record<string, unknown>).cv_status = "PDF hazır";
         else if (/hazır\s*ama\s*pdf\s*değil/.test(t)) (patch as Record<string, unknown>).cv_status = "Hazır ama PDF değil";
         else if (/hazır\s*değil/.test(t)) (patch as Record<string, unknown>).cv_status = "Hazır değil";
-      } else if (step.answerKey === "english_level") {
-        if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).english_level = "A1–A2";
-        else if (/\bb1\b/.test(t)) (patch as Record<string, unknown>).english_level = "B1";
-        else if (/b2\+|b2\s*artı/.test(t)) (patch as Record<string, unknown>).english_level = "B2+";
-        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).english_level = "Emin değilim";
-      } else if (step.answerKey === "trade_certificate") {
-        if (/^var$/i.test(t)) (patch as Record<string, unknown>).trade_certificate = "Var";
-        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>).trade_certificate = "Yok";
-        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).trade_certificate = "Emin değilim";
+      } else if (step.answerKey === "language_level") {
+        if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).language_level = "A1–A2";
+        else if (/\bb1\b/.test(t)) (patch as Record<string, unknown>).language_level = "B1";
+        else if (/b2\+|b2\s*artı/.test(t)) (patch as Record<string, unknown>).language_level = "B2+";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).language_level = "Emin değilim";
       } else if (step.answerKey === "blocking_issue") {
         if (/^yok$/i.test(t)) (patch as Record<string, unknown>).blocking_issue = "Yok";
         else if (/var\s*\(yazacağım\)|yazacağım/.test(t)) (patch as Record<string, unknown>).blocking_issue = "Var (yazacağım)";
-      } else if (step.answerKey === "glassdoor_account" || step.answerKey === "eu_login") {
-        if (/var\s*\/\s*giriş|giriş\s*yaptım|^var$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Var / Giriş yaptım";
-        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Yok";
-        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
-      } else if (step.answerKey === "how_to_apply_method") {
-        if (/portal|form/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "Portal/Form";
-        else if (/e-?posta|email/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "E-posta";
-        else if (/şirket\s*sitesi|sitesi/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "Şirket sitesi";
-        else if (/göremedim/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "Göremedim";
       }
       if (Object.keys(patch).length > 0) return patch;
     }
@@ -536,14 +541,18 @@ Girdi: job_post, source, location, current_step_id (sistemin sorduğu kritik sor
 
 Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — en fazla 3 madde):
 - opened_source_page: "İlana Git" + sayfayı Türkçeye çevir
-- found_apply_section / saw_signin_to_apply / how_to_apply_method: "How to apply/Apply" bölümünü nasıl bulacağı
+- found_apply_section / visible_headings_text: başvuru alanını buldurma (Apply / How to apply / Sign in to apply)
+- apply_method: başvuru türüne göre sonraki adımı söyle (form / şirket sitesi / e-posta)
 - visible_headings_text: ekrandaki başlıklara göre yönlendirme
 - passport_status: pasaport neden kritik, yoksa ilk yapılacak
+- passport_eta: süre tahmini belirsizse nasıl netleştireceği
 - cv_status: CEVAP "Hazır değil" İSE: assistant_message mutlaka 3-5 maddelik NUMARALI liste içermeli (1. … 2. … 3. …). Asla "şu noktalara dikkat edin" veya "şunlara dikkat edin:" deyip liste yazmadan bırakma. İlan pozisyonuna (örn. aşçı) uygun somut CV ipuçlarını madde madde yaz. Diğer cv_status cevaplarında: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF).
-- english_level: düşükse kısa uyarı ve pratik öneri
-- trade_certificate: varsa ekle, yoksa alternatif (deneyim/ustabaşı referansı vb.)
+- cv_offer_if_missing: CV Paketi önerisini kısa ve net hatırlat (link/kod ekleme işini server yapacak)
+- qualification_proof_bundle / qualification_plan_text: kanıt setine göre net aksiyon öner
+- language_level: düşükse kısa uyarı ve pratik öneri
+- has_job_offer: iş teklifi varsa/yoksa vize/çalışma izni akışını yüksek seviyede somutlaştır (\"araştırın\" deme)
 - blocking_issue / blocking_issue_text: varsa neyi kastettiğini netleştirme (tek cümle)
-- glassdoor_account / eu_login: hesap/giriş durumu`;
+- weekly_time_budget: 7 günlük planı gün gün yaz`;
 
     const userPrompt = `job_post:\n${jobContent}\n\nsource: ${sourceName || "kaynak"}\nlocation: ${jobPost.location_text ?? ""}\ncurrent_step_id: ${currentStepId}\nuser_last_message: ${rawUserText}\nanswers_json: ${JSON.stringify(mergedAnswers)}`;
 
@@ -616,6 +625,19 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
       assistantMessage = assistantMessage.trim();
       if (endsWithDikkatEdin) assistantMessage = assistantMessage.replace(/\s*dikkat\s+edin\s*:?\s*$/i, "").trim();
       assistantMessage = (assistantMessage ? assistantMessage + "\n\n" : "") + defaultCvGuide;
+    }
+
+    // CV Paketi CTA (kural tabanlı) — Gemini'ye bırakılmaz, tekrar ettirilmez
+    const shouldInjectCvCta =
+      mergedAnswers.cv_status === "Hazır değil" &&
+      (last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
+    if (shouldInjectCvCta) {
+      const link = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
+      const codeLine = "Sizin için 79 TL indirim kodu tanımladık: CV79";
+      const cta = mergedAnswers.cv_offer_if_missing === "Evet yönlendir"
+        ? `CV Paketi'ne buradan geçebilirsin:\n${link}\n\n${codeLine}`
+        : `İstersen CV Paketi ile 1 gün içinde hazırlanıp teslim edebiliriz:\n${link}\n\n${codeLine}`;
+      assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n" + cta : cta;
     }
     if (confirmationMsg) {
       assistantMessage = confirmationMsg + "\n\n" + assistantMessage;
