@@ -4,6 +4,7 @@
 export {
   buildChecklist,
   calcProgress,
+  getProgressFromSevenQuestions,
   getMissingTop,
   answersFromJson,
   type Answers,

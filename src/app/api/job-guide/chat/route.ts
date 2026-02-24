@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseForUser, getSupabaseAdmin } from "@/lib/supabase/server";
 import {
+  getNextStep,
+  getStepDisplay,
+  getProgressFromConfig,
+  getStepById,
+  type FlowStep,
+} from "@/data/jobGuideConfig";
+import {
   buildChecklist,
-  calcProgress,
   getMissingTop,
   answersFromJson,
 } from "@/lib/checklistRules";
@@ -46,45 +52,92 @@ function getSourceKind(sourceName: string | null): SourceKind {
   return "default";
 }
 
-/** Deterministik soru sırası: kritik alanlar asla atlanmaz. */
-const QUESTION_FLOW: Record<SourceKind, readonly string[]> = {
-  eures: ["has_eu_login", "source_apply_opened", "source_apply_found", "source_apply_started", "passport", "cv", "language", "has_trade_certificate", "barrier"],
-  glassdoor: ["has_glassdoor_account", "source_apply_opened", "source_apply_found", "source_apply_started", "passport", "cv", "language", "has_trade_certificate", "barrier"],
-  default: ["has_glassdoor_account", "source_apply_opened", "source_apply_found", "source_apply_started", "passport", "cv", "language", "has_trade_certificate", "barrier"],
-};
-
-function isAnswered(answers: Record<string, unknown>, id: string): boolean {
-  const v = id === "passport" ? answers.passport : answers[id];
-  return v !== undefined && v !== null && String(v).trim() !== "";
+/** Config'teki adım için metin + choices veya input. */
+function getQuestionTextAndChoices(step: FlowStep): { text: string; choices?: string[]; input?: { type: "textarea"; placeholder: string } } {
+  return getStepDisplay(step);
 }
 
-function pickNextQuestion(answers: Record<string, unknown>, source: SourceKind): string | null {
-  const flow = QUESTION_FLOW[source];
-  for (const id of flow) {
-    if (!isAnswered(answers, id)) return id;
+/** Hızlı Rehber — deterministik, kaynağa göre (Gemini'ye gerek yok). */
+function getQuickGuideText(source: SourceKind): string {
+  if (source === "eures") {
+    return [
+      "Bu ilan kaynağı EURES platformundandır.",
+      "Başvuru çoğu ilanda EU Login ile giriş ister.",
+      "\"How to apply / Apply\" bölümünde yöntem yazar (portal / e-posta / form).",
+      "Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
+    ].join("\n");
   }
-  return null;
+  if (source === "glassdoor") {
+    return [
+      "Bu ilan kaynağı GLASSDOOR platformundandır.",
+      "Başvuru genelde Apply / Sign in to apply alanından yapılır.",
+      "Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
+      "Şirket sayfasına yönlendirirse: aynı ilanı şirket sitesinde bulup başvuracağız.",
+    ].join("\n");
+  }
+  return [
+    "Bu ilan harici bir platformdan gelmektedir.",
+    "İlana Git ile sayfayı açın; başvuru / Apply bölümünü bulun.",
+    "Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
+  ].join("\n");
 }
 
-const STEP_QUESTIONS: Record<string, { text: string; choices: string[] }> = {
-  has_eu_login: { text: "EURES'te EU Login hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] },
-  has_glassdoor_account: { text: "Glassdoor hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] },
-  source_apply_opened: { text: "İlana gittin mi? Sayfayı açtın mı?", choices: ["Evet", "Hayır", "Emin değilim"] },
-  source_apply_found: { text: "How to apply / Apply bölümünü gördün mü?", choices: ["Gördüm", "Görmedim", "Emin değilim"] },
-  source_apply_started: { text: "Başvuruyu başlattın mı? Form açıldı mı?", choices: ["Evet", "Hayır", "Emin değilim"] },
-  passport: { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] },
-  cv: { text: "CV hazır mı? (PDF)", choices: ["Var", "Yok", "Emin değilim"] },
-  language: { text: "İngilizce (veya ilan dilinde) seviyen nasıl?", choices: ["Hiç / Yok", "A1–A2", "B1–B2", "İleri"] },
-  has_trade_certificate: { text: "Ustalık belgesi / mesleki yeterlilik belgen var mı?", choices: ["Var", "Yok", "Emin değilim"] },
-  barrier: { text: "Yurtdışına gidişte engel (sağlık, aile vb.) var mı?", choices: ["Yok", "Var", "Emin değilim"] },
-};
-
-function getQuestionTextAndChoices(id: string, source: SourceKind): { text: string; choices: string[] } {
-  if (source === "default" && id === "has_glassdoor_account")
-    return { text: "Bu platformda hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
-  const q = STEP_QUESTIONS[id];
-  if (q) return q;
-  return { text: "Devam edelim.", choices: ["Var", "Yok", "Emin değilim"] };
+/** Cevap sonrası onay cümlesi — asistan varsayım yapmaz, cevaba göre tek cümle. */
+function getConfirmationMessage(askId: string, value: unknown): string | null {
+  const v = String(value ?? "").toLowerCase().trim();
+  if (askId === "passport") {
+    if (v === "var") return "Tamam, pasaportun var. Şimdi geçerlilik süresini raporda kontrol edeceğiz.";
+    if (v === "basvurdum") return "Tamam, başvurmuşsun. Takip numarası / süre bilgisi raporda not edilecek.";
+    if (v === "yok") return "Tamam, pasaport yok. Bu ilan için kritik bir engel olabilir; raporda önceliklendireceğiz.";
+  }
+  if (askId === "source_apply_opened") {
+    if (v === "var") return "Tamam, sayfayı açtın. Sırada başvuru alanını bulmak var.";
+    if (v === "yok") return "Tamam. İlana Git butonuna tıklayıp sayfayı açmayı dene; açmazsa birlikte bakacağız.";
+  }
+  if (askId === "source_apply_found") {
+    if (v === "var") return "Güzel, başvuru alanını gördün. Bir sonraki adımda başvuruyu başlatacağız.";
+    if (v === "yok") return "Tamam. Sayfada \"Apply\" veya \"How to apply\" bölümünü aşağı kaydırarak ara.";
+  }
+  if (askId === "cv") {
+    if (v === "var") return "PDF hazır, iyi. Başvuruda ekleyeceğiz.";
+    if (v === "var_not_pdf") return "Tamam. Mümkünse PDF’e çevirip yüklemek başvuruda daha iyi görünür.";
+    if (v === "yok") return "Tamam. Önce CV’yi hazırlamak gerekiyor; raporda kısa rehber var.";
+  }
+  if (askId === "language") return "Tamam, dil seviyesini kaydettim. Raporda buna göre öneri vereceğiz.";
+  if (askId === "has_trade_certificate") return "Tamam, mesleki belge durumunu not ettim.";
+  if (askId === "barrier") {
+    if (v === "yok") return "Tamam, şu an tıkayan bir şey yok.";
+    if (v === "var") return "Tamam. Ne olduğunu yazdığında raporda değerlendireceğiz.";
+  }
+  if (askId === "passport_status") {
+    if (String(value).trim() === "Var") return "Tamam, pasaportun var. Şimdi geçerlilik süresini raporda kontrol edeceğiz.";
+    if (v === "başvurdum" || String(value).trim() === "Başvurdum") return "Tamam, başvurmuşsun. Takip numarası / süre bilgisi raporda not edilecek.";
+    if (String(value).trim() === "Yok") return "Tamam, pasaport yok. Bu ilan için kritik bir engel olabilir; raporda önceliklendireceğiz.";
+  }
+  if (askId === "opened_source_page") {
+    if (String(value).trim() === "Açtım") return "Tamam, sayfayı açtın. Sırada başvuru alanını bulmak var.";
+    if (String(value).trim() === "Açamadım") return "Tamam. İlana Git butonuna tıklayıp sayfayı açmayı dene; açmazsa birlikte bakacağız.";
+  }
+  if (askId === "found_apply_section" || askId === "saw_signin_to_apply" || askId === "how_to_apply_method") {
+    if (String(value).trim() === "Gördüm") return "Güzel, başvuru alanını gördün.";
+    if (String(value).trim() === "Göremedim") return "Tamam. Ekrandaki başlıkları yazacağın soruyla devam edelim.";
+  }
+  if (askId === "visible_headings_text") return "Tamam, başlıkları not ettim. Buna göre yönlendireceğiz.";
+  if (askId === "cv_status") {
+    const val = String(value).trim();
+    if (val === "PDF hazır") return "PDF hazır, iyi. Başvuruda ekleyeceğiz.";
+    if (val === "Hazır ama PDF değil") return "Tamam. Mümkünse PDF'e çevirip yüklemek başvuruda daha iyi görünür.";
+    if (val === "Hazır değil") return "Tamam. Önce CV'yi hazırlamak gerekiyor; raporda kısa rehber var.";
+  }
+  if (askId === "english_level") return "Tamam, dil seviyesini kaydettim. Raporda buna göre öneri vereceğiz.";
+  if (askId === "trade_certificate") return "Tamam, mesleki belge durumunu not ettim.";
+  if (askId === "blocking_issue") {
+    if (String(value).trim() === "Yok") return "Tamam, şu an tıkayan bir şey yok.";
+    if (String(value).trim() === "Var (yazacağım)") return "Tamam. Aşağıya tıkayan sorunu yaz.";
+  }
+  if (askId === "blocking_issue_text") return "Tamam, sorunu not ettim. Raporda değerlendireceğiz.";
+  if (askId === "glassdoor_account" || askId === "eu_login") return "Tamam, hesap durumunu kaydettim.";
+  return null;
 }
 
 /** Serbest metin cevabı answers patch'ine çevirir. last_ask_id ile tek doğru alana yazılır (tekrar döngüsü önlenir). */
@@ -95,58 +148,109 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
     if (/\b(pasaportum\s*yok|pasaport\s*yok)\b/.test(t)) patch.passport = "yok";
     else if (/\b(pasaportum\s*var|pasaport\s*var)\b/.test(t)) patch.passport = "var";
     else if (/\b(başvurdum|basvurdum)\b/.test(t)) patch.passport = "basvurdum";
-    if (/\b(cv\s*yok|cv hazır değil)\b/.test(t)) { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
-    else if (/\b(cv\s*var|cv hazır|hazır|cv yükledim)\b/.test(t)) { patch.cv = "var"; }
-    if (/\b(eu\s*login|eures).*var|var.*eures/.test(t)) patch.has_eu_login = "var";
-    else if (/\b(eures).*yok/.test(t)) patch.has_eu_login = "yok";
-    if (/\b(glassdoor).*var|var.*glassdoor/.test(t)) patch.has_glassdoor_account = "var";
-    else if (/\b(glassdoor).*yok/.test(t)) patch.has_glassdoor_account = "yok";
-    if (/\b(ilan\s*sayfasına\s*geldim|ilana\s*gittim|sayfayı\s*açtım)\b/.test(t)) patch.source_apply_opened = "var";
-    if (/\b(apply\s*bölümünü\s*gördüm|gördüm)\b/.test(t)) patch.source_apply_found = "var";
-    if (/\b(başvuruyu\s*başlattım|form\s*açıldı)\b/.test(t)) patch.source_apply_started = "var";
-    if (/\b(hiç|yok|bilmiyorum)\b/.test(t) && /dil|ingilizce/.test(t)) patch.language = "hic";
-    if (/\b(a1|başlangıç)\b/.test(t)) patch.language = "a1";
-    if (/\b(a2|orta)\b/.test(t)) patch.language = "a2";
-    if (/\b(b1|b2|ileri)\b/.test(t)) patch.language = "b1";
-    if (/\b(engel\s*yok|engelim yok)\b/.test(t)) patch.barrier = "yok";
-    if (/\b(engel|engelim)\s*var/.test(t)) patch.barrier = "var";
+    if (/\b(pdf\s*hazır|hazır\s*pdf)\b/.test(t)) patch.cv = "var";
+    else if (/\b(hazır\s*ama\s*pdf\s*değil|pdf\s*değil)\b/.test(t)) patch.cv = "var_not_pdf";
+    else if (/\b(cv\s*yok|hazır değil)\b/.test(t)) { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
+    else if (/\b(cv\s*var|cv hazır|hazır|cv yükledim)\b/.test(t)) patch.cv = "var";
+    if (/\b(ilan\s*sayfasına\s*geldim|ilana\s*gittim|sayfayı\s*açtım|açtım)\b/.test(t)) patch.source_apply_opened = "var";
+    if (/\b(açamadım)\b/.test(t)) patch.source_apply_opened = "yok";
+    if (/\b(apply\s*bölümünü\s*gördüm|gördüm|apply\s*gördüm|sign in to apply)\b/.test(t)) patch.source_apply_found = "var";
+    if (/\b(görmedim)\b/.test(t)) patch.source_apply_found = "yok";
+    if (/\b(engel\s*yok|engelim yok|tıkayan\s*bir\s*şey\s*yok)\b/.test(t)) patch.barrier = "yok";
+    if (/\b(engel|engelim|tıkayan|var\s*\(ne\s*olduğunu)\b/.test(t)) patch.barrier = "var";
+    if (/\b(a1\s*[-–]?\s*a2|a1-a2)\b/.test(t)) patch.language = "a1";
+    if (/\bb1\b/.test(t) && !patch.language) patch.language = "b1";
+    if (/\bb2\+|b2\s*artı\b/.test(t)) patch.language = "b2";
+    if (/\b(emin değilim)\b/.test(t) && /dil|ingilizce/.test(t)) patch.language = "emin";
   } else {
-    if (t === "evet" || t === "var" || t === "gördüm") {
-      if (lastAskId === "has_eu_login") patch.has_eu_login = "var";
-      else if (lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = "var";
-      else if (lastAskId === "source_apply_opened") patch.source_apply_opened = "var";
+    const step = getStepById(lastAskId);
+    if (step) {
+      if (step.input?.type === "textarea") {
+        const trimmed = text.trim();
+        const minLen = step.doneRule.type === "minLength" ? step.doneRule.value : 1;
+        if (trimmed.length >= minLen) (patch as Record<string, unknown>)[step.answerKey] = trimmed;
+        return patch;
+      }
+      const choice = step.choices?.find((c) => {
+        const cLower = c.toLowerCase().replace(/\s+/g, " ");
+        const tLower = t.toLowerCase().replace(/\s+/g, " ");
+        return cLower === tLower || tLower.includes(cLower) || cLower.includes(tLower);
+      });
+      if (choice) {
+        (patch as Record<string, unknown>)[step.answerKey] = choice;
+        return patch;
+      }
+      if (step.answerKey === "opened_source_page") {
+        if (/açtım|evet|açabildim/.test(t)) (patch as Record<string, unknown>).opened_source_page = "Açtım";
+        else if (/açamadım|hayır/.test(t)) (patch as Record<string, unknown>).opened_source_page = "Açamadım";
+      } else if (step.answerKey === "found_apply_section" || step.answerKey === "saw_signin_to_apply") {
+        if (/gördüm|evet/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Gördüm";
+        else if (/göremedim|görmedim|hayır/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Göremedim";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
+      } else if (step.answerKey === "passport_status") {
+        if (/^var$/i.test(t)) (patch as Record<string, unknown>).passport_status = "Var";
+        else if (/başvurdum|basvurdum/.test(t)) (patch as Record<string, unknown>).passport_status = "Başvurdum";
+        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>).passport_status = "Yok";
+      } else if (step.answerKey === "cv_status") {
+        if (/pdf\s*hazır|hazır\s*pdf/.test(t)) (patch as Record<string, unknown>).cv_status = "PDF hazır";
+        else if (/hazır\s*ama\s*pdf\s*değil/.test(t)) (patch as Record<string, unknown>).cv_status = "Hazır ama PDF değil";
+        else if (/hazır\s*değil/.test(t)) (patch as Record<string, unknown>).cv_status = "Hazır değil";
+      } else if (step.answerKey === "english_level") {
+        if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).english_level = "A1–A2";
+        else if (/\bb1\b/.test(t)) (patch as Record<string, unknown>).english_level = "B1";
+        else if (/b2\+|b2\s*artı/.test(t)) (patch as Record<string, unknown>).english_level = "B2+";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).english_level = "Emin değilim";
+      } else if (step.answerKey === "trade_certificate") {
+        if (/^var$/i.test(t)) (patch as Record<string, unknown>).trade_certificate = "Var";
+        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>).trade_certificate = "Yok";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).trade_certificate = "Emin değilim";
+      } else if (step.answerKey === "blocking_issue") {
+        if (/^yok$/i.test(t)) (patch as Record<string, unknown>).blocking_issue = "Yok";
+        else if (/var\s*\(yazacağım\)|yazacağım/.test(t)) (patch as Record<string, unknown>).blocking_issue = "Var (yazacağım)";
+      } else if (step.answerKey === "glassdoor_account" || step.answerKey === "eu_login") {
+        if (/var\s*\/\s*giriş|giriş\s*yaptım|^var$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Var / Giriş yaptım";
+        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Yok";
+        else if (/emin değilim/.test(t)) (patch as Record<string, unknown>)[step.answerKey] = "Emin değilim";
+      } else if (step.answerKey === "how_to_apply_method") {
+        if (/portal|form/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "Portal/Form";
+        else if (/e-?posta|email/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "E-posta";
+        else if (/şirket\s*sitesi|sitesi/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "Şirket sitesi";
+        else if (/göremedim/.test(t)) (patch as Record<string, unknown>).how_to_apply_method = "Göremedim";
+      }
+      if (Object.keys(patch).length > 0) return patch;
+    }
+    if (t === "açtım" || t === "evet" || t === "var" || t === "gördüm") {
+      if (lastAskId === "source_apply_opened") patch.source_apply_opened = "var";
       else if (lastAskId === "source_apply_found") patch.source_apply_found = "var";
-      else if (lastAskId === "source_apply_started") patch.source_apply_started = "var";
-      else if (lastAskId === "cv") { patch.cv = "var"; }
+      else if (lastAskId === "passport") patch.passport = "var";
+      else if (lastAskId === "cv") patch.cv = "var";
       else if (lastAskId === "has_trade_certificate") patch.has_trade_certificate = "var";
       else if (lastAskId === "barrier") patch.barrier = "var";
-    } else if (t === "hayır" || t === "yok" || t === "görmedim") {
-      if (lastAskId === "has_eu_login") patch.has_eu_login = "yok";
-      else if (lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = "yok";
-      else if (lastAskId === "source_apply_opened") patch.source_apply_opened = "yok";
+    } else if (t === "açamadım" || t === "hayır" || t === "yok" || t === "görmedim") {
+      if (lastAskId === "source_apply_opened") patch.source_apply_opened = "yok";
       else if (lastAskId === "source_apply_found") patch.source_apply_found = "yok";
-      else if (lastAskId === "source_apply_started") patch.source_apply_started = "yok";
       else if (lastAskId === "passport") patch.passport = "yok";
       else if (lastAskId === "cv") { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
       else if (lastAskId === "has_trade_certificate") patch.has_trade_certificate = "yok";
       else if (lastAskId === "barrier") patch.barrier = "yok";
     } else if (t === "başvurdum" || t === "basvurdum") {
       if (lastAskId === "passport") patch.passport = "basvurdum";
-    } else if (t === "emin değilim") {
-      if (lastAskId === "has_eu_login") patch.has_eu_login = "yok";
-      else if (lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = "yok";
-      else if (lastAskId === "source_apply_opened") patch.source_apply_opened = "yok";
-      else if (lastAskId === "source_apply_found") patch.source_apply_found = "yok";
-      else if (lastAskId === "source_apply_started") patch.source_apply_started = "yok";
-      else if (lastAskId === "cv") patch.cv = "yok";
-      else if (lastAskId === "has_trade_certificate") patch.has_trade_certificate = "yok";
-      else if (lastAskId === "barrier") patch.barrier = "yok";
+    } else if (t === "pdf hazır" || (t.includes("pdf") && t.includes("hazır"))) {
+      if (lastAskId === "cv") patch.cv = "var";
+    } else if (t === "hazır ama pdf değil" || (t.includes("hazır") && t.includes("pdf") && t.includes("değil"))) {
+      if (lastAskId === "cv") patch.cv = "var_not_pdf";
+    } else if (t === "hazır değil") {
+      if (lastAskId === "cv") { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
     } else if (lastAskId === "language") {
-      if (/\b(hiç|yok|bilmiyorum)\b/.test(t)) patch.language = "hic";
-      else if (/\b(a1|başlangıç)\b/.test(t)) patch.language = "a1";
-      else if (/\b(a2|orta)\b/.test(t)) patch.language = "a2";
-      else if (/\b(b1|b2|ileri)\b/.test(t)) patch.language = "b1";
-      else if (t.length <= 10) patch.language = t;
+      if (/\ba1\s*[-–]?\s*a2|a1-a2\b/.test(t)) patch.language = "a1";
+      else if (/\bb1\b/.test(t)) patch.language = "b1";
+      else if (/\bb2\+|b2\s*artı\b/.test(t)) patch.language = "b2";
+      else if (t === "emin değilim") patch.language = "emin";
+      else if (t.length <= 15) patch.language = t.replace(/\s+/g, "").slice(0, 10) || "emin";
+    } else if (lastAskId === "has_trade_certificate" && (t === "emin değilim" || t === "var" || t === "yok")) {
+      patch.has_trade_certificate = t === "emin değilim" ? "yok" : t;
+    } else if (lastAskId === "barrier" && (t === "var (ne olduğunu yazacağım)" || t.includes("var") || t.length > 5)) {
+      patch.barrier = "var";
     }
   }
   if (/\b(cv\s*yükledim|yükledim)\b/.test(t)) patch.cv_uploaded = "var";
@@ -333,60 +437,41 @@ export async function POST(req: NextRequest) {
     };
     const answersForChecklist = answersFromJson(mergedAnswers as Record<string, unknown>);
     const modules = buildChecklist(jobForChecklist, answersForChecklist);
-    const progress = calcProgress(modules);
-    const missingTop3 = getMissingTop(modules, 3);
-    const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3: missingTop3 };
-
-    // Bootstrap: deterministik ilk soru (pickNextQuestion + getQuestionTextAndChoices)
     const sourceKey = getSourceKind(jobPost.source_name as string | null);
+    const progressFromConfig = getProgressFromConfig(mergedAnswers as Record<string, unknown>, sourceKey);
+    const missingTop3 = getMissingTop(modules, 3);
+    const checklistSnapshot = { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct, missing_top3: missingTop3 };
+
+    const quickGuideText = getQuickGuideText(sourceKey);
     if (isBootstrap) {
-      const nextId = pickNextQuestion(mergedAnswers as Record<string, unknown>, sourceKey);
-      const firstQuestion = nextId ? getQuestionTextAndChoices(nextId, sourceKey) : { text: "Adımlar tamamlandı.", choices: [] };
-      const askId = nextId ?? "done";
-      const sourceLower = (jobPost.source_name ?? "").toString().toLowerCase();
-      const isEures = sourceLower.includes("eures");
-      const isGlassdoor = sourceLower.includes("glassdoor");
-      let guideMessage: string;
-      if (isEures) {
-        guideMessage = [
-          "Merhaba! Bu ilan EURES üzerinden geliyor.",
-          "• \"İlana Git\" ile EURES sayfasını aç.",
-          "• Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.",
-          "• \"How to apply\" / \"Apply\" bölümünü bul.",
-          "• Başvuru için çoğu ilanda EU Login ile giriş istenir.",
-        ].join("\n");
-      } else if (isGlassdoor) {
-        guideMessage = [
-          "Merhaba! Bu ilan Glassdoor üzerinden geliyor.",
-          "• \"İlana Git\" ile ilan sayfasını aç.",
-          "• Chrome → sağ tık → Türkçeye çevir.",
-          "• \"Apply\" / \"Sign in to apply\" alanını görürsen başvuru buradan yapılır.",
-          "• Giriş istenirse hesap açıp devam edeceğiz.",
-        ].join("\n");
-      } else {
-        const sourceLabel = (jobPost.source_name ?? "bu platform").toString();
-        guideMessage = [
-          `Bu ilan ${sourceLabel} kaynağından geliyor.`,
-          "• İlana Git ile sayfayı aç.",
-          "• Başvuru / Apply bölümünü bul.",
-          "• Gerekirse sayfayı Türkçeye çevir.",
-        ].join("\n");
-      }
-      // Bootstrap: DB insert beklemeden anında dön (Yanıtlanıyor takılmasın)
-      const nextQuestionPayload = nextId ? { id: askId, text: firstQuestion.text, choices: firstQuestion.choices } : null;
+      const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+      const firstQuestion = nextStep ? getQuestionTextAndChoices(nextStep) : { text: "Adımlar tamamlandı.", choices: [] as string[] };
+      const askId = nextStep?.id ?? "done";
+      const nextQuestionPayload = nextStep
+        ? { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input }
+        : null;
       const assistant = {
-        message_md: guideMessage,
-        quick_replies: firstQuestion.choices,
-        ask: nextQuestionPayload ? { id: askId, question: firstQuestion.text, type: "choice" as const, choices: firstQuestion.choices } : undefined,
+        message_md: quickGuideText,
+        quick_replies: firstQuestion.choices ?? [],
+        ask: nextQuestionPayload
+          ? {
+              id: askId,
+              question: firstQuestion.text,
+              type: (firstQuestion.input ? "textarea" : "choice") as "choice" | "textarea",
+              choices: firstQuestion.choices,
+              input: firstQuestion.input,
+            }
+          : undefined,
       };
       const state_patch = {
         answers_patch: {},
         checklist_patch: [],
-        progress: { total: progress.total, done: progress.done, percent: progress.pct },
+        progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
       };
       return NextResponse.json({
-        assistant_message: guideMessage,
+        assistant_message: quickGuideText,
         next_question: nextQuestionPayload,
+        quick_guide_text: quickGuideText,
         report_json: guide?.report_json ?? {},
         report_md: null,
         checklist_snapshot: checklistSnapshot,
@@ -398,17 +483,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Chat: sıradaki soru sunucuda belirlenir (deterministik), Gemini sadece rehber üretir
-    const nextId = pickNextQuestion(mergedAnswers as Record<string, unknown>, sourceKey);
-    if (nextId === null) {
-      const doneMessage = "Tüm kritik adımlar tamamlandı. Rapor ve özeti aşağıda görebilirsin.";
+    const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+    if (nextStep === null) {
+      const doneMessage = "Tüm sorular tamamlandı. Rapor ve 1 haftalık plan aşağıda.";
       const state_patch = {
         answers_patch: {} as Record<string, unknown>,
         checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
-        progress: { total: progress.total, done: progress.done, percent: progress.pct },
+        progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
       };
       return NextResponse.json({
         assistant_message: doneMessage,
         next_question: null,
+        quick_guide_text: quickGuideText,
         report_json: guide?.report_json ?? {},
         report_md: null,
         checklist_snapshot: checklistSnapshot,
@@ -418,7 +504,16 @@ export async function POST(req: NextRequest) {
         next: { should_finalize: true, reason: "all_steps_done" },
       });
     }
-    const currentStepId = nextId;
+    const currentStepId = nextStep.id;
+
+    // Onay cümlesi: az önce cevaplanan soru için (config step.answerKey ile değer alınır)
+    const lastStep = last_ask_id ? getStepById(last_ask_id) : undefined;
+    const lastAnswerValue = lastStep
+      ? mergedAnswers[lastStep.answerKey]
+      : (mergedAnswers[last_ask_id as string] ?? mergedAnswers.passport);
+    const confirmationMsg = last_ask_id && normalizedPatch && Object.keys(normalizedPatch).length > 0
+      ? getConfirmationMessage(last_ask_id, lastAnswerValue)
+      : null;
     const system = `Sen "Yurtdışı İş Başvuru Asistanı"sın. Kullanıcı hiçbir şey bilmiyor olabilir.
 Görevin: SADECE kısa, net ve sonuç odaklı rehber metni üretmek.
 
@@ -439,16 +534,16 @@ Girdi: job_post, source, location, current_step_id (sistemin sorduğu kritik sor
   "report_patch": { "notes": ["kısa notlar"] }
 }
 
-Rehber yazarken current_step_id'ye göre odaklan:
-- has_eu_login / has_glassdoor_account: hesap açma/giriş adımları
-- source_apply_opened: "İlana Git" + sayfayı Türkçeye çevir
-- source_apply_found: "How to apply/Apply" bölümünü nasıl bulacağı
-- source_apply_started: başvuruyu başlatma / form adımı
-- passport: pasaport neden kritik, yoksa ilk yapılacak
-- cv: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF)
-- language: düşükse kısa uyarı ve pratik öneri
-- has_trade_certificate: varsa ekle, yoksa alternatif (deneyim/ustabaşı referansı vb.)
-- barrier: varsa neyi kastettiğini netleştirme (tek cümle)`;
+Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — en fazla 3 madde):
+- opened_source_page: "İlana Git" + sayfayı Türkçeye çevir
+- found_apply_section / saw_signin_to_apply / how_to_apply_method: "How to apply/Apply" bölümünü nasıl bulacağı
+- visible_headings_text: ekrandaki başlıklara göre yönlendirme
+- passport_status: pasaport neden kritik, yoksa ilk yapılacak
+- cv_status: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF)
+- english_level: düşükse kısa uyarı ve pratik öneri
+- trade_certificate: varsa ekle, yoksa alternatif (deneyim/ustabaşı referansı vb.)
+- blocking_issue / blocking_issue_text: varsa neyi kastettiğini netleştirme (tek cümle)
+- glassdoor_account / eu_login: hesap/giriş durumu`;
 
     const userPrompt = `job_post:\n${jobContent}\n\nsource: ${sourceName || "kaynak"}\nlocation: ${jobPost.location_text ?? ""}\ncurrent_step_id: ${currentStepId}\nuser_last_message: ${rawUserText}\nanswers_json: ${JSON.stringify(mergedAnswers)}`;
 
@@ -482,12 +577,13 @@ Rehber yazarken current_step_id'ye göre odaklan:
         /* ignore */
       }
       const fallbackMessage = "Şu an AI yanıtını işleyemedim. Yine de devam edelim.";
-      const serverNext = getQuestionTextAndChoices(currentStepId, sourceKey);
-      const fallbackQuestion = { id: currentStepId, text: serverNext.text, choices: serverNext.choices };
+      const stepForFallback = getStepById(currentStepId);
+      const serverNext = stepForFallback ? getQuestionTextAndChoices(stepForFallback) : { text: "Adımlar tamamlandı.", choices: [] as string[] };
+      const fallbackQuestion = { id: currentStepId, text: serverNext.text, choices: serverNext.choices, input: serverNext.input };
       const fallbackAssistant = {
         message_md: fallbackMessage,
-        quick_replies: fallbackQuestion.choices,
-        ask: { id: currentStepId, question: fallbackQuestion.text, type: "choice" as const, choices: fallbackQuestion.choices },
+        quick_replies: serverNext.choices ?? [],
+        ask: { id: currentStepId, question: fallbackQuestion.text, type: (serverNext.input ? "textarea" : "choice") as "choice" | "textarea", choices: fallbackQuestion.choices, input: serverNext.input },
       };
       return NextResponse.json({
         assistant_message: fallbackMessage,
@@ -497,7 +593,7 @@ Rehber yazarken current_step_id'ye göre odaklan:
         checklist_snapshot: checklistSnapshot,
         answers_json: mergedAnswers,
         assistant: fallbackAssistant,
-        state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progress.total, done: progress.done, percent: progress.pct } },
+        state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
         next: { should_finalize: false, reason: "" },
       });
     }
@@ -505,6 +601,9 @@ Rehber yazarken current_step_id'ye göre odaklan:
     let assistantMessage = extractAssistantMessage(parsed as Record<string, unknown>, rawText);
     if (!assistantMessage.trim()) {
       assistantMessage = "Kısa bir yanıt geldi; devam edelim.";
+    }
+    if (confirmationMsg) {
+      assistantMessage = confirmationMsg + "\n\n" + assistantMessage;
     }
     const finalAnswers = mergedAnswers as Record<string, unknown>;
     const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};
@@ -542,8 +641,8 @@ Rehber yazarken current_step_id'ye göre odaklan:
         content: rawUserText,
       });
     }
-    const serverNextQuestion = getQuestionTextAndChoices(currentStepId, sourceKey);
-    const nextQuestionPayload = { id: currentStepId, text: serverNextQuestion.text, choices: serverNextQuestion.choices };
+    const serverNextQuestion = getQuestionTextAndChoices(nextStep);
+    const nextQuestionPayload = { id: nextStep.id, text: serverNextQuestion.text, choices: serverNextQuestion.choices, input: serverNextQuestion.input };
     await auth.supabase.from("job_guide_events").insert({
       job_guide_id: jobGuideId,
       type: "assistant_message",
@@ -552,24 +651,27 @@ Rehber yazarken current_step_id'ye göre odaklan:
 
     const assistant = {
       message_md: assistantMessage,
-      quick_replies: serverNextQuestion.choices,
+      quick_replies: serverNextQuestion.choices ?? [],
       ask: {
-        id: currentStepId,
+        id: nextStep.id,
         question: serverNextQuestion.text,
-        type: "choice" as const,
+        type: (serverNextQuestion.input ? "textarea" : "choice") as "choice" | "textarea",
         choices: serverNextQuestion.choices,
+        input: serverNextQuestion.input,
       },
     };
     const state_patch = {
       answers_patch: {} as Record<string, unknown>,
       checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
-      progress: { total: progress.total, done: progress.done, percent: progress.pct },
+      progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
     };
     const next = { should_finalize: false, reason: "" };
 
     return NextResponse.json({
       assistant_message: assistantMessage,
       next_question: nextQuestionPayload,
+      quick_guide_text: quickGuideText,
+      confirmation_message: confirmationMsg ?? undefined,
       report_json: reportJson,
       report_md: reportMd,
       checklist_snapshot: checklistSnapshot,

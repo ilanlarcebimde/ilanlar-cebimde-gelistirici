@@ -5,8 +5,8 @@
 
 export type Answers = {
   passport?: "var" | "basvurdum" | "yok";
-  cv?: "var" | "yok";
-  language?: "hic" | "a1" | "a2" | "b1" | "b2";
+  cv?: "var" | "yok" | "var_not_pdf";  // var = PDF hazır, var_not_pdf = Hazır ama PDF değil, yok = Hazır değil
+  language?: "hic" | "a1" | "a2" | "b1" | "b2" | "emin";
   profession?: string;
   experience?: "0-1" | "2-4" | "5+";
   barrier?: "yok" | "var";
@@ -18,8 +18,32 @@ export type Answers = {
   source_apply_done?: "var" | "yok";
   profile_complete?: "var" | "yok";
   cv_uploaded?: "var" | "yok";
-  has_trade_certificate?: "var" | "yok"; // Rapor/akışta; ilerlemeye dahil değil
+  has_trade_certificate?: "var" | "yok"; // Uygunluk modülü
 };
+
+/** 7 soruluk bilgi toplama sihirbazı — ilerleme bu sorulara göre hesaplanır. */
+export const QUESTION_IDS_7 = [
+  "source_apply_opened",
+  "source_apply_found",
+  "passport",
+  "cv",
+  "language",
+  "has_trade_certificate",
+  "barrier",
+] as const;
+
+function isQuestionAnswered(answers: Answers, id: string): boolean {
+  const v = id === "passport" ? answers.passport : (answers as Record<string, unknown>)[id];
+  return v !== undefined && v !== null && String(v).trim() !== "";
+}
+
+/** İlerleme = 7 sorudan kaçı cevaplandı (soru tamamlama oranı). */
+export function getProgressFromSevenQuestions(answers: Answers): { total: number; done: number; pct: number } {
+  const total = QUESTION_IDS_7.length;
+  const done = QUESTION_IDS_7.filter((id) => isQuestionAnswered(answers, id)).length;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  return { total, done, pct };
+}
 
 export type ChecklistItem = { id: string; label: string; done: boolean; hint?: string };
 export type ChecklistModule = { id: string; title: string; icon: string; items: ChecklistItem[] };
@@ -41,7 +65,7 @@ function sourceKey(job: JobForChecklist): "eures" | "glassdoor" | "linkedin" | "
   return "default";
 }
 
-/** 3 modül: Platform/Hesap (1), Başvuru Adımı (3), CV (2). Toplam 6 madde. */
+/** 4 modül: Platform/Hesap (1), Başvuru Adımı (2), CV (2), Uygunluk (3). Toplam 8 madde. */
 export function buildChecklist(job: JobForChecklist, answers: Answers): ChecklistModule[] {
   const src = sourceKey(job);
   const modules: ChecklistModule[] = [];
@@ -50,9 +74,11 @@ export function buildChecklist(job: JobForChecklist, answers: Answers): Checklis
   const hasGlassdoor = answers.has_glassdoor_account === "var";
   const applyOpened = answers.source_apply_opened === "var";
   const applyFound = answers.source_apply_found === "var";
-  const applyStarted = answers.source_apply_started === "var";
-  const cvReady = answers.cv === "var";
+  const cvStatusDone = answers.cv !== undefined && answers.cv !== null && String(answers.cv).trim() !== "";
   const cvUploaded = answers.cv_uploaded === "var";
+  const passportDone = answers.passport !== undefined && answers.passport !== null && String(answers.passport).trim() !== "";
+  const languageDone = answers.language !== undefined && answers.language !== null && String(answers.language).trim() !== "";
+  const tradeCertDone = answers.has_trade_certificate !== undefined && answers.has_trade_certificate !== null && String(answers.has_trade_certificate).trim() !== "";
 
   // 1) Platform / Hesap — 1 madde (kaynağa göre)
   if (src === "eures") {
@@ -78,7 +104,7 @@ export function buildChecklist(job: JobForChecklist, answers: Answers): Checklis
     });
   }
 
-  // 2) Başvuru Adımı — 3 madde
+  // 2) Başvuru Adımı — 2 madde (7 soru setine uyumlu)
   modules.push({
     id: "apply",
     title: "Başvuru Adımı",
@@ -86,18 +112,29 @@ export function buildChecklist(job: JobForChecklist, answers: Answers): Checklis
     items: [
       { id: "a1", label: "İlana gittim / sayfayı açtım", done: applyOpened },
       { id: "a2", label: "Apply / How to apply bölümünü gördüm", done: applyFound },
-      { id: "a3", label: "Başvuruyu başlattım / form açıldı", done: applyStarted },
     ],
   });
 
-  // 3) CV — 2 madde (ilerleme sadece bunlarla)
+  // 3) CV — 2 madde
   modules.push({
     id: "cv",
     title: "CV",
     icon: "📄",
     items: [
-      { id: "c1", label: "CV hazır (PDF)", done: cvReady },
+      { id: "c1", label: "CV durumu belirtildi", done: cvStatusDone },
       { id: "c2", label: "CV’yi başvuruya ekledim / yükledim", done: cvUploaded },
+    ],
+  });
+
+  // 4) Uygunluk — 3 madde
+  modules.push({
+    id: "uygunluk",
+    title: "Uygunluk",
+    icon: "✅",
+    items: [
+      { id: "u1", label: "Pasaport durumu alındı", done: passportDone },
+      { id: "u2", label: "Dil seviyesi alındı", done: languageDone },
+      { id: "u3", label: "Mesleki belge durumu alındı", done: tradeCertDone },
     ],
   });
 
@@ -131,11 +168,11 @@ function asPassport(v: unknown): Answers["passport"] {
   return undefined;
 }
 function asCv(v: unknown): Answers["cv"] {
-  if (v === "var" || v === "yok") return v;
+  if (v === "var" || v === "yok" || v === "var_not_pdf") return v;
   return undefined;
 }
 function asLang(v: unknown): Answers["language"] {
-  if (v === "hic" || v === "a1" || v === "a2" || v === "b1" || v === "b2") return v;
+  if (v === "hic" || v === "a1" || v === "a2" || v === "b1" || v === "b2" || v === "emin") return v;
   return undefined;
 }
 function asExp(v: unknown): Answers["experience"] {

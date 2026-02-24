@@ -10,6 +10,7 @@ import {
   calcProgress,
   answersFromJson,
   getMissingTop,
+  getProgressFromSevenQuestions,
   type Answers,
   type ChecklistModule,
 } from "./checklistRules";
@@ -26,7 +27,7 @@ type JobGuide = {
   updated_at: string;
 };
 
-type NextQuestionSingle = { text: string; choices?: string[] };
+type NextQuestionSingle = { id?: string; text: string; choices?: string[]; input?: { type: "textarea"; placeholder: string } };
 type ChatMessage = {
   role: "user" | "assistant";
   text: string;
@@ -94,6 +95,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [reportUpdateError, setReportUpdateError] = useState<string | null>(null);
   const [lastReportUpdate, setLastReportUpdate] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("sohbet");
+  const [quickGuideText, setQuickGuideText] = useState<string | null>(null);
+  const [quickGuideCollapsed, setQuickGuideCollapsed] = useState(false);
+  const [inlineTextareaValue, setInlineTextareaValue] = useState("");
   const messagesBottomRef = useRef<HTMLDivElement>(null);
   const bootstrapInFlightRef = useRef(false);
   const chatFallback12sRef = useRef(false);
@@ -289,18 +293,20 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
         // Yeni şema (assistant/state_patch) veya eski alanlar
         const d = data as {
-          assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[] } };
+          assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[]; input?: { type: "textarea"; placeholder: string } } };
           state_patch?: { progress?: { total?: number; done?: number; percent?: number }; answers_patch?: Record<string, unknown> };
           assistant_message?: string;
           next_question?: NextQuestionSingle;
+          quick_guide_text?: string;
           report_json?: ReportJson;
           checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] };
           answers_json?: Record<string, unknown>;
         };
         const text = (d.assistant?.message_md ?? d.assistant_message ?? "").trim() || "Başvuru rehberini hazırlıyorum. Devam edelim.";
+        if (d.quick_guide_text) setQuickGuideText(d.quick_guide_text);
         const ask = d.assistant?.ask;
         const nextQ: NextQuestionSingle | null = ask
-          ? { text: ask.question ?? "", choices: ask.choices }
+          ? { id: ask.id, text: ask.question ?? "", choices: ask.choices, input: ask.input }
           : (d.next_question ?? null);
         if (ask?.id) setLastAskId(ask.id);
         const msg: ChatMessage = {
@@ -310,6 +316,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         };
         setMessages([msg]);
         setNextQuestion(nextQ ?? { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+        setInlineTextareaValue("");
         if (d.report_json) setReport(d.report_json);
         if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
         else {
@@ -409,18 +416,20 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
 
         const d = data as {
-          assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[] } };
+          assistant?: { message_md?: string; quick_replies?: string[]; ask?: { id?: string; question?: string; type?: string; choices?: string[]; input?: { type: "textarea"; placeholder: string } } };
           state_patch?: { progress?: { total?: number; done?: number; percent?: number }; answers_patch?: Record<string, unknown> };
           assistant_message?: string;
           next_question?: NextQuestionSingle;
+          quick_guide_text?: string;
           report_json?: ReportJson;
           checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] };
           answers_json?: Record<string, unknown>;
         };
         const text = d.assistant?.message_md ?? d.assistant_message ?? "";
+        if (d.quick_guide_text) setQuickGuideText(d.quick_guide_text);
         const ask = d.assistant?.ask;
         const nextQ: NextQuestionSingle | null = ask
-          ? { text: ask.question ?? "", choices: ask.choices }
+          ? { id: ask.id, text: ask.question ?? "", choices: ask.choices, input: ask.input }
           : (d.next_question ?? null);
         const assistantMsg: ChatMessage = {
           role: "assistant",
@@ -431,6 +440,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         if (ask?.id) setLastAskId(ask.id);
         setMessages((prev) => [...prev, assistantMsg]);
         setNextQuestion(nextQ);
+        setInlineTextareaValue("");
         if (d.report_json) setReport(d.report_json);
         if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
         else {
@@ -475,9 +485,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     [job]
   );
   const modules = useMemo(() => buildChecklist(jobForChecklist, answers), [jobForChecklist, answers]);
+  const progressFrom7 = useMemo(() => getProgressFromSevenQuestions(answers), [answers]);
   const progress = useMemo(() => calcProgress(modules), [modules]);
   const missingTop3 = useMemo(() => getMissingTop(modules, 3), [modules]);
-  const progressPercent = checklistSnapshot?.percent ?? progress.pct;
+  const progressPercent = checklistSnapshot?.percent ?? progressFrom7.pct;
   const missingLabels = checklistSnapshot?.missing_top3 ?? missingTop3;
 
   const handleUpdateReport = useCallback(async () => {
@@ -643,23 +654,63 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col md:overflow-hidden border-r border-slate-200 bg-slate-50/50">
           <div className="flex-1 min-h-0 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-4">
+              {/* Hızlı Rehber (sabit, kapanabilir) — tek sefer görünür */}
+              {quickGuideText && (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setQuickGuideCollapsed((c) => !c)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left font-semibold text-slate-900 bg-slate-50 hover:bg-slate-100"
+                  >
+                    <span>Hızlı Rehber</span>
+                    <span className="text-slate-500 text-sm font-normal">{quickGuideCollapsed ? "Göster" : "Gizle"}</span>
+                  </button>
+                  {!quickGuideCollapsed && (
+                    <div className="px-4 pb-4 pt-0 text-sm text-slate-700 whitespace-pre-wrap border-t border-slate-100">{quickGuideText}</div>
+                  )}
+                </div>
+              )}
               {(messages.length ? messages : [{ role: "assistant" as const, text: "Rehber yükleniyor…" }]).map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
                     <p className="text-sm whitespace-pre-wrap">{m.text}</p>
                     {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
                       <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
-                        {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => sendMessage(opt)}
-                            disabled={sending}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                          >
-                            {opt}
-                          </button>
-                        ))}
+                        {m.next_question?.input ? (
+                          <>
+                            <textarea
+                              value={inlineTextareaValue}
+                              onChange={(e) => setInlineTextareaValue(e.target.value)}
+                              placeholder={m.next_question.input.placeholder}
+                              rows={3}
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+                              aria-label="Yanıt"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const v = inlineTextareaValue.trim();
+                                if (v) { sendMessage(v); setInlineTextareaValue(""); }
+                              }}
+                              disabled={sending || !inlineTextareaValue.trim()}
+                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              Gönder
+                            </button>
+                          </>
+                        ) : (
+                          (m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => sendMessage(opt)}
+                              disabled={sending}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              {opt}
+                            </button>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
@@ -702,17 +753,59 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         {mobileTab === "sohbet" && (
             <div className="md:hidden flex-1 flex flex-col min-h-0 bg-slate-50/50">
               <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+                {/* Hızlı Rehber (sabit, kapanabilir) */}
+                {quickGuideText && (
+                  <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setQuickGuideCollapsed((c) => !c)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left font-semibold text-slate-900 bg-slate-50 hover:bg-slate-100"
+                    >
+                      <span>Hızlı Rehber</span>
+                      <span className="text-slate-500 text-sm font-normal">{quickGuideCollapsed ? "Göster" : "Gizle"}</span>
+                    </button>
+                    {!quickGuideCollapsed && (
+                      <div className="px-4 pb-4 pt-0 text-sm text-slate-700 whitespace-pre-wrap border-t border-slate-100">{quickGuideText}</div>
+                    )}
+                  </div>
+                )}
                 {(messages.length ? messages : [{ role: "assistant" as const, text: "Rehber yükleniyor…" }]).map((m, i) => (
                   <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                     <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
                       <p className="text-sm whitespace-pre-wrap">{m.text}</p>
                       {m.role === "assistant" && i === (messages.length || 1) - 1 && (m.next_question || (m.next_questions && m.next_questions.length > 0)) && (
-                        <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
-                          {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
-                            <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                              {opt}
-                            </button>
-                          ))}
+                        <div className="mt-3 pt-3 border-t border-slate-200 flex flex-col gap-2">
+                          {m.next_question?.input ? (
+                            <>
+                              <textarea
+                                value={inlineTextareaValue}
+                                onChange={(e) => setInlineTextareaValue(e.target.value)}
+                                placeholder={m.next_question.input.placeholder}
+                                rows={3}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+                                aria-label="Yanıt"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const v = inlineTextareaValue.trim();
+                                  if (v) { sendMessage(v); setInlineTextareaValue(""); }
+                                }}
+                                disabled={sending || !inlineTextareaValue.trim()}
+                                className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
+                              >
+                                Gönder
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {(m.next_question?.choices ?? m.next_questions?.[0]?.options ?? []).map((opt) => (
+                                <button key={opt} type="button" onClick={() => sendMessage(opt)} disabled={sending} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
