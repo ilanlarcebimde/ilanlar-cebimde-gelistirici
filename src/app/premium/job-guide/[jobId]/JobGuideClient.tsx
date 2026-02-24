@@ -96,6 +96,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [mobileTab, setMobileTab] = useState<MobileTab>("sohbet");
   const messagesBottomRef = useRef<HTMLDivElement>(null);
   const bootstrapInFlightRef = useRef(false);
+  const chatFallback12sRef = useRef(false);
 
   const getSession = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -349,14 +350,28 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       }
 
       const userMsg: ChatMessage = { role: "user", text: trimmed, ts: new Date().toISOString() };
+      const prevNextQ = nextQuestion;
       setMessages((prev) => [...prev, userMsg]);
       setNextQuestion(null);
       setInputText("");
       setSending(true);
+      chatFallback12sRef.current = false;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
-      const safetyId = setTimeout(() => setSending(false), 30000);
+      const timeoutAbort = 25000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutAbort);
+      const fallback12sId = setTimeout(() => {
+        if (chatFallback12sRef.current) return;
+        chatFallback12sRef.current = true;
+        setMessages((prev) => [...prev, { role: "assistant", text: "Yanıt gecikti. Tekrar deneyelim." }]);
+        setNextQuestion(prevNextQ ?? { text: "Tekrar dene", choices: ["Var", "Yok", "Emin değilim"] });
+        setSending(false);
+        setReportUpdating(false);
+        controller.abort();
+      }, 12000);
+      const safetyId = setTimeout(() => {
+        if (!chatFallback12sRef.current) setSending(false);
+      }, 30000);
       try {
         if (typeof window !== "undefined") console.log("CHAT_SEND", { jobGuideId: guide.id, jobPostId: job.id });
         const res = await fetch("/api/job-guide/chat", {
@@ -374,7 +389,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
+        clearTimeout(fallback12sId);
         clearTimeout(safetyId);
+        if (chatFallback12sRef.current) return;
         if (typeof window !== "undefined") console.log("CHAT_RES", res.status);
         const data = await res.json().catch(() => ({}));
         if (typeof window !== "undefined") console.log("CHAT_DATA_KEYS", Object.keys(data ?? {}));
@@ -426,23 +443,27 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         }
       } catch (e) {
         clearTimeout(timeoutId);
+        clearTimeout(fallback12sId);
         clearTimeout(safetyId);
-        if (typeof window !== "undefined") console.error("CHAT_ERR", e);
-        const msg =
-          e instanceof Error && e.message === "NO_TOKEN"
-            ? "Giriş bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin."
-            : e instanceof Error && e.name === "AbortError"
-              ? "Yanıt gecikiyor. Sayfayı yenileyin veya tekrar yazın."
-              : "Bağlantı sorunu oldu. Tekrar dener misin?";
-        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
-        setNextQuestion({ text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+        if (!chatFallback12sRef.current) {
+          if (typeof window !== "undefined") console.error("CHAT_ERR", e);
+          const msg =
+            e instanceof Error && e.message === "NO_TOKEN"
+              ? "Giriş bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin."
+              : e instanceof Error && e.name === "AbortError"
+                ? "Yanıt gecikiyor. Sayfayı yenileyin veya tekrar yazın."
+                : "Bağlantı sorunu oldu. Tekrar dener misin?";
+          setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+          setNextQuestion(prevNextQ ?? { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] });
+        }
       } finally {
+        clearTimeout(fallback12sId);
         clearTimeout(safetyId);
         setSending(false);
         setReportUpdating(false);
       }
     },
-    [guide, job, messages, sending, lastAskId, getSession]
+    [guide, job, messages, sending, lastAskId, nextQuestion, getSession]
   );
 
   useEffect(() => {
@@ -527,14 +548,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             </div>
             <span className="text-sm font-medium text-slate-700 shrink-0">%{progressPercent}</span>
           </div>
-          {/* Hızlı Özet: kaynak rehberi + sonraki adım + 1 soru (checklist cümleleri yok) */}
+          {/* Hızlı Özet: 2 satır — kaynak rehberi + sonraki soru; "Şu an" ilk eksik adım */}
           <div className="mt-2 text-xs text-slate-600 space-y-0.5">
             <p className="font-medium text-slate-700">Hızlı Özet</p>
-            <p>{sourceLabel ? `Bu ilan ${sourceLabel} üzerinden. Başvurmak için platformda giriş yapıp başvuru adımını tamamlayacağız.` : "Bu ilan için başvuru rehberi."}</p>
-            <p>Sonraki adım: İlana Git butonuna basıp sayfayı gerekirse Türkçe&apos;ye çevir.</p>
-            {nextQuestion?.text && (
-              <p className="pt-0.5">Soru: {nextQuestion.text} {nextQuestion.choices?.length ? `(${nextQuestion.choices.slice(0, 3).join(" / ")})` : ""}</p>
-            )}
+            <p>{sourceLabel ? `Bu ilan ${sourceLabel} üzerinden. İlana Git → sayfayı gerekirse Türkçeye çevir.` : "Bu ilan için başvuru rehberi."}</p>
+            {missingLabels.length > 0 && <p>Şu an: {missingLabels[0]}</p>}
+            {nextQuestion?.text && <p className="pt-0.5">Soru: {nextQuestion.text} {nextQuestion.choices?.length ? `(${nextQuestion.choices.slice(0, 3).join(" / ")})` : ""}</p>}
           </div>
         </div>
 

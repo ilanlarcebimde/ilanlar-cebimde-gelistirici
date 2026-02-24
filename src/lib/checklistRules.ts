@@ -1,6 +1,6 @@
 /**
- * Kaynak odaklı checklist: 3 modül (SOURCE_APPLY, ACCOUNT_PROFILE, DOCUMENTS).
- * Sadece kaynak + ilan metninde anlamlı adımlar; ✔ sadece kullanıcı mesajından.
+ * Minimal checklist: 3 modül (Platform/Hesap, Başvuru Adımı, CV). Toplam 5–6 madde.
+ * İlerleme = "bu başvuru akışındaki kritik adımlar"; ✔ sadece kullanıcı cevabıyla.
  */
 
 export type Answers = {
@@ -10,15 +10,15 @@ export type Answers = {
   profession?: string;
   experience?: "0-1" | "2-4" | "5+";
   barrier?: "yok" | "var";
-  // Kaynak adımları – sadece kullanıcı onayı ile done
   has_eu_login?: "var" | "yok";
   has_glassdoor_account?: "var" | "yok";
-  source_apply_opened?: "var" | "yok";   // How to apply / Başvuru bölümünü açtım
-  source_apply_started?: "var" | "yok";  // Apply adımına geldim / başvuru akışını başlattım
-  source_apply_done?: "var" | "yok";     // Başvuruyu tamamladım
-  profile_complete?: "var" | "yok";       // Profil bilgilerim tam
-  cv_uploaded?: "var" | "yok";          // CV yükledim (ilan istiyorsa)
-  has_trade_certificate?: "var" | "yok"; // Ustalık belgesi / mesleki yeterlilik
+  source_apply_opened?: "var" | "yok";   // İlana gittim / sayfayı açtım
+  source_apply_found?: "var" | "yok";    // Apply / How to apply bölümünü gördüm
+  source_apply_started?: "var" | "yok";  // Başvuruyu başlattım / form açıldı
+  source_apply_done?: "var" | "yok";
+  profile_complete?: "var" | "yok";
+  cv_uploaded?: "var" | "yok";
+  has_trade_certificate?: "var" | "yok"; // Rapor/akışta; ilerlemeye dahil değil
 };
 
 export type ChecklistItem = { id: string; label: string; done: boolean; hint?: string };
@@ -41,97 +41,63 @@ function sourceKey(job: JobForChecklist): "eures" | "glassdoor" | "linkedin" | "
   return "default";
 }
 
-/** Done sadece kullanıcı cevabıyla; ilan metninde yoksa madde yok. 3 modül: Kaynakta Başvuru, Hesap & Profil, CV/Belgeler. */
+/** 3 modül: Platform/Hesap (1), Başvuru Adımı (3), CV (2). Toplam 6 madde. */
 export function buildChecklist(job: JobForChecklist, answers: Answers): ChecklistModule[] {
   const src = sourceKey(job);
   const modules: ChecklistModule[] = [];
 
-  // 1) SOURCE_APPLY – Kaynakta Başvuru (zorunlu)
-  const applyOpened = answers.source_apply_opened === "var";
-  const applyStarted = answers.source_apply_started === "var";
-  const applyDone = answers.source_apply_done === "var";
-  if (src === "eures") {
-    modules.push({
-      id: "source_apply",
-      title: "Kaynakta Başvuru",
-      icon: "📋",
-      items: [
-        { id: "sa1", label: "EURES sayfasında 'How to apply / Başvuru' bölümünü açtım", done: applyOpened },
-        { id: "sa2", label: "'Apply / Başvur' adımına geldim", done: applyStarted },
-        { id: "sa3", label: "Başvuruyu tamamladım veya başvuru kanalını not aldım", done: applyDone },
-      ],
-    });
-  } else if (src === "glassdoor") {
-    modules.push({
-      id: "source_apply",
-      title: "Kaynakta Başvuru",
-      icon: "📋",
-      items: [
-        { id: "sa1", label: "Glassdoor ilan sayfasına geldim", done: applyOpened },
-        { id: "sa2", label: "'Apply / Sign in to apply' ekranını gördüm", done: applyStarted },
-        { id: "sa3", label: "Başvuru akışını başlattım", done: applyDone },
-      ],
-    });
-  } else {
-    modules.push({
-      id: "source_apply",
-      title: "Kaynakta Başvuru",
-      icon: "📋",
-      items: [
-        { id: "sa1", label: "İlan sayfasında başvuru bölümünü açtım", done: applyOpened },
-        { id: "sa2", label: "Başvuru adımına geldim", done: applyStarted },
-        { id: "sa3", label: "Başvuruyu tamamladım veya kanalı not aldım", done: applyDone },
-      ],
-    });
-  }
-
-  // 2) ACCOUNT_PROFILE – Hesap & Profil (kaynağa bağlı)
   const hasEulogin = answers.has_eu_login === "var";
   const hasGlassdoor = answers.has_glassdoor_account === "var";
-  const profileOk = answers.profile_complete === "var";
+  const applyOpened = answers.source_apply_opened === "var";
+  const applyFound = answers.source_apply_found === "var";
+  const applyStarted = answers.source_apply_started === "var";
+  const cvReady = answers.cv === "var";
+  const cvUploaded = answers.cv_uploaded === "var";
+
+  // 1) Platform / Hesap — 1 madde (kaynağa göre)
   if (src === "eures") {
     modules.push({
-      id: "account_profile",
-      title: "Hesap & Profil",
+      id: "platform",
+      title: "Platform / Hesap",
       icon: "👤",
-      items: [
-        { id: "ap1", label: "EU Login ile giriş yaptım / hesabım var", done: hasEulogin },
-        { id: "ap2", label: "Profil bilgilerim (ad, iletişim) tam", done: profileOk },
-      ],
+      items: [{ id: "p1", label: "EURES’te EU Login hesabım var / giriş yaptım", done: hasEulogin }],
     });
   } else if (src === "glassdoor") {
     modules.push({
-      id: "account_profile",
-      title: "Hesap & Profil",
+      id: "platform",
+      title: "Platform / Hesap",
       icon: "👤",
-      items: [
-        { id: "ap1", label: "Glassdoor hesabı açtım / giriş yaptım", done: hasGlassdoor },
-        { id: "ap2", label: "Profil bilgilerim tam", done: profileOk },
-      ],
+      items: [{ id: "p1", label: "Glassdoor hesabım var / giriş yaptım", done: hasGlassdoor }],
     });
   } else {
     modules.push({
-      id: "account_profile",
-      title: "Hesap & Profil",
+      id: "platform",
+      title: "Platform / Hesap",
       icon: "👤",
-      items: [
-        { id: "ap1", label: "Platform hesabım var / giriş yaptım", done: hasEulogin || hasGlassdoor || profileOk },
-        { id: "ap2", label: "Profil bilgilerim tam", done: profileOk },
-      ],
+      items: [{ id: "p1", label: "Bu platformda hesabım var / giriş yaptım", done: hasEulogin || hasGlassdoor }],
     });
   }
 
-  // 3) BELGELER & NİTELİK – CV + ustalık belgesi (✔ sadece kullanıcı cevabıyla)
-  const cvDone = answers.cv === "var" || answers.cv_uploaded === "var";
-  const tradeCertDone = answers.has_trade_certificate === "var";
+  // 2) Başvuru Adımı — 3 madde
   modules.push({
-    id: "documents",
-    title: "Belgeler & Nitelik",
+    id: "apply",
+    title: "Başvuru Adımı",
+    icon: "📋",
+    items: [
+      { id: "a1", label: "İlana gittim / sayfayı açtım", done: applyOpened },
+      { id: "a2", label: "Apply / How to apply bölümünü gördüm", done: applyFound },
+      { id: "a3", label: "Başvuruyu başlattım / form açıldı", done: applyStarted },
+    ],
+  });
+
+  // 3) CV — 2 madde (ilerleme sadece bunlarla)
+  modules.push({
+    id: "cv",
+    title: "CV",
     icon: "📄",
     items: [
-      { id: "d1", label: "CV hazır (PDF)", done: cvDone },
-      { id: "d2", label: "Ustalık belgesi / mesleki yeterlilik (varsa)", done: tradeCertDone },
-      { id: "d3", label: "İlanda istenen ek belge(ler) hazır (ilan metninde belirtiliyorsa)", done: false },
+      { id: "c1", label: "CV hazır (PDF)", done: cvReady },
+      { id: "c2", label: "CV’yi başvuruya ekledim / yükledim", done: cvUploaded },
     ],
   });
 
@@ -145,7 +111,7 @@ export function calcProgress(modules: ChecklistModule[]): { total: number; done:
   return { total, done, pct };
 }
 
-/** Kaynak modülündeki ilk yapılmamış adımlar – "Bugün bitirmen gereken" için (kaynak odaklı). */
+/** Eksik adımlar (sırayla) — Hızlı Özet / sonraki adım için. */
 export function getMissingTop(modules: ChecklistModule[], n: number): string[] {
   const labels: string[] = [];
   for (const m of modules) {
@@ -196,6 +162,7 @@ export function answersFromJson(json: Record<string, unknown>): Answers {
     has_eu_login: asVarYok(normalizeEnum(json.has_eu_login)),
     has_glassdoor_account: asVarYok(normalizeEnum(json.has_glassdoor_account)),
     source_apply_opened: asVarYok(normalizeEnum(json.source_apply_opened)),
+    source_apply_found: asVarYok(normalizeEnum(json.source_apply_found)),
     source_apply_started: asVarYok(normalizeEnum(json.source_apply_started)),
     source_apply_done: asVarYok(normalizeEnum(json.source_apply_done)),
     profile_complete: asVarYok(normalizeEnum(json.profile_complete)),
