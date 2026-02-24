@@ -5,7 +5,21 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { FLOW_STEPS, type FlowStepDef } from "./flowSteps";
-import { getGuideBySource } from "./guideContent";
+import {
+  getGuideBySource,
+  TRANSLATION_GUIDE_TITLE,
+  TRANSLATION_GUIDE_CONTENT,
+  DOCUMENTS_INTRO,
+  DOCUMENTS_EUROPE_TITLE,
+  DOCUMENTS_EUROPE_CONTENT,
+  DOCUMENTS_ARAB_TITLE,
+  DOCUMENTS_ARAB_CONTENT,
+  DOCUMENTS_AMERICA_TITLE,
+  DOCUMENTS_AMERICA_CONTENT,
+  getRegionFromLocation,
+  getPassportVisaContentForCountry,
+  getSalaryLifeContentForCountry,
+} from "./guideContent";
 
 type Job = {
   id: string;
@@ -122,6 +136,8 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
   const step = FLOW_STEPS[stepIndex];
   const isDone = stepIndex >= FLOW_STEPS.length;
   const sourceGuide = getGuideBySource(job.source_name);
+  const passportVisaGuide = getPassportVisaContentForCountry(job.location_text);
+  const salaryLifeGuide = getSalaryLifeContentForCountry(job.location_text);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
@@ -138,6 +154,62 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
             <div className="mt-3 prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 sm:text-[15px]">
               <GuideText content={sourceGuide.content} />
             </div>
+          </section>
+        )}
+
+        {stepIndex >= 1 && answers.want_translation === "Evet" && (
+          <section className="mt-6 rounded-xl border border-slate-100 bg-sky-50/50 p-4 sm:p-5" aria-label="Türkçe çeviri rehberi">
+            <h2 className="text-base font-bold text-slate-900 sm:text-lg">{TRANSLATION_GUIDE_TITLE}</h2>
+            <div className="mt-3 prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+              <GuideText content={TRANSLATION_GUIDE_CONTENT} />
+            </div>
+          </section>
+        )}
+
+        {stepIndex >= 1 && (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-amber-50/50 p-4 sm:p-5" aria-label="İstenebilecek belgeler">
+            <h2 className="text-base font-bold text-slate-900 sm:text-lg">İstenebilecek Belgeler (Bölgeye Göre)</h2>
+            <p className="mt-1 text-sm text-slate-600">{DOCUMENTS_INTRO}</p>
+            {job.location_text && getRegionFromLocation(job.location_text) && (
+              <p className="mt-1 text-sm font-medium text-brand-700">
+                İlanınızın bölgesi: {getRegionFromLocation(job.location_text) === "europe" ? "Avrupa" : getRegionFromLocation(job.location_text) === "arab" ? "Arap ülkeleri" : "Amerika / Kanada"}
+              </p>
+            )}
+            <div className="mt-4 space-y-6 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+              <DocumentBlock title={DOCUMENTS_EUROPE_TITLE} content={DOCUMENTS_EUROPE_CONTENT} />
+              <DocumentBlock title={DOCUMENTS_ARAB_TITLE} content={DOCUMENTS_ARAB_CONTENT} />
+              <DocumentBlock title={DOCUMENTS_AMERICA_TITLE} content={DOCUMENTS_AMERICA_CONTENT} />
+            </div>
+          </section>
+        )}
+
+        {stepIndex >= 2 && answers.want_passport_visa === "Evet" && (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-violet-50/50 p-4 sm:p-5" aria-label="Pasaport ve vize rehberi">
+            {passportVisaGuide ? (
+              <>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">{passportVisaGuide.title}</h2>
+                <div className="mt-3 prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                  <GuideText content={passportVisaGuide.content} />
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-600">Bu ilanın ülkesi için pasaport ve vize rehberi şu an mevcut değil. İlan konumunda Katar, İrlanda, Belçika veya ABD belirtilmiş ilanlar için rehber sunulmaktadır.</p>
+            )}
+          </section>
+        )}
+
+        {stepIndex >= 3 && answers.want_salary_life === "Evet" && (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-emerald-50/50 p-4 sm:p-5" aria-label="Maaş ve yaşam gider hesabı">
+            {salaryLifeGuide ? (
+              <>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">{salaryLifeGuide.title}</h2>
+                <div className="mt-3 prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                  <GuideText content={salaryLifeGuide.content} />
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-600">Bu ilanın ülkesi için maaş ve yaşam gider rehberi şu an mevcut değil. İlan konumunda Katar, İrlanda, Belçika veya ABD/Alaska belirtilmiş ilanlar için rehber sunulmaktadır.</p>
+            )}
           </section>
         )}
 
@@ -162,6 +234,18 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
             saving={saving}
           />
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Bölge belge listesi: başlık + içerik (GuideText ile). */
+function DocumentBlock({ title, content }: { title: string; content: string }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-white p-3 sm:p-4">
+      <h3 className="text-sm font-bold text-slate-800 sm:text-base">{title}</h3>
+      <div className="mt-2">
+        <GuideText content={content} />
       </div>
     </div>
   );

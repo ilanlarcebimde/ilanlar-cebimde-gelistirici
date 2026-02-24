@@ -10,7 +10,46 @@ export type FlowStepDef = {
   placeholder?: string;
 };
 
+/** Kaynak rehberinden hemen sonra sorulur: Türkçe çeviri rehberi anlatılsın mı? */
+export const WANT_TRANSLATION_QUESTION = "Çoğu yurtdışı iş ilanı yabancı dildedir. Size Türkçe'ye nasıl çevireceğinizi anlatmamı ister misiniz?";
+
+/** Bölge belgelerinden sonra, ilan ülkesine göre sorulur. */
+export const WANT_PASSPORT_VISA_QUESTION = "Size pasaport ve vize işlemlerini anlatmamı ister misiniz?";
+
+/** Pasaport/vize sonrası, ilan ülkesine göre sorulur. */
+export const WANT_SALARY_LIFE_QUESTION = "Size ortalama \"maaş ve yaşam gider hesabı\"nı anlatmamı ister misiniz?";
+
 export const FLOW_STEPS: FlowStepDef[] = [
+  {
+    id: "want_translation",
+    answerKey: "want_translation",
+    question: WANT_TRANSLATION_QUESTION,
+    type: "choice",
+    options: [
+      { value: "Evet", label: "Evet" },
+      { value: "Hayır", label: "Hayır" },
+    ],
+  },
+  {
+    id: "want_passport_visa",
+    answerKey: "want_passport_visa",
+    question: WANT_PASSPORT_VISA_QUESTION,
+    type: "choice",
+    options: [
+      { value: "Evet", label: "Evet" },
+      { value: "Hayır", label: "Hayır" },
+    ],
+  },
+  {
+    id: "want_salary_life",
+    answerKey: "want_salary_life",
+    question: WANT_SALARY_LIFE_QUESTION,
+    type: "choice",
+    options: [
+      { value: "Evet", label: "Evet" },
+      { value: "Hayır", label: "Hayır" },
+    ],
+  },
   {
     id: "services",
     answerKey: "services_selected",
