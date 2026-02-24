@@ -6,6 +6,7 @@ import {
   getProgressFromConfig,
   getStepById,
   PROOF_DOCS,
+  expandServicesSelected,
   type FlowStep,
   type FlowInput,
   QUICK_GUIDE_TEMPLATES,
@@ -116,6 +117,7 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     if (String(value).trim() === "Gördüm") return "Güzel, başvuru alanını gördün.";
     if (String(value).trim() === "Göremedim") return "Tamam. Ekrandaki başlıkları yazacağın soruyla devam edelim.";
   }
+  if (askId === "service_pick") return "Tamam, seçtiğin konulara göre rehberi hazırlıyorum.";
   if (askId === "visible_headings_text" || askId === "screen_headings" || askId === "apply_section_location") return "Tamam, not ettim. Buna göre yönlendireceğiz.";
   if (askId === "cv_status") {
     const val = String(value).trim();
@@ -446,7 +448,10 @@ export async function POST(req: NextRequest) {
     const rawUserText = (typeof message_text === "string" ? message_text : typeof user_message === "string" ? user_message : "").trim();
     console.log("[job-guide/chat] body", { hasMessage: !!rawUserText, jobGuideId, jobPostId, mode: body.mode, isBootstrap });
     const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
-    const mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
+    let mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
+    if (last_ask_id === "service_pick") {
+      mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) };
+    }
 
     const { data: guide } = await auth.supabase
       .from("job_guides")
@@ -496,13 +501,23 @@ export async function POST(req: NextRequest) {
 
     const quickGuideText = getQuickGuideText(sourceKey);
     if (isBootstrap) {
-      // İlk mesaj: 1 kez selam + kaynak + başvuru adımları. greeting_shown ile sonraki turlarda selam tekrarlanmaz.
+      // İlk mesaj: selam + kaynak + Hızlı Rehber panelde + ilk soru (hizmet seçimi) hemen gösterilir.
       const bootstrapMessage = getBootstrapMessage(sourceKey);
       const bootstrapAnswers = { ...mergedAnswers, greeting_shown: true } as Record<string, unknown>;
+      const firstStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+      const firstQuestion = firstStep ? getQuestionTextAndChoices(firstStep) : null;
       const assistant = {
         message_md: bootstrapMessage,
-        quick_replies: [] as string[],
-        ask: undefined as { id: string; question: string; type: "choice" | "textarea"; choices?: string[]; input?: unknown } | undefined,
+        quick_replies: (firstQuestion?.choices ?? []) as string[],
+        ask: firstStep && firstQuestion
+          ? {
+              id: firstStep.id,
+              question: firstQuestion.text,
+              type: (firstQuestion.input?.type === "textarea" ? "textarea" : "choice") as "choice" | "textarea",
+              choices: firstQuestion.choices,
+              input: firstQuestion.input,
+            }
+          : undefined,
       };
       const state_patch = {
         answers_patch: { greeting_shown: true } as Record<string, unknown>,
@@ -511,7 +526,9 @@ export async function POST(req: NextRequest) {
       };
       return NextResponse.json({
         assistant_message: bootstrapMessage,
-        next_question: null,
+        next_question: firstQuestion && firstStep
+          ? { id: firstStep.id, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input }
+          : null,
         quick_guide_text: quickGuideText,
         report_json: guide?.report_json ?? {},
         report_md: null,
@@ -523,7 +540,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise ilk soru (found_apply_section) döndürülür. greeting_shown= true patchlenir.
+    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise ilk soru (service_pick veya found_apply_section) döndürülür.
     const isContinueStart = (!rawUserText || rawUserText.trim() === "" || rawUserText.trim().toLowerCase() === "__continue__") && Object.keys(mergedAnswers as object).length === 0;
     if (isContinueStart) {
       const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
@@ -850,7 +867,7 @@ export async function POST(req: NextRequest) {
     const promoSalaryAlreadyShown = mergedAnswers.promo_salary_shown === true;
     const hasLiveSalary = liveItems.some((x) => x.kind === "salary" && !x.blocked);
     const shouldInjectSalaryCta = wantsSalaryHelp && !hasLiveSalary && !promoSalaryAlreadyShown
-      && (last_ask_id === "cv_ready" || last_ask_id === "language_level");
+      && (last_ask_id === "service_pick" || last_ask_id === "cv_ready" || last_ask_id === "language_level");
     if (shouldInjectSalaryCta) {
       const salaryNote = "Net maaş ve yaşam gideri için resmi kaynak verisi bu oturumda alınamadı. Yaklaşık hesap yapmıyoruz; ilan metninde maaş varsa ona bakın.";
       assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n📌 " + salaryNote : "📌 " + salaryNote;

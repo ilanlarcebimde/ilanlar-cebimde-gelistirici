@@ -128,6 +128,15 @@ export const QUESTION_FLOW = {
 
   EURES: [
     {
+      id: "service_pick",
+      checklistLabel: "Hizmetleri seçtim",
+      text: "Hangi konularda yardım istiyorsun? (Birden fazla seçebilirsin)",
+      choices: [...SERVICE_CHOICES],
+      input: { type: "multiselect" },
+      answerKey: "services_selected",
+      doneRule: { type: "minSelected", answerKey: "services_selected", value: 1 },
+    },
+    {
       id: "found_apply_section",
       checklistLabel: "Başvuru bölümünü buldum",
       text: "İlan sayfasında “How to apply / Apply” bölümünü görüyor musunuz?",
@@ -215,6 +224,15 @@ export const QUESTION_FLOW = {
   ] as FlowStep[],
 
   GLASSDOOR: [
+    {
+      id: "service_pick",
+      checklistLabel: "Hizmetleri seçtim",
+      text: "Hangi konularda yardım istiyorsun? (Birden fazla seçebilirsin)",
+      choices: [...SERVICE_CHOICES],
+      input: { type: "multiselect" },
+      answerKey: "services_selected",
+      doneRule: { type: "minSelected", answerKey: "services_selected", value: 1 },
+    },
     {
       id: "found_apply_section",
       checklistLabel: "Apply alanını kontrol ettim",

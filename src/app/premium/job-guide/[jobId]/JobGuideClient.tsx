@@ -757,12 +757,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               {(messages.length ? messages : [{ role: "assistant" as const, text: "Rehber yükleniyor…" }]).map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-sky-600 text-white" : "bg-white border border-slate-200 text-slate-900 shadow-sm"}`}>
-                    {m.role === "assistant" ? (
-                      <div className="text-sm whitespace-pre-wrap">{renderMessageWithCvButton(m.text)}</div>
-                    ) : (
-                      <p className="text-sm whitespace-pre-wrap">{m.text}</p>
-                    )}
-                    {m.role === "assistant" && i === (messages.length || 1) - 1 && (
+                      {m.role === "assistant" ? (
+                        <div className="text-sm whitespace-pre-wrap">{renderMessageWithCvButton(m.text)}</div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{m.text === "__continue__" ? "Devam" : m.text}</p>
+                      )}
+                      {m.role === "assistant" && i === (messages.length || 1) - 1 && (
                       (m.next_question || (m.next_questions && m.next_questions.length > 0))
                         ? (
                       <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
@@ -877,8 +877,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                 </div>
               ))}
               {sending && messages.length > 0 && messages[messages.length - 1].role === "user" && (
-                <div className="flex justify-start pointer-events-none" aria-hidden>
-                  <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
+                <div className="flex justify-start pointer-events-none" aria-live="polite" aria-busy="true">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-400 italic">Cevaplanıyor…</div>
                 </div>
               )}
               <div ref={messagesBottomRef} />
@@ -935,7 +935,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                       {m.role === "assistant" ? (
                         <div className="text-sm whitespace-pre-wrap">{renderMessageWithCvButton(m.text)}</div>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+                        <p className="text-sm whitespace-pre-wrap">{m.text === "__continue__" ? "Devam" : m.text}</p>
                       )}
                       {m.role === "assistant" && i === (messages.length || 1) - 1 && (
                         (m.next_question || (m.next_questions && m.next_questions.length > 0))
@@ -1041,8 +1041,8 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   </div>
                 ))}
                 {sending && messages.length > 0 && messages[messages.length - 1].role === "user" && (
-                  <div className="flex justify-start pointer-events-none" aria-hidden>
-                    <div className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-500 shadow-sm">Yanıtlanıyor…</div>
+                  <div className="flex justify-start pointer-events-none" aria-live="polite" aria-busy="true">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-400 italic">Cevaplanıyor…</div>
                   </div>
                 )}
                 <div ref={messagesBottomRef} />
