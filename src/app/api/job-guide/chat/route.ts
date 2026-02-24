@@ -14,6 +14,11 @@ import {
   getMissingTop,
   answersFromJson,
 } from "@/lib/checklistRules";
+import { fetchUrlToPlainText, getVisaContextForCountry } from "@/lib/jobGuideGrounding";
+import { getCountrySources } from "@/lib/external/sources";
+import { fetchExternalWithCache } from "@/lib/external/fetchWithCache";
+import { callGeminiJson, extractJsonStrict, redactForbiddenPhrases } from "@/lib/ai/gemini";
+import { buildGeminiSystemPrompt, buildGeminiUserPrompt, type LiveContextItem } from "@/lib/job-guide/prompts";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -383,13 +388,26 @@ export async function POST(req: NextRequest) {
       answers_json?: Record<string, unknown>;
       chat_history?: Array<{ role: string; text: string }>;
       client_context?: { locale?: string };
+      wants_live_visa?: boolean;
+      wants_live_salary?: boolean;
     };
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
-    const { jobGuideId, jobPostId, user_message, message_text, mode, last_ask_id, answers_json = {}, chat_history = [] } = body;
+    const {
+      jobGuideId,
+      jobPostId,
+      user_message,
+      message_text,
+      mode,
+      last_ask_id,
+      answers_json = {},
+      chat_history = [],
+      wants_live_visa,
+      wants_live_salary,
+    } = body;
     if (!jobGuideId || !jobPostId) {
       return NextResponse.json({ error: "jobGuideId and jobPostId required" }, { status: 400 });
     }
@@ -511,6 +529,90 @@ export async function POST(req: NextRequest) {
     }
     const currentStepId = nextStep.id;
 
+    // RAG / Grounding: ilan sayfası + resmî vize (Supabase whitelist öncelikli, yoksa in-memory fallback)
+    const sourceUrl = typeof jobPost.source_url === "string" ? jobPost.source_url : "";
+    const jobPageResult = sourceUrl
+      ? await fetchUrlToPlainText(sourceUrl)
+      : { text: "", error: "no_url" as const };
+    const jobPageExcerpt = jobPageResult.text ? jobPageResult.text.slice(0, 15000) : "";
+
+    const liveItems: LiveContextItem[] = [];
+    const wantsVisa = wants_live_visa === true || /visa_need_clarity|passport_status|visa/i.test(currentStepId);
+    if (wantsVisa && country) {
+      const countrySources = await getCountrySources(country, "visa", 2);
+      for (const s of countrySources) {
+        const fetched = await fetchExternalWithCache({
+          kind: "visa",
+          url: s.url,
+          ttlSeconds: 60 * 60 * 24,
+          purpose: "visa",
+          country,
+          sourceName: s.title,
+          maxContentChars: 7000,
+        });
+        if (fetched.ok) {
+          liveItems.push({
+            kind: "visa",
+            source: s.title,
+            url: s.url,
+            content_text: fetched.content_text,
+            fetched_at: fetched.fetched_at,
+          });
+        } else {
+          liveItems.push({ kind: "visa", blocked: true, reason: fetched.reason });
+        }
+      }
+    }
+    if (wants_live_salary === true && country) {
+      const salarySources = await getCountrySources(country, "salary", 1);
+      for (const s of salarySources) {
+        const fetched = await fetchExternalWithCache({
+          kind: "salary",
+          url: s.url,
+          ttlSeconds: 60 * 60 * 24 * 7,
+          purpose: "salary",
+          country,
+          sourceName: s.title,
+          maxContentChars: 4000,
+        });
+        if (fetched.ok) {
+          liveItems.push({
+            kind: "salary",
+            source: s.title,
+            url: s.url,
+            content_text: fetched.content_text,
+            fetched_at: fetched.fetched_at,
+          });
+        } else {
+          liveItems.push({ kind: "salary", blocked: true, reason: fetched.reason });
+        }
+      }
+    }
+
+    let visaContextBlock = "";
+    let visaContextError: string | null = null;
+    let visaSourceForReport: { source: string; dateFetched: string } | null = null;
+    const visaFromLive = liveItems.find((x) => x.kind === "visa" && !x.blocked && x.content_text);
+    if (visaFromLive && visaFromLive.content_text) {
+      visaContextBlock = `\n\n---\nResmî vize/çalışma izni özeti (ülke: ${country}):\n${visaFromLive.content_text.slice(0, 7000)}\nKaynak: ${visaFromLive.source ?? visaFromLive.url}\nTarih: ${visaFromLive.fetched_at ?? ""}`;
+      visaSourceForReport = { source: visaFromLive.source ?? visaFromLive.url ?? "", dateFetched: visaFromLive.fetched_at ?? "" };
+    } else if (wantsVisa && country) {
+      const fallbackVisa = await getVisaContextForCountry(country);
+      if ("source" in fallbackVisa && fallbackVisa.text) {
+        visaContextBlock = `\n\n---\nResmî vize/çalışma izni özeti (ülke: ${country}):\n${fallbackVisa.text.slice(0, 7000)}\nKaynak: ${fallbackVisa.source}\nTarih: ${fallbackVisa.dateFetched}`;
+        visaSourceForReport = { source: fallbackVisa.source, dateFetched: fallbackVisa.dateFetched };
+      } else {
+        visaContextError = "error" in fallbackVisa ? fallbackVisa.error : "no_whitelist";
+      }
+    }
+    const groundingContext = [
+      jobPageExcerpt ? `\n\n---\nİlan sayfası metni (kaynak URL'den):\n${jobPageExcerpt}` : "",
+      visaContextBlock,
+      visaContextError
+        ? `\n\n---\nNot: Resmî vize verisi bu oturumda alınamadı (${visaContextError}). Genel rehber ver; cevabında vize/çalışma izni için "resmi veri alınamadı" notu ekle.`
+        : "",
+    ].join("");
+
     // Onay cümlesi: az önce cevaplanan soru için (config step.answerKey ile değer alınır)
     const lastStep = last_ask_id ? getStepById(last_ask_id) : undefined;
     const lastAnswerValue = lastStep
@@ -519,60 +621,51 @@ export async function POST(req: NextRequest) {
     const confirmationMsg = last_ask_id && normalizedPatch && Object.keys(normalizedPatch).length > 0
       ? getConfirmationMessage(last_ask_id, lastAnswerValue)
       : null;
-    const system = `Sen "Yurtdışı İş Başvuru Asistanı"sın. Kullanıcı hiçbir şey bilmiyor olabilir.
-Görevin: SADECE kısa, net ve sonuç odaklı rehber metni üretmek.
+    const system = buildGeminiSystemPrompt();
 
-ÖNEMLİ:
-- SORU ÜRETME. "next_question" üretme. Seçenek üretme.
-- Tekrar yapma. Aynı maddeyi farklı cümleyle yeniden yazma.
-- 3–7 madde ile sınırlı kal. Uzun paragraf yazma.
-- Link verme. YouTube gerekiyorsa: "YouTube'da şunu arat: …" de.
-- Uydurma yapma. İlanda yoksa "İlan metninde belirtilmiyor" de.
-- Çıktın SADECE JSON olacak.
+    const userPrompt = buildGeminiUserPrompt({
+      jobPost: jobPost as Record<string, unknown>,
+      answersJson: mergedAnswers as Record<string, unknown>,
+      messageText: rawUserText,
+      currentStepId,
+      jobContent,
+      groundingContext,
+      live: liveItems,
+      cvUpsellUrl: "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi",
+      cvDiscountCode: "USTA79",
+    });
 
-Girdi: job_post, source, location, current_step_id (sistemin sorduğu kritik soru), user_last_message, answers_json.
-
-ÇIKTI JSON ŞEMASI:
-{
-  "assistant_message": "3-7 maddelik rehber (Türkçe)",
-  "micro_tips": ["en fazla 3 kısa ipucu"],
-  "report_patch": { "notes": ["kısa notlar"] }
-}
-
-Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — en fazla 3 madde):
-- opened_source_page: "İlana Git" + sayfayı Türkçeye çevir
-- found_apply_section / visible_headings_text: başvuru alanını buldurma (Apply / How to apply / Sign in to apply)
-- apply_method: başvuru türüne göre sonraki adımı söyle (form / şirket sitesi / e-posta)
-- visible_headings_text: ekrandaki başlıklara göre yönlendirme
-- passport_status: pasaport neden kritik, yoksa ilk yapılacak
-- passport_eta: süre tahmini belirsizse nasıl netleştireceği
-- cv_status: CEVAP "Hazır değil" İSE: assistant_message mutlaka 3-5 maddelik NUMARALI liste içermeli (1. … 2. … 3. …). Asla "şu noktalara dikkat edin" veya "şunlara dikkat edin:" deyip liste yazmadan bırakma. İlan pozisyonuna (örn. aşçı) uygun somut CV ipuçlarını madde madde yaz. Diğer cv_status cevaplarında: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF).
-- cv_offer_if_missing: CV Paketi önerisini kısa ve net hatırlat (link/kod ekleme işini server yapacak)
-- qualification_proof_bundle / qualification_plan_text: kanıt setine göre net aksiyon öner
-- language_level: düşükse kısa uyarı ve pratik öneri
-- has_job_offer: iş teklifi varsa/yoksa vize/çalışma izni akışını yüksek seviyede somutlaştır (\"araştırın\" deme)
-- blocking_issue / blocking_issue_text: varsa neyi kastettiğini netleştirme (tek cümle)
-- weekly_time_budget: 7 günlük planı gün gün yaz`;
-
-    const userPrompt = `job_post:\n${jobContent}\n\nsource: ${sourceName || "kaynak"}\nlocation: ${jobPost.location_text ?? ""}\ncurrent_step_id: ${currentStepId}\nuser_last_message: ${rawUserText}\nanswers_json: ${JSON.stringify(mergedAnswers)}`;
-
-    console.log("[job-guide/chat] calling Gemini");
+    console.log("[job-guide/chat] calling Gemini", { liveCount: liveItems.length });
     let rawText: string;
     try {
-      rawText = await callGemini(system, userPrompt);
+      rawText = await callGeminiJson({
+        system,
+        user: userPrompt,
+        timeoutMs: 25000,
+        maxOutputTokens: 1600,
+      });
       console.log("[job-guide/chat] gemini ok", { len: rawText?.length ?? 0 });
     } catch (geminiErr) {
       console.error("[job-guide/chat] gemini fail", geminiErr);
       throw geminiErr;
     }
-    let parsed: {
+    type ParsedShape = {
       assistant_message?: string;
       micro_tips?: string[];
-      report_patch?: { notes?: string[] };
+      report_patch?: {
+        notes?: string[];
+        visa_work?: { steps?: string[]; source?: string; dateFetched?: string; note?: string };
+        source_guide?: { source?: string; steps?: string[]; notes?: string[] };
+        documents?: { must?: string[]; nice?: string[]; proof?: string[] };
+        salary?: { official_sources_used?: string[]; summary?: string; ranges?: string[]; assumptions?: string[] };
+        one_week_plan?: { days?: Record<string, string[]> };
+      };
       report?: ReportFromGemini;
+      flags?: { should_offer_cv_package?: boolean; needs_official_source?: boolean; final_ready?: boolean };
     };
+    let parsed: ParsedShape;
     try {
-      parsed = extractJson(rawText) as typeof parsed;
+      parsed = extractJsonStrict<ParsedShape>(rawText);
     } catch (parseErr) {
       console.error("[job-guide/chat] parse fail", parseErr);
       const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
@@ -611,6 +704,8 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
     if (!assistantMessage.trim()) {
       assistantMessage = "Kısa bir yanıt geldi; devam edelim.";
     }
+    const { cleaned: redactedMessage, hadForbidden } = redactForbiddenPhrases(assistantMessage);
+    if (hadForbidden) assistantMessage = redactedMessage;
     // CV hazır değil cevabında "şu noktalara dikkat edin" deyip liste vermeyen yanıtları tamamla
     const cvNotReady = last_ask_id === "cv_status" && mergedAnswers.cv_status === "Hazır değil";
     const hasNumberedList = /\n[1-9]\.\s|\n[1-9]\.\)|^[1-9]\.\s/m.test(assistantMessage);
@@ -633,7 +728,7 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
       (last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
     if (shouldInjectCvCta) {
       const link = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
-      const codeLine = "Sizin için 79 TL indirim kodu tanımladık: CV79";
+      const codeLine = "Sizin için indirim kodu: USTA79";
       const cta = mergedAnswers.cv_offer_if_missing === "Evet yönlendir"
         ? `CV Paketi'ne buradan geçebilirsin:\n${link}\n\n${codeLine}`
         : `İstersen CV Paketi ile 1 gün içinde hazırlanıp teslim edebiliriz:\n${link}\n\n${codeLine}`;
@@ -645,10 +740,59 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
     const finalAnswers = mergedAnswers as Record<string, unknown>;
     const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};
     const reportJson = mapGeminiReportToOur(reportFromGemini);
-    const reportMd = buildReportMd(reportJson, reportFromGemini);
-    if (parsed.report_patch && typeof parsed.report_patch === "object" && Array.isArray(parsed.report_patch.notes)) {
-      (reportJson as { notes?: string[] }).notes = [...((reportJson as { notes?: string[] }).notes ?? []), ...parsed.report_patch.notes];
+    if (parsed.report_patch && typeof parsed.report_patch === "object") {
+      if (Array.isArray(parsed.report_patch.notes)) {
+        (reportJson as { notes?: string[] }).notes = [...((reportJson as { notes?: string[] }).notes ?? []), ...parsed.report_patch.notes];
+      }
+      const rp = parsed.report_patch;
+      if (rp.source_guide && typeof rp.source_guide === "object") {
+        (reportJson as Record<string, unknown>).source_guide = rp.source_guide;
+      }
+      if (rp.documents && typeof rp.documents === "object") {
+        (reportJson as Record<string, unknown>).documents = rp.documents;
+      }
+      if (rp.salary && typeof rp.salary === "object") {
+        (reportJson as Record<string, unknown>).salary = rp.salary;
+      }
+      if (rp.one_week_plan?.days && typeof rp.one_week_plan.days === "object") {
+        (reportJson as Record<string, unknown>).one_week_plan = rp.one_week_plan;
+      }
+      const vw = rp.visa_work as { steps?: string[]; source?: string; dateFetched?: string; note?: string; warning?: string } | undefined;
+      if (vw && typeof vw === "object") {
+        const steps = Array.isArray(vw.steps) ? vw.steps : [];
+        const source = typeof vw.source === "string" ? vw.source : "";
+        const dateFetched = typeof vw.dateFetched === "string" ? vw.dateFetched : "";
+        const note = typeof vw.note === "string" ? vw.note : typeof vw.warning === "string" ? vw.warning : "";
+        (reportJson as Record<string, unknown>).visa_work = { steps, source, dateFetched, ...(note ? { note } : {}) };
+      }
     }
+    if (visaContextError && !(reportJson as Record<string, unknown>).visa_work) {
+      (reportJson as Record<string, unknown>).visa_work = {
+        steps: [],
+        source: "",
+        dateFetched: "",
+        note: "Resmî veri alınamadı",
+      };
+    } else if (!visaContextError && visaSourceForReport && (reportJson as Record<string, unknown>).visa_work) {
+      const vw = (reportJson as Record<string, unknown>).visa_work as { steps?: string[]; source?: string; dateFetched?: string; note?: string };
+      if (!vw.source && visaSourceForReport.source) vw.source = visaSourceForReport.source;
+      if (!vw.dateFetched && visaSourceForReport.dateFetched) vw.dateFetched = visaSourceForReport.dateFetched;
+    }
+    // Rapor metninde vize bölümünü visa_work'ten türet (steps, source, dateFetched, note)
+    const visaWork = (reportJson as Record<string, unknown>).visa_work as
+      | { steps?: string[]; source?: string; dateFetched?: string; note?: string }
+      | undefined;
+    if (visaWork) {
+      const parts: string[] = [];
+      if (Array.isArray(visaWork.steps) && visaWork.steps.length > 0) {
+        parts.push(visaWork.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+      }
+      if (visaWork.source) parts.push(`Kaynak: ${visaWork.source}`);
+      if (visaWork.dateFetched) parts.push(`Veri tarihi: ${visaWork.dateFetched}`);
+      if (visaWork.note) parts.push(`Not: ${visaWork.note}`);
+      (reportJson as Record<string, unknown>).vize_izin = parts.length > 0 ? parts.join("\n") : (reportJson as Record<string, unknown>).vize_izin;
+    }
+    const reportMd = buildReportMd(reportJson, reportFromGemini);
 
     const score = typeof reportFromGemini.fit_analysis?.score === "number"
       ? Math.max(0, Math.min(100, reportFromGemini.fit_analysis.score))
@@ -703,6 +847,13 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
       progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
     };
     const next = { should_finalize: false, reason: "" };
+    const flags = {
+      grounded: true,
+      live_sources_used: liveItems.length > 0,
+      needs_official_source: !!visaContextError,
+      should_offer_cv_package: parsed.flags?.should_offer_cv_package ?? shouldInjectCvCta,
+      final_ready: parsed.flags?.final_ready ?? false,
+    };
 
     return NextResponse.json({
       assistant_message: assistantMessage,
@@ -715,10 +866,10 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
       score: score ?? undefined,
       risk_level: riskLevel ?? undefined,
       answers_json: finalAnswers,
-      // Yeni şema (ChatGPT tarzı UI için)
       assistant,
       state_patch,
       next,
+      flags,
     });
   } catch (e) {
     const msg = String(e instanceof Error ? e.message : "unknown_error");
@@ -781,6 +932,11 @@ function buildReportMd(reportJson: Record<string, unknown>, r: ReportFromGemini)
     reportJson.risk ? "\n## Risk Değerlendirmesi\n" + reportJson.risk + "\n" : "",
     reportJson.sana_ozel ? "\n## Sana Özel Analiz\n" + reportJson.sana_ozel + "\n" : "",
     reportJson.plan_30_gun ? "\n## 30 Günlük Plan\n" + reportJson.plan_30_gun + "\n" : "",
+    reportJson.one_week_plan && typeof reportJson.one_week_plan === "object" && (reportJson.one_week_plan as { days?: Record<string, string[]> }).days
+      ? "\n## 1 Haftalık Plan\n" + Object.entries((reportJson.one_week_plan as { days: Record<string, string[]> }).days)
+          .map(([day, items]) => `### ${day}\n${Array.isArray(items) ? items.map((i) => `- ${i}`).join("\n") : ""}`)
+          .join("\n\n") + "\n"
+      : "",
   ];
   return parts.join("");
 }
