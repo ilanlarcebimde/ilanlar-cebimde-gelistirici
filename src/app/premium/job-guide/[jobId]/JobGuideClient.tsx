@@ -430,9 +430,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
       }
 
       const answersPatch = isPayload ? (textOrPayload as { answers_patch?: Record<string, unknown> }).answers_patch : undefined;
-      const displayText = trimmed === "__answers__" && answersPatch?.services_selected
+      const payloadDisplay = isPayload ? (textOrPayload as { displayText?: string }).displayText : undefined;
+      const displayText = payloadDisplay ?? (trimmed === "__answers__" && answersPatch?.services_selected
         ? (Array.isArray(answersPatch.services_selected) ? (answersPatch.services_selected as string[]).join(", ") : String(answersPatch.services_selected))
-        : trimmed;
+        : trimmed);
       const userMsg: ChatMessage = { role: "user", text: displayText || "Devam", ts: new Date().toISOString() };
       const prevNextQ = nextQuestion;
       setMessages((prev) => [...prev, userMsg]);
@@ -716,26 +717,38 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                           </button>
                         );
                       })}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (inlineMultiSelected.length > 0) {
-                            const choiceIds = nextQuestion.choice_ids;
-                            const ids = choiceIds && choiceIds.length === (nextQuestion.choices?.length ?? 0)
-                              ? inlineMultiSelected.map((label) => {
-                                  const idx = (nextQuestion.choices ?? []).indexOf(label);
-                                  return idx >= 0 ? choiceIds[idx] : label;
-                                })
-                              : inlineMultiSelected;
-                            sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
-                            setInlineMultiSelected([]);
-                          }
-                        }}
-                        disabled={sending || inlineMultiSelected.length === 0}
-                        className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-                      >
-                        Devam
-                      </button>
+                      {(() => {
+                        const choiceIds = nextQuestion.choice_ids;
+                        const choiceIdsOk = choiceIds && choiceIds.length === (nextQuestion.choices?.length ?? 0);
+                        return (
+                          <>
+                            {!choiceIdsOk && (
+                              <p className="w-full text-sm text-amber-600">Seçimler yüklenemedi, sayfayı yenileyin.</p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (inlineMultiSelected.length > 0 && choiceIdsOk) {
+                                  const ids = inlineMultiSelected.map((label) => {
+                                    const idx = (nextQuestion.choices ?? []).indexOf(label);
+                                    return idx >= 0 ? choiceIds![idx] : label;
+                                  });
+                                  sendMessage({
+                                    message: "__answers__",
+                                    answers_patch: { services_selected_ids: ids },
+                                    displayText: inlineMultiSelected.join(", "),
+                                  });
+                                  setInlineMultiSelected([]);
+                                }
+                              }}
+                              disabled={sending || inlineMultiSelected.length === 0 || !choiceIdsOk}
+                              className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              Devam
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   ) : nextQuestion.input?.type === "text" ? (
                     <div className="flex gap-2">
@@ -843,14 +856,23 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                             );
                           })}
                         </div>
-                        <button type="button" onClick={() => {
-                          if (inlineMultiSelected.length > 0) {
-                            const choiceIds = nextQuestion.choice_ids;
-                            const ids = choiceIds && choiceIds.length === (nextQuestion.choices?.length ?? 0) ? inlineMultiSelected.map((label) => { const idx = (nextQuestion.choices ?? []).indexOf(label); return idx >= 0 ? choiceIds[idx] : label; }) : inlineMultiSelected;
-                            sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
-                            setInlineMultiSelected([]);
-                          }
-                        }} disabled={sending || inlineMultiSelected.length === 0} className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end">Devam</button>
+                        {(!nextQuestion.choice_ids || nextQuestion.choice_ids.length !== (nextQuestion.choices?.length ?? 0)) && (
+                          <p className="text-sm text-amber-600">Seçimler yüklenemedi, sayfayı yenileyin.</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (inlineMultiSelected.length > 0 && nextQuestion.choice_ids && nextQuestion.choice_ids.length === (nextQuestion.choices?.length ?? 0)) {
+                              const ids = inlineMultiSelected.map((label) => { const idx = (nextQuestion.choices ?? []).indexOf(label); return idx >= 0 ? nextQuestion.choice_ids![idx] : label; });
+                              sendMessage({ message: "__answers__", answers_patch: { services_selected_ids: ids }, displayText: inlineMultiSelected.join(", ") });
+                              setInlineMultiSelected([]);
+                            }
+                          }}
+                          disabled={sending || inlineMultiSelected.length === 0 || !nextQuestion.choice_ids || nextQuestion.choice_ids.length !== (nextQuestion.choices?.length ?? 0)}
+                          className="rounded-xl bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 self-end"
+                        >
+                          Devam
+                        </button>
                       </div>
                     ) : nextQuestion.input?.type === "text" ? (
                       <div className="flex flex-col gap-2">

@@ -123,7 +123,20 @@ function isServiceSelected(s: Set<string>, id: string, label: string): boolean {
   return s.has(id) || s.has(label);
 }
 
-/** services_selected (string[] — ID veya label) → 7 service_* Evet/Hayır. Chat route'da last_ask_id === "service_pick" sonrası çağrılır. */
+/** Sadece ID listesi → 7 service_* Evet/Hayır. Client answers_patch.services_selected_ids ile kullan. */
+export function expandServicesSelectedByIds(ids: string[]): Record<string, string> {
+  const s = new Set(ids.map((x) => String(x).trim()).filter(Boolean));
+  return {
+    service_apply_guide: s.has("apply_guide") ? "Evet" : "Hayır",
+    service_documents: s.has("docs_list") ? "Evet" : "Hayır",
+    service_work_permit_visa: s.has("work_permit_visa") ? "Evet" : "Hayır",
+    service_salary_life_calc: s.has("salary_life_calc") ? "Evet" : "Hayır",
+    service_risk_assessment: s.has("risk_assessment") ? "Evet" : "Hayır",
+    service_fit_analysis: s.has("fit_analysis") ? "Evet" : "Hayır",
+    service_one_week_plan: s.has("one_week_plan") ? "Evet" : "Hayır",
+  };
+}
+/** services_selected (string[] — ID veya label) → 7 service_* Evet/Hayır. Metin parse / normalize path için. */
 export function expandServicesSelected(answers: Record<string, unknown>): Record<string, string> {
   const raw = answers.services_selected;
   const arr = Array.isArray(raw)
@@ -132,6 +145,10 @@ export function expandServicesSelected(answers: Record<string, unknown>): Record
       ? raw.split(/[,;\n|]+/).map((s) => s.trim()).filter(Boolean)
       : [];
   const s = new Set(arr);
+  const validIds = new Set(SERVICE_CHOICE_IDS);
+  if (arr.length > 0 && arr.some((x) => !validIds.has(x))) {
+    if (typeof console !== "undefined") console.warn("[job-guide] expandServicesSelected: label/legacy path used, prefer services_selected_ids");
+  }
   const has7Gunluk =
     s.has("one_week_plan") ||
     s.has("7 günlük başvuru planı") ||
@@ -370,6 +387,7 @@ function isDoneRuleSatisfied(answers: Record<string, unknown>, rule: DoneRule): 
       return str.length > 0;
     case "minSelected":
       if (Array.isArray(v)) return v.length >= rule.value;
+      if (rule.answerKey === "services_selected" && typeof v === "string") return false;
       if (typeof v === "string") {
         const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
         return parts.length >= rule.value;
@@ -418,7 +436,7 @@ function isStepAnswered(answers: Record<string, unknown>, step: FlowStep): boole
 }
 
 /** Aktif flow: EURES veya GLASSDOOR; default = GLASSDOOR. showIf koşulu olanlar sadece koşul tutuyorsa dahil. */
-function getActiveFlowSteps(source: "eures" | "glassdoor" | "default"): FlowStep[] {
+export function getActiveFlowSteps(source: "eures" | "glassdoor" | "default"): FlowStep[] {
   if (source === "eures") return QUESTION_FLOW.EURES;
   return QUESTION_FLOW.GLASSDOOR; // glassdoor | default
 }

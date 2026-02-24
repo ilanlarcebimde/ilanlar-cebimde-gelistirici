@@ -6,8 +6,10 @@ import {
   getStepDisplay,
   getProgressFromConfig,
   getStepById,
+  getActiveFlowSteps,
   PROOF_DOCS,
   expandServicesSelected,
+  expandServicesSelectedByIds,
   SERVICE_CHOICE_IDS,
   type FlowStep,
   type FlowInput,
@@ -28,6 +30,22 @@ import { generateFinalReport } from "@/lib/job-guide/generateReport";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+/** Derin merge: nested objeler birleşir, patch üstün. Alt nesneleri ezmez. */
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...target };
+  for (const key of Object.keys(source)) {
+    const t = out[key];
+    const s = source[key];
+    if (s == null) continue;
+    if (typeof s === "object" && s !== null && !Array.isArray(s) && typeof t === "object" && t !== null && !Array.isArray(t)) {
+      out[key] = deepMerge(t as Record<string, unknown>, s as Record<string, unknown>);
+    } else {
+      out[key] = s;
+    }
+  }
+  return out;
+}
 
 async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -461,19 +479,35 @@ export async function POST(req: NextRequest) {
       isBootstrap,
     });
 
-    // Deterministik akış: answers_patch varsa doğrudan merge et; metin parse etme.
+    // Deterministik akış: answers_patch varsa deep merge; metin parse etme.
     let mergedAnswers: Record<string, unknown>;
     if (answers_patch && Object.keys(answers_patch).length > 0) {
-      mergedAnswers = { ...answers_json, ...answers_patch } as Record<string, unknown>;
+      mergedAnswers = deepMerge(
+        (answers_json as Record<string, unknown>) ?? {},
+        answers_patch as Record<string, unknown>
+      ) as Record<string, unknown>;
     } else {
       const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
-      mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
+      mergedAnswers = deepMerge(
+        (answers_json as Record<string, unknown>) ?? {},
+        normalizedPatch as Record<string, unknown>
+      ) as Record<string, unknown>;
     }
-    if (last_ask_id === "service_pick") {
-      mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) };
-      if (Array.isArray(mergedAnswers.services_selected) && (mergedAnswers.services_selected as unknown[]).length >= 1) {
-        mergedAnswers = { ...mergedAnswers, services_locked: true };
-      }
+    // services_selected_ids (ID listesi) öncelikli; yoksa services_selected (label/ID karışık) expand edilir.
+    const idsFromPatch = answers_patch?.services_selected_ids as string[] | undefined;
+    if (Array.isArray(idsFromPatch) && idsFromPatch.length >= 1) {
+      mergedAnswers = {
+        ...mergedAnswers,
+        services_selected: idsFromPatch,
+        ...expandServicesSelectedByIds(idsFromPatch),
+        services_locked: true,
+      } as Record<string, unknown>;
+    } else if (mergedAnswers.services_selected != null) {
+      mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) } as Record<string, unknown>;
+    }
+    // services_locked: seçim geçerliyse her zaman set et (last_ask_id'den bağımsız).
+    if (Array.isArray(mergedAnswers.services_selected) && (mergedAnswers.services_selected as unknown[]).length >= 1) {
+      mergedAnswers = { ...mergedAnswers, services_locked: true } as Record<string, unknown>;
     }
     console.log("[job-guide/chat] mergedAnswers.services_selected", {
       type: Array.isArray(mergedAnswers.services_selected) ? "array" : typeof mergedAnswers.services_selected,
@@ -527,11 +561,15 @@ export async function POST(req: NextRequest) {
     const checklistSnapshot = { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct, missing_top3: missingTop3 };
 
     const quickGuideText = getQuickGuideText(sourceKey);
+    const servicesSelectedValid =
+      Array.isArray(mergedAnswers.services_selected) && (mergedAnswers.services_selected as unknown[]).length >= 1;
     if (isBootstrap) {
-      // İlk mesaj: selam + kaynak + Hızlı Rehber panelde + ilk soru (hizmet seçimi) hemen gösterilir.
+      // İlk mesaj: services_locked yoksa her zaman service_pick; varsa getNextStep ile devam.
       const bootstrapMessage = getBootstrapMessage(sourceKey);
       const bootstrapAnswers = { ...mergedAnswers, greeting_shown: true } as Record<string, unknown>;
-      const firstStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+      const firstStep = mergedAnswers.services_locked === true
+        ? getNextStep(mergedAnswers as Record<string, unknown>, sourceKey)
+        : getFirstStep(sourceKey);
       const firstQuestion = firstStep ? getQuestionTextAndChoices(firstStep) : null;
       const assistant = {
         message_md: bootstrapMessage,
@@ -568,10 +606,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise ilk soru (service_pick veya found_apply_section) döndürülür.
-    const isContinueStart = (!rawUserText || rawUserText.trim() === "" || rawUserText.trim().toLowerCase() === "__continue__") && Object.keys(mergedAnswers as object).length === 0;
+    // "Devam" ile: mesaj boş/__continue__ ise kritik cevaba göre service_pick veya sonraki adım.
+    const isContinueStart = !rawUserText || rawUserText.trim() === "" || rawUserText.trim().toLowerCase() === "__continue__";
     if (isContinueStart) {
-      const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+      const nextStep = !servicesSelectedValid ? getFirstStep(sourceKey) : getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
       if (nextStep) {
         const firstQuestion = getQuestionTextAndChoices(nextStep);
         const askId = nextStep.id;
@@ -609,9 +647,7 @@ export async function POST(req: NextRequest) {
     }
 
     // service_pick: multiselect cevabı answers_patch ile gelmeli; yoksa veya geçersizse aynı soruyu tekrar döndür (akışı bitirme).
-    const servicePickStep = getFirstStep(sourceKey);
-    const servicesSelectedValid =
-      Array.isArray(mergedAnswers.services_selected) && (mergedAnswers.services_selected as unknown[]).length >= 1;
+    const servicePickStep = getStepById("service_pick") ?? getFirstStep(sourceKey);
     if (
       !isBootstrap &&
       last_ask_id === "service_pick" &&
@@ -652,9 +688,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Chat: tek otorite = config. getNextStep(answers, source, lastAskId) no-repeat ile bir sonraki soruyu döner.
-    let nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey, last_ask_id ?? undefined);
-    console.log("[job-guide/chat] getNextStep result", { nextStepId: nextStep?.id ?? null, doneRule: nextStep ? "resolved" : "null" });
+    // Server otorite: son cevaplanan adımı patch'ten infer et. No-repeat sadece gerçek cevap geldiyse uygula.
+    let inferredLastAskId: string | undefined;
+    if (answers_patch && Object.keys(answers_patch).length > 0) {
+      const steps = getActiveFlowSteps(sourceKey);
+      for (const step of steps) {
+        if (answers_patch[step.answerKey] !== undefined) inferredLastAskId = step.id;
+      }
+    }
+    const effectiveLastAskId = inferredLastAskId ?? last_ask_id ?? undefined;
+    const hadAnswerThisTurn =
+      (answers_patch && Object.keys(answers_patch).length > 0) ||
+      (!isBootstrap && !!rawUserText && Object.keys(normalizeUserMessageToAnswers(rawUserText, last_ask_id)).length > 0);
+    const noRepeatLastAskId = hadAnswerThisTurn ? effectiveLastAskId : undefined;
+    let nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey, noRepeatLastAskId);
+    console.log("[job-guide/chat] getNextStep result", { nextStepId: nextStep?.id ?? null, noRepeatLastAskId, hadAnswerThisTurn, doneRule: nextStep ? "resolved" : "null" });
 
     // Güvenlik kilidi: next null ve service_pick geçersizse DONE deme; ilk soruya dön.
     if (nextStep === null && !servicesSelectedValid) {
@@ -690,6 +738,29 @@ export async function POST(req: NextRequest) {
     }
 
     if (nextStep === null) {
+      // Finalize öncesi recheck: gerçekten tüm adımlar cevaplandı mı? Eksik varsa fallback.
+      const recheck = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+      if (recheck !== null) {
+        const firstQuestion = getQuestionTextAndChoices(recheck);
+        const choiceIds = recheck.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined;
+        return NextResponse.json({
+          assistant_message: "Eksik bilgi var, lütfen aşağıdaki soruyu yanıtla.",
+          next_question: { id: recheck.id, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input, choice_ids: choiceIds },
+          quick_guide_text: quickGuideText,
+          report_json: guide?.report_json ?? {},
+          report_md: null,
+          checklist_snapshot: checklistSnapshot,
+          answers_json: mergedAnswers,
+          assistant: {
+            message_md: "Eksik bilgi var, lütfen aşağıdaki soruyu yanıtla.",
+            quick_replies: firstQuestion.choices ?? [],
+            ask: { id: recheck.id, question: firstQuestion.text, type: (firstQuestion.input ? "textarea" : "choice") as "choice" | "textarea", choices: firstQuestion.choices, input: firstQuestion.input, choice_ids: choiceIds },
+          },
+          state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
+          next: { should_finalize: false, reason: "recheck_found_missing_step" },
+          has_blocking_issue: true,
+        });
+      }
       let reportJsonFinal = guide?.report_json ?? {};
       let reportMdFinal: string | null = null;
       let scoreFinal: number | undefined;
@@ -743,14 +814,12 @@ export async function POST(req: NextRequest) {
     }
     const currentStepId = nextStep.id;
 
-    // Onay cümlesi: az önce cevaplanan soru için (Bozuk plak: 2. turda sadece bu satır + netleşenler)
-    const lastStepForConfirm = last_ask_id ? getStepById(last_ask_id) : undefined;
-    const lastAnswerValueForConfirm = lastStepForConfirm
-      ? mergedAnswers[lastStepForConfirm.answerKey]
-      : (mergedAnswers[last_ask_id as string] ?? mergedAnswers.passport);
+    // Onay cümlesi: sadece answerKey üzerinden; last_ask_id/answerKey karışımı ve passport fallback yok.
+    const lastStepForConfirm = effectiveLastAskId ? getStepById(effectiveLastAskId) : undefined;
+    const lastAnswerValueForConfirm = lastStepForConfirm ? mergedAnswers[lastStepForConfirm.answerKey] : undefined;
     const confirmationMsg =
-      last_ask_id && lastStepForConfirm && mergedAnswers[lastStepForConfirm.answerKey] != null
-        ? getConfirmationMessage(last_ask_id, lastAnswerValueForConfirm)
+      lastStepForConfirm && lastAnswerValueForConfirm != null
+        ? getConfirmationMessage(lastStepForConfirm.id, lastAnswerValueForConfirm)
         : null;
 
     // SERVICES_GATE: Deterministik rehber. confirmationLine ile 2. turda genel rehber tekrarı yok.
@@ -1204,19 +1273,19 @@ function mapGeminiReportToOur(r: ReportFromGemini): Record<string, unknown> {
   const summary = r.summary?.one_liner ?? "";
   const topActions = r.summary?.top_actions ?? [];
   const howTo = r.how_to_apply;
-  const rehber = Array.isArray(howTo?.steps) ? howTo.steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : "";
+  const rehber = Array.isArray(howTo?.steps) ? (howTo!.steps as string[]).map((s, i) => `${i + 1}. ${s}`).join("\n") : "";
   const docs = r.documents;
   const belgeler = [
-    Array.isArray(docs?.required) ? "Gerekli: " + docs.required.join(", ") : "",
-    Array.isArray(docs?.optional) ? "Opsiyonel: " + docs.optional.join(", ") : "",
-    Array.isArray(docs?.warnings) ? "Uyarılar: " + docs.warnings.join("; ") : "",
+    Array.isArray(docs?.required) ? "Gerekli: " + (docs!.required as string[]).join(", ") : "",
+    Array.isArray(docs?.optional) ? "Opsiyonel: " + (docs!.optional as string[]).join(", ") : "",
+    Array.isArray(docs?.warnings) ? "Uyarılar: " + (docs!.warnings as string[]).join("; ") : "",
   ].filter(Boolean).join("\n");
   const visa = r.work_permit_and_visa;
   const vizeText = visa && typeof visa === "object" ? JSON.stringify(visa) : "";
   const sal = r.salary_and_life_calc as Record<string, unknown> | undefined;
   const maasText = sal ? [sal.net_salary_estimate, sal.rent_estimate, sal.food_estimate, sal.remaining_estimate].filter(Boolean).join(" · ") : "";
   const risk = r.risk_assessment;
-  const riskText = Array.isArray(risk?.items) ? risk.items.map((i) => `${i.title ?? ""}: ${i.what_to_do ?? ""}`).join("\n") : (risk?.level ?? "");
+  const riskText = Array.isArray(risk?.items) ? (risk!.items as Array<{ title?: string; what_to_do?: string }>).map((i) => `${i.title ?? ""}: ${i.what_to_do ?? ""}`).join("\n") : (risk?.level ?? "");
   const fit = r.fit_analysis;
   const sanaOzel = [...(fit?.strengths ?? []), ...(fit?.gaps ?? [])].join("\n");
   const plan = r.plan_30_days;
