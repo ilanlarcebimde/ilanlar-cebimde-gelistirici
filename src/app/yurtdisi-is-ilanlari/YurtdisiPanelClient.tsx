@@ -86,12 +86,13 @@ export function YurtdisiPanelClient() {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({ job_id: post.id }),
           });
-          const data = await res.json().catch(() => ({})) as HowToApplyWebhookResponse | { error?: string; detail?: string };
+          const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            const errMsg = data?.error === "Not found"
+            const err = data as { error?: string; detail?: string };
+            const errMsg = err?.error === "Not found"
               ? "İlan bulunamadı."
-              : data?.detail
-                ? String(data.detail).slice(0, 100)
+              : err?.detail
+                ? String(err.detail).slice(0, 100)
                 : "Rehber alınamadı. Tekrar deneyin.";
             setHowToOpen(false);
             setHowToLoading(false);

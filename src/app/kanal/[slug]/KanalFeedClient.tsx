@@ -101,12 +101,13 @@ export function KanalFeedClient({ slug }: { slug: string }) {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({ job_id: post.id }),
           });
-          const data = await res.json().catch(() => ({})) as HowToApplyWebhookResponse | { error?: string };
+          const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            const errMsg = (data as { error?: string }).error === "Not found"
+            const err = data as { error?: string; detail?: string };
+            const errMsg = err?.error === "Not found"
               ? "İlan bulunamadı."
-              : (data as { detail?: string }).detail
-                ? String((data as { detail?: string }).detail).slice(0, 100)
+              : err?.detail
+                ? String(err.detail).slice(0, 100)
                 : "Rehber alınamadı. Tekrar deneyin.";
             setHowToOpen(false);
             setHowToLoading(false);
