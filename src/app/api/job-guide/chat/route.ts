@@ -539,7 +539,7 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
 - found_apply_section / saw_signin_to_apply / how_to_apply_method: "How to apply/Apply" bölümünü nasıl bulacağı
 - visible_headings_text: ekrandaki başlıklara göre yönlendirme
 - passport_status: pasaport neden kritik, yoksa ilk yapılacak
-- cv_status: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF)
+- cv_status: CEVAP "Hazır değil" İSE: assistant_message mutlaka 3-5 maddelik NUMARALI liste içermeli (1. … 2. … 3. …). Asla "şu noktalara dikkat edin" veya "şunlara dikkat edin:" deyip liste yazmadan bırakma. İlan pozisyonuna (örn. aşçı) uygun somut CV ipuçlarını madde madde yaz. Diğer cv_status cevaplarında: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF).
 - english_level: düşükse kısa uyarı ve pratik öneri
 - trade_certificate: varsa ekle, yoksa alternatif (deneyim/ustabaşı referansı vb.)
 - blocking_issue / blocking_issue_text: varsa neyi kastettiğini netleştirme (tek cümle)
@@ -601,6 +601,21 @@ Rehber yazarken current_step_id'ye göre odaklan (SADECE "ne yapmalısın" — e
     let assistantMessage = extractAssistantMessage(parsed as Record<string, unknown>, rawText);
     if (!assistantMessage.trim()) {
       assistantMessage = "Kısa bir yanıt geldi; devam edelim.";
+    }
+    // CV hazır değil cevabında "şu noktalara dikkat edin" deyip liste vermeyen yanıtları tamamla
+    const cvNotReady = last_ask_id === "cv_status" && mergedAnswers.cv_status === "Hazır değil";
+    const hasNumberedList = /\n[1-9]\.\s|\n[1-9]\.\)|^[1-9]\.\s/m.test(assistantMessage);
+    const endsWithDikkatEdin = /dikkat\s+edin\s*:?\s*$/i.test(assistantMessage.trim());
+    if (cvNotReady && (endsWithDikkatEdin || !hasNumberedList)) {
+      const defaultCvGuide = [
+        "1. Özgeçmişinizi tek sayfa, net ve okunaklı tutun (hedef ülke dilinde veya İngilizce).",
+        "2. İlan metnindeki anahtar kelimeleri ve becerileri CV'nize ekleyin.",
+        "3. Deneyiminizi tarih ve iş tanımıyla yazın; mümkünse referans bilgisi ekleyin.",
+        "4. Son halini PDF olarak kaydedin; başvuru formunda bu dosyayı yükleyeceksiniz.",
+      ].join("\n");
+      assistantMessage = assistantMessage.trim();
+      if (endsWithDikkatEdin) assistantMessage = assistantMessage.replace(/\s*dikkat\s+edin\s*:?\s*$/i, "").trim();
+      assistantMessage = (assistantMessage ? assistantMessage + "\n\n" : "") + defaultCvGuide;
     }
     if (confirmationMsg) {
       assistantMessage = confirmationMsg + "\n\n" + assistantMessage;

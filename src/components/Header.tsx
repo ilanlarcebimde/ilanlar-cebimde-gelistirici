@@ -102,7 +102,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
             </Link>
           </nav>
 
-          {/* Sağ: Duruma göre Aboneliklerim + Bildirim + Menü veya Giriş Yap + Abone Ol + Menü */}
+          {/* Sağ: Duruma göre Aboneliklerim + Bildirim + Menü veya Giriş Yap + (masaüstü: Abone Ol) + (mobil: Menü) */}
           <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2">
             {loggedIn ? (
               <>
@@ -138,17 +138,17 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                 >
                   Giriş Yap
                 </button>
+                {/* Abone Ol sadece masaüstünde; mobilde yerine menü butonu kullanılıyor */}
                 <Link
                   href={FEED_PATH}
-                  className="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 min-h-[40px] flex items-center justify-center sm:px-4"
+                  className="hidden md:flex shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 min-h-[40px] items-center justify-center sm:px-4"
                 >
                   Abone Ol
                 </Link>
               </>
             )}
 
-            {/* Hamburger sadece mobilde (masaüstünde menü popup yok) */}
-            {loggedIn && (
+            {/* Hamburger menü: sadece mobilde, giriş yapılmış veya yapılmamış her durumda */}
             <div className="relative flex shrink-0 md:hidden" ref={menuRef}>
               <button
                 ref={hamburgerRef}
@@ -232,7 +232,6 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                 </>
               )}
             </div>
-            )}
           </div>
         </div>
       </header>
