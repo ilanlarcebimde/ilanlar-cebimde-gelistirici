@@ -609,6 +609,18 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             <span className="truncate text-base font-semibold text-slate-900 max-w-[200px] sm:max-w-md" title={job.title ?? ""}>{job.title ?? "—"}</span>
             {sourceLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{sourceLabel}</span>}
             {locationLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{locationLabel}</span>}
+            {job.source_url && (
+              <a href={job.source_url} target="_blank" rel="noreferrer" className="hidden sm:inline-flex rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700">
+                İlana Git
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => setReportDrawerOpen(true)}
+              className="hidden md:inline-flex rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Yapılacaklar
+            </button>
           </div>
           {sourceLabel && (
             <p className="mt-2 text-xs text-slate-600">{sourceLabel} üzerinden. İlana Git ile sayfayı açıp gerekirse Türkçeye çevirin.</p>
@@ -634,12 +646,12 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         </div>
       </header>
 
-      {/* Desktop: 2 kolon (sohbet + Bu ilan) | Mobil: tab (sohbet / yapılacaklar) */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Sohbet — flex-col + min-h-0 ile input her zaman altta (sticky bottom). Boşken placeholder göster. */}
-        <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col md:overflow-hidden border-r border-slate-200 bg-slate-50/50">
+      {/* Desktop: sohbet ortada (max genişlik) | Mobil: tab (sohbet / yapılacaklar) */}
+      <div className="flex-1 flex min-h-0 overflow-hidden md:justify-center md:bg-slate-100/50">
+        {/* Sohbet — masaüstünde ortalanmış, tüm ekranı kaplamaz. */}
+        <section className="w-full max-w-2xl min-h-0 hidden md:flex md:flex-col md:overflow-hidden border-x border-slate-200 bg-slate-50/50 shadow-sm">
           <div className="flex-1 min-h-0 overflow-y-auto p-4">
-            <div className="max-w-2xl mx-auto space-y-4">
+            <div className="space-y-4">
               {/* Hızlı Rehber (sabit, kapanabilir) — tek sefer görünür */}
               {quickGuideText && (
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -968,29 +980,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
               </form>
             </div>
         )}
-
-        {/* Sağ: İlan bilgisi + Yapılacaklar butonu (desktop) | Yapılacaklar tab (mobil) */}
-        <aside className="w-72 shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden md:block">
-          <div className="p-4">
-            <h2 className="text-sm font-bold text-slate-900 mb-3">Bu ilan</h2>
-            <p className="text-xs text-slate-500 mb-1">Kaynak</p>
-            <p className="text-sm font-medium text-slate-800">{sourceLabel || "—"}</p>
-            <p className="text-xs text-slate-500 mt-2 mb-1">Konum</p>
-            <p className="text-sm text-slate-700">{locationLabel || "—"}</p>
-            {job.source_url && (
-              <a href={job.source_url} target="_blank" rel="noreferrer" className="mt-4 block w-full rounded-xl bg-slate-800 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">
-                İlana Git
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={() => setReportDrawerOpen(true)}
-              className="mt-3 w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Yapılacakları Aç
-            </button>
-          </div>
-        </aside>
 
         {mobileTab === "report" && (
           <div className="md:hidden flex-1 overflow-y-auto bg-white p-4">
