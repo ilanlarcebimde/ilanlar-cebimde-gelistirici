@@ -38,55 +38,118 @@ function inferCountry(channelSlug: string | null, locationText: string): string 
   return channelSlug ? channelSlug : loc || "unknown";
 }
 
-/** Serbest metin cevabı answers_json patch'ine çevirir. last_ask_id ile "Var"/"Yok" doğru alana yazılır. */
+type SourceKind = "eures" | "glassdoor" | "default";
+function getSourceKind(sourceName: string | null): SourceKind {
+  const s = (sourceName ?? "").toLowerCase();
+  if (s.includes("eures")) return "eures";
+  if (s.includes("glassdoor")) return "glassdoor";
+  return "default";
+}
+
+/** Deterministik soru sırası: kritik alanlar asla atlanmaz. */
+const QUESTION_FLOW: Record<SourceKind, readonly string[]> = {
+  eures: ["has_eu_login", "source_apply_opened", "source_apply_found", "source_apply_started", "passport", "cv", "language", "has_trade_certificate", "barrier"],
+  glassdoor: ["has_glassdoor_account", "source_apply_opened", "source_apply_found", "source_apply_started", "passport", "cv", "language", "has_trade_certificate", "barrier"],
+  default: ["has_glassdoor_account", "source_apply_opened", "source_apply_found", "source_apply_started", "passport", "cv", "language", "has_trade_certificate", "barrier"],
+};
+
+function isAnswered(answers: Record<string, unknown>, id: string): boolean {
+  const v = id === "passport" ? answers.passport : answers[id];
+  return v !== undefined && v !== null && String(v).trim() !== "";
+}
+
+function pickNextQuestion(answers: Record<string, unknown>, source: SourceKind): string | null {
+  const flow = QUESTION_FLOW[source];
+  for (const id of flow) {
+    if (!isAnswered(answers, id)) return id;
+  }
+  return null;
+}
+
+const STEP_QUESTIONS: Record<string, { text: string; choices: string[] }> = {
+  has_eu_login: { text: "EURES'te EU Login hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] },
+  has_glassdoor_account: { text: "Glassdoor hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] },
+  source_apply_opened: { text: "İlana gittin mi? Sayfayı açtın mı?", choices: ["Evet", "Hayır", "Emin değilim"] },
+  source_apply_found: { text: "How to apply / Apply bölümünü gördün mü?", choices: ["Gördüm", "Görmedim", "Emin değilim"] },
+  source_apply_started: { text: "Başvuruyu başlattın mı? Form açıldı mı?", choices: ["Evet", "Hayır", "Emin değilim"] },
+  passport: { text: "Pasaportun var mı?", choices: ["Var", "Başvurdum", "Yok"] },
+  cv: { text: "CV hazır mı? (PDF)", choices: ["Var", "Yok", "Emin değilim"] },
+  language: { text: "İngilizce (veya ilan dilinde) seviyen nasıl?", choices: ["Hiç / Yok", "A1–A2", "B1–B2", "İleri"] },
+  has_trade_certificate: { text: "Ustalık belgesi / mesleki yeterlilik belgen var mı?", choices: ["Var", "Yok", "Emin değilim"] },
+  barrier: { text: "Yurtdışına gidişte engel (sağlık, aile vb.) var mı?", choices: ["Yok", "Var", "Emin değilim"] },
+};
+
+function getQuestionTextAndChoices(id: string, source: SourceKind): { text: string; choices: string[] } {
+  if (source === "default" && id === "has_glassdoor_account")
+    return { text: "Bu platformda hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
+  const q = STEP_QUESTIONS[id];
+  if (q) return q;
+  return { text: "Devam edelim.", choices: ["Var", "Yok", "Emin değilim"] };
+}
+
+/** Serbest metin cevabı answers patch'ine çevirir. last_ask_id ile tek doğru alana yazılır (tekrar döngüsü önlenir). */
 function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record<string, unknown> {
   const t = text.toLowerCase().trim();
   const patch: Record<string, unknown> = {};
-  if (/\b(pasaportum\s*yok|pasaport\s*yok|yok)\b/.test(t)) patch.passport = "yok";
-  else if (/\b(pasaportum\s*var|pasaport\s*var|var)\b/.test(t)) patch.passport = "var";
-  else if (/\b(başvurdum|basvurdum)\b/.test(t)) patch.passport = "basvurdum";
-  if (/\b(cv\s*yok|cv'm\s*yok|cv hazır değil)\b/.test(t)) { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
-  else if (/\b(cv\s*var|cv'm\s*var|cv hazır|hazır|cv yükledim)\b/.test(t)) { patch.cv = "var"; patch.cv_uploaded = "var"; }
-  if (/\b(eu\s*login|eures)\s*(hesabım\s*var|var|giriş yaptım)\b/.test(t) || /eures.*var|var.*eures/.test(t)) patch.has_eu_login = "var";
-  else if (/\b(eu\s*login|eures)\s*(yok|hesabım yok)\b/.test(t) || /eures.*yok/.test(t)) patch.has_eu_login = "yok";
-  if (/\b(glassdoor)\s*(hesabım\s*var|var)\b/.test(t) || /glassdoor.*var|var.*glassdoor/.test(t)) patch.has_glassdoor_account = "var";
-  else if (/\b(glassdoor)\s*(yok|hesabım yok)\b/.test(t)) patch.has_glassdoor_account = "yok";
-  if (/\b(ilan\s*sayfasına\s*geldim|ilana\s*gittim|sayfayı\s*açtım|başvuru\s*bölümünü\s*açtım|how to apply)\b/.test(t)) patch.source_apply_opened = "var";
-  if (/\b(apply\s*bölümünü\s*gördüm|how\s*to\s*apply\s*gördüm|apply\s*ekranını\s*gördüm)\b/.test(t)) patch.source_apply_found = "var";
-  if (/\b(başvuru\s*akışını\s*başlattım|başvuruyu\s*başlattım|form\s*açıldı)\b/.test(t)) patch.source_apply_started = "var";
-  if (/\b(başvuruyu\s*tamamladım|tamamladım|kanalı\s*not\s*aldım)\b/.test(t)) patch.source_apply_done = "var";
-  if (/\b(profil\s*tam|profilim\s*tam|bilgilerim\s*tam)\b/.test(t)) patch.profile_complete = "var";
-  if (/^(var|yok|evet|hayır|emin değilim|gördüm|görmedim)$/.test(t) && lastAskId) {
-    const val = t === "evet" || t === "var" || t === "gördüm" ? "var" : t === "hayır" || t === "yok" || t === "görmedim" ? "yok" : undefined;
-    if (val !== undefined && lastAskId === "has_eu_login") patch.has_eu_login = val;
-    else if (val !== undefined && lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = val;
-    else if (val !== undefined && lastAskId === "has_trade_certificate") patch.has_trade_certificate = val;
-    else if (val !== undefined && lastAskId === "has_platform_account") patch.profile_complete = val;
-    else if (val !== undefined && lastAskId === "source_apply_opened") patch.source_apply_opened = val;
-    else if (val !== undefined && lastAskId === "source_apply_found") patch.source_apply_found = val;
-    else if (val !== undefined && lastAskId === "source_apply_started") patch.source_apply_started = val;
-    else if (val !== undefined && lastAskId === "cv_ready") { patch.cv = val; if (val === "yok") patch.cv_uploaded = "yok"; }
-    else if (val !== undefined && lastAskId === "cv_uploaded") patch.cv_uploaded = val;
-    else if (val !== undefined && !patch.has_eu_login && !patch.has_glassdoor_account && !patch.has_trade_certificate) {
-      patch.has_eu_login = val;
-      patch.has_glassdoor_account = val;
+  if (!lastAskId) {
+    if (/\b(pasaportum\s*yok|pasaport\s*yok)\b/.test(t)) patch.passport = "yok";
+    else if (/\b(pasaportum\s*var|pasaport\s*var)\b/.test(t)) patch.passport = "var";
+    else if (/\b(başvurdum|basvurdum)\b/.test(t)) patch.passport = "basvurdum";
+    if (/\b(cv\s*yok|cv hazır değil)\b/.test(t)) { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
+    else if (/\b(cv\s*var|cv hazır|hazır|cv yükledim)\b/.test(t)) { patch.cv = "var"; }
+    if (/\b(eu\s*login|eures).*var|var.*eures/.test(t)) patch.has_eu_login = "var";
+    else if (/\b(eures).*yok/.test(t)) patch.has_eu_login = "yok";
+    if (/\b(glassdoor).*var|var.*glassdoor/.test(t)) patch.has_glassdoor_account = "var";
+    else if (/\b(glassdoor).*yok/.test(t)) patch.has_glassdoor_account = "yok";
+    if (/\b(ilan\s*sayfasına\s*geldim|ilana\s*gittim|sayfayı\s*açtım)\b/.test(t)) patch.source_apply_opened = "var";
+    if (/\b(apply\s*bölümünü\s*gördüm|gördüm)\b/.test(t)) patch.source_apply_found = "var";
+    if (/\b(başvuruyu\s*başlattım|form\s*açıldı)\b/.test(t)) patch.source_apply_started = "var";
+    if (/\b(hiç|yok|bilmiyorum)\b/.test(t) && /dil|ingilizce/.test(t)) patch.language = "hic";
+    if (/\b(a1|başlangıç)\b/.test(t)) patch.language = "a1";
+    if (/\b(a2|orta)\b/.test(t)) patch.language = "a2";
+    if (/\b(b1|b2|ileri)\b/.test(t)) patch.language = "b1";
+    if (/\b(engel\s*yok|engelim yok)\b/.test(t)) patch.barrier = "yok";
+    if (/\b(engel|engelim)\s*var/.test(t)) patch.barrier = "var";
+  } else {
+    if (t === "evet" || t === "var" || t === "gördüm") {
+      if (lastAskId === "has_eu_login") patch.has_eu_login = "var";
+      else if (lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = "var";
+      else if (lastAskId === "source_apply_opened") patch.source_apply_opened = "var";
+      else if (lastAskId === "source_apply_found") patch.source_apply_found = "var";
+      else if (lastAskId === "source_apply_started") patch.source_apply_started = "var";
+      else if (lastAskId === "cv") { patch.cv = "var"; }
+      else if (lastAskId === "has_trade_certificate") patch.has_trade_certificate = "var";
+      else if (lastAskId === "barrier") patch.barrier = "var";
+    } else if (t === "hayır" || t === "yok" || t === "görmedim") {
+      if (lastAskId === "has_eu_login") patch.has_eu_login = "yok";
+      else if (lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = "yok";
+      else if (lastAskId === "source_apply_opened") patch.source_apply_opened = "yok";
+      else if (lastAskId === "source_apply_found") patch.source_apply_found = "yok";
+      else if (lastAskId === "source_apply_started") patch.source_apply_started = "yok";
+      else if (lastAskId === "passport") patch.passport = "yok";
+      else if (lastAskId === "cv") { patch.cv = "yok"; patch.cv_uploaded = "yok"; }
+      else if (lastAskId === "has_trade_certificate") patch.has_trade_certificate = "yok";
+      else if (lastAskId === "barrier") patch.barrier = "yok";
+    } else if (t === "başvurdum" || t === "basvurdum") {
+      if (lastAskId === "passport") patch.passport = "basvurdum";
+    } else if (t === "emin değilim") {
+      if (lastAskId === "has_eu_login") patch.has_eu_login = "yok";
+      else if (lastAskId === "has_glassdoor_account") patch.has_glassdoor_account = "yok";
+      else if (lastAskId === "source_apply_opened") patch.source_apply_opened = "yok";
+      else if (lastAskId === "source_apply_found") patch.source_apply_found = "yok";
+      else if (lastAskId === "source_apply_started") patch.source_apply_started = "yok";
+      else if (lastAskId === "cv") patch.cv = "yok";
+      else if (lastAskId === "has_trade_certificate") patch.has_trade_certificate = "yok";
+      else if (lastAskId === "barrier") patch.barrier = "yok";
+    } else if (lastAskId === "language") {
+      if (/\b(hiç|yok|bilmiyorum)\b/.test(t)) patch.language = "hic";
+      else if (/\b(a1|başlangıç)\b/.test(t)) patch.language = "a1";
+      else if (/\b(a2|orta)\b/.test(t)) patch.language = "a2";
+      else if (/\b(b1|b2|ileri)\b/.test(t)) patch.language = "b1";
+      else if (t.length <= 10) patch.language = t;
     }
   }
-  if (/\b(b1|b2|ileri)\b/.test(t)) patch.language = "b1";
-  if (/\bb2\b/.test(t) && !patch.language) patch.language = "b2";
-  if (/\b(a2|orta)\b/.test(t)) patch.language = "a2";
-  if (/\b(a1|başlangıç)\b/.test(t)) patch.language = "a1";
-  if (/\b(hiç|yok|bilmiyorum)\b/.test(t) && /dil|ingilizce|almanca/.test(t)) patch.language = "hic";
-  if (/\b(0\s*[-–]?\s*1|1\s*yıl|bir yıl)\b/.test(t)) patch.experience = "0-1";
-  if (/\b(2\s*[-–]?\s*4|3\s*yıl|birkaç yıl)\b/.test(t)) patch.experience = "2-4";
-  if (/\b(5\s*\+|5\s*yıl|beş yıl|çok yıl)\b/.test(t)) patch.experience = "5+";
-  if (/\b(engel|engelim|var)\b/.test(t) && /ülke|gidiş|yok/.test(t)) patch.barrier = "var";
-  if (/\b(engel\s*yok|engelim yok)\b/.test(t)) patch.barrier = "yok";
-  if (t.length >= 2 && t.length <= 40 && !patch.profession && !/^(var|yok|evet|hayır|b1|a2|emin değilim)$/i.test(t)) {
-    const professionMatch = t.match(/(aşçı|kaynakçı|elektrikçi|inşaat|muhasebe|öğretmen|hemşire|mühendis|tekniker|operatör|şoför|garson|temizlik|bakım|usta|uzman)/i);
-    if (professionMatch) patch.profession = professionMatch[1];
-    else if (!/\?(pasaport|cv|dil|deneyim)/.test(t)) patch.profession = t;
-  }
+  if (/\b(cv\s*yükledim|yükledim)\b/.test(t)) patch.cv_uploaded = "var";
   return patch;
 }
 
@@ -274,14 +337,16 @@ export async function POST(req: NextRequest) {
     const missingTop3 = getMissingTop(modules, 3);
     const checklistSnapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top3: missingTop3 };
 
-    // Bootstrap: HER ZAMAN deterministik ilk mesaj + soru (Gemini'ye gerek yok, arayüz hep çalışır)
+    // Bootstrap: deterministik ilk soru (pickNextQuestion + getQuestionTextAndChoices)
+    const sourceKey = getSourceKind(jobPost.source_name as string | null);
     if (isBootstrap) {
+      const nextId = pickNextQuestion(mergedAnswers as Record<string, unknown>, sourceKey);
+      const firstQuestion = nextId ? getQuestionTextAndChoices(nextId, sourceKey) : { text: "Adımlar tamamlandı.", choices: [] };
+      const askId = nextId ?? "done";
       const sourceLower = (jobPost.source_name ?? "").toString().toLowerCase();
       const isEures = sourceLower.includes("eures");
       const isGlassdoor = sourceLower.includes("glassdoor");
       let guideMessage: string;
-      let firstQuestion: { text: string; choices: string[] };
-      let askId: string;
       if (isEures) {
         guideMessage = [
           "Merhaba! Bu ilan EURES üzerinden geliyor.",
@@ -290,8 +355,6 @@ export async function POST(req: NextRequest) {
           "• \"How to apply\" / \"Apply\" bölümünü bul.",
           "• Başvuru için çoğu ilanda EU Login ile giriş istenir.",
         ].join("\n");
-        firstQuestion = { text: "EURES'te EU Login hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
-        askId = "has_eu_login";
       } else if (isGlassdoor) {
         guideMessage = [
           "Merhaba! Bu ilan Glassdoor üzerinden geliyor.",
@@ -300,8 +363,6 @@ export async function POST(req: NextRequest) {
           "• \"Apply\" / \"Sign in to apply\" alanını görürsen başvuru buradan yapılır.",
           "• Giriş istenirse hesap açıp devam edeceğiz.",
         ].join("\n");
-        firstQuestion = { text: "Glassdoor hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
-        askId = "has_glassdoor_account";
       } else {
         const sourceLabel = (jobPost.source_name ?? "bu platform").toString();
         guideMessage = [
@@ -310,14 +371,13 @@ export async function POST(req: NextRequest) {
           "• Başvuru / Apply bölümünü bul.",
           "• Gerekirse sayfayı Türkçeye çevir.",
         ].join("\n");
-        firstQuestion = { text: "Bu platformda hesabın var mı?", choices: ["Var", "Yok", "Emin değilim"] };
-        askId = "has_platform_account";
       }
       // Bootstrap: DB insert beklemeden anında dön (Yanıtlanıyor takılmasın)
+      const nextQuestionPayload = nextId ? { id: askId, text: firstQuestion.text, choices: firstQuestion.choices } : null;
       const assistant = {
         message_md: guideMessage,
         quick_replies: firstQuestion.choices,
-        ask: { id: askId, question: firstQuestion.text, type: "choice" as const, choices: firstQuestion.choices },
+        ask: nextQuestionPayload ? { id: askId, question: firstQuestion.text, type: "choice" as const, choices: firstQuestion.choices } : undefined,
       };
       const state_patch = {
         answers_patch: {},
@@ -326,7 +386,7 @@ export async function POST(req: NextRequest) {
       };
       return NextResponse.json({
         assistant_message: guideMessage,
-        next_question: firstQuestion,
+        next_question: nextQuestionPayload,
         report_json: guide?.report_json ?? {},
         report_md: null,
         checklist_snapshot: checklistSnapshot,
@@ -337,33 +397,60 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const system = `Sen yurtdışı iş başvuru asistanısın. Kullanıcı lise/usta profili; kısa cümleler, 3–6 madde.
+    // Chat: sıradaki soru sunucuda belirlenir (deterministik), Gemini sadece rehber üretir
+    const nextId = pickNextQuestion(mergedAnswers as Record<string, unknown>, sourceKey);
+    if (nextId === null) {
+      const doneMessage = "Tüm kritik adımlar tamamlandı. Rapor ve özeti aşağıda görebilirsin.";
+      const state_patch = {
+        answers_patch: {} as Record<string, unknown>,
+        checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
+        progress: { total: progress.total, done: progress.done, percent: progress.pct },
+      };
+      return NextResponse.json({
+        assistant_message: doneMessage,
+        next_question: null,
+        report_json: guide?.report_json ?? {},
+        report_md: null,
+        checklist_snapshot: checklistSnapshot,
+        answers_json: mergedAnswers,
+        assistant: { message_md: doneMessage, quick_replies: [], ask: undefined },
+        state_patch,
+        next: { should_finalize: true, reason: "all_steps_done" },
+      });
+    }
+    const currentStepId = nextId;
+    const system = `Sen "Yurtdışı İş Başvuru Asistanı"sın. Kullanıcı hiçbir şey bilmiyor olabilir.
+Görevin: SADECE kısa, net ve sonuç odaklı rehber metni üretmek.
 
-KURALLAR:
-- Her yanıtta: assistant_message (3–6 madde) + next_question (tek soru, id + text + choices). Asla boş bırakma.
-- next_question.id: Aşağıdaki sıraya uy. Sıradaki eksik adımın id'sini kullan.
-- answers_patch: Kullanıcı cevabına göre ilgili alanı doldur (var/yok).
-- YouTube: Link uydurma. Sadece "YouTube'da şunu arat: [ifade]" de.
-- Uydurma bilgi yok. İlan metninde yoksa "İlan metninde belirtilmiyor".
+ÖNEMLİ:
+- SORU ÜRETME. "next_question" üretme. Seçenek üretme.
+- Tekrar yapma. Aynı maddeyi farklı cümleyle yeniden yazma.
+- 3–7 madde ile sınırlı kal. Uzun paragraf yazma.
+- Link verme. YouTube gerekiyorsa: "YouTube'da şunu arat: …" de.
+- Uydurma yapma. İlanda yoksa "İlan metninde belirtilmiyor" de.
+- Çıktın SADECE JSON olacak.
 
-SORU SIRASI (kaynak Glassdoor): has_glassdoor_account → source_apply_opened → source_apply_found → source_apply_started → cv (cv_ready) → cv_uploaded. İsteğe bağlı en sonda: has_trade_certificate.
-SORU SIRASI (kaynak EURES): has_eu_login → source_apply_opened → source_apply_found → source_apply_started → cv → cv_uploaded. İsteğe bağlı: has_trade_certificate.
+Girdi: job_post, source, location, current_step_id (sistemin sorduğu kritik soru), user_last_message, answers_json.
 
-İlerleme %80+ ve kritik sorular bittiyse: final_summary + weekly_plan dönebilirsin. weekly_plan sadece o durumda (1 haftalık plan, gün bazlı kısa görevler).
-
-ÇIKTI: Sadece JSON.
+ÇIKTI JSON ŞEMASI:
 {
-  "assistant_message": "string (Türkçe, 3-6 madde)",
-  "next_question": { "id": "ask_id_string", "text": "Soru metni", "choices": ["Var", "Yok", "Emin değilim"] },
-  "answers_patch": {},
-  "final_summary": { "title": "string", "bullets": ["string"] },
-  "weekly_plan": { "days": [ { "day": 1, "tasks": ["string"] } ] }
+  "assistant_message": "3-7 maddelik rehber (Türkçe)",
+  "micro_tips": ["en fazla 3 kısa ipucu"],
+  "report_patch": { "notes": ["kısa notlar"] }
 }
-final_summary ve weekly_plan sadece ilerleme tamamlanmak üzereyken doldur.`;
 
-    const userPrompt = isBootstrap
-      ? `__start__. Kaynak: ${sourceName || "kaynak"}. İlk soru: hesap var mı (has_glassdoor_account veya has_eu_login). job_post:\n${jobContent}\n\nMevcut answers: ${JSON.stringify(mergedAnswers)}`
-      : `job_post:\n${jobContent}\n\nMevcut answers:\n${JSON.stringify(mergedAnswers)}\n\nchecklist_snapshot (ilerleme %): ${JSON.stringify(checklistSnapshot)}\n\nSon kullanıcı mesajı: ${rawUserText}\n\nYanıtında next_question.id ile sıradaki adımı ver (yukarıdaki soru sırasına uy). answers_patch ile cevabı kaydet.`;
+Rehber yazarken current_step_id'ye göre odaklan:
+- has_eu_login / has_glassdoor_account: hesap açma/giriş adımları
+- source_apply_opened: "İlana Git" + sayfayı Türkçeye çevir
+- source_apply_found: "How to apply/Apply" bölümünü nasıl bulacağı
+- source_apply_started: başvuruyu başlatma / form adımı
+- passport: pasaport neden kritik, yoksa ilk yapılacak
+- cv: CV'yi 2-3 maddede nasıl hazırlayacağı (PDF)
+- language: düşükse kısa uyarı ve pratik öneri
+- has_trade_certificate: varsa ekle, yoksa alternatif (deneyim/ustabaşı referansı vb.)
+- barrier: varsa neyi kastettiğini netleştirme (tek cümle)`;
+
+    const userPrompt = `job_post:\n${jobContent}\n\nsource: ${sourceName || "kaynak"}\nlocation: ${jobPost.location_text ?? ""}\ncurrent_step_id: ${currentStepId}\nuser_last_message: ${rawUserText}\nanswers_json: ${JSON.stringify(mergedAnswers)}`;
 
     console.log("[job-guide/chat] calling Gemini");
     let rawText: string;
@@ -376,15 +463,14 @@ final_summary ve weekly_plan sadece ilerleme tamamlanmak üzereyken doldur.`;
     }
     let parsed: {
       assistant_message?: string;
-      next_question?: NextQuestionOut;
-      answers_patch?: Record<string, unknown>;
+      micro_tips?: string[];
+      report_patch?: { notes?: string[] };
       report?: ReportFromGemini;
     };
     try {
       parsed = extractJson(rawText) as typeof parsed;
     } catch (parseErr) {
       console.error("[job-guide/chat] parse fail", parseErr);
-      // Parse fail: 500 dönme, 200 + fallback dön ki UI takılmasın
       const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
       try {
         await auth.supabase.from("job_guide_events").insert({
@@ -393,19 +479,15 @@ final_summary ve weekly_plan sadece ilerleme tamamlanmak üzereyken doldur.`;
           content: JSON.stringify({ error: "JSON_PARSE_FAILED", snippet: errSnippet }),
         });
       } catch {
-        /* event yazılamazsa devam et */
+        /* ignore */
       }
-      const fallbackMessage = "Şu an AI yanıtını işleyemedim. Yine de devam edelim: İlan sayfasında 'How to apply' veya 'Başvuru' bölümünü görüyor musun?";
-      const fallbackQuestion: NextQuestionOut = { text: "İlan sayfasında başvuru bölümünü görüyor musun?", choices: ["Evet", "Hayır", "Emin değilim"] };
+      const fallbackMessage = "Şu an AI yanıtını işleyemedim. Yine de devam edelim.";
+      const serverNext = getQuestionTextAndChoices(currentStepId, sourceKey);
+      const fallbackQuestion = { id: currentStepId, text: serverNext.text, choices: serverNext.choices };
       const fallbackAssistant = {
         message_md: fallbackMessage,
-        quick_replies: fallbackQuestion.choices ?? [],
-        ask: { id: "fallback_seen", question: fallbackQuestion.text, type: "choice" as const, choices: fallbackQuestion.choices ?? ["Evet", "Hayır", "Emin değilim"] },
-      };
-      const fallbackStatePatch = {
-        answers_patch: {} as Record<string, unknown>,
-        checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
-        progress: { total: progress.total, done: progress.done, percent: progress.pct },
+        quick_replies: fallbackQuestion.choices,
+        ask: { id: currentStepId, question: fallbackQuestion.text, type: "choice" as const, choices: fallbackQuestion.choices },
       };
       return NextResponse.json({
         assistant_message: fallbackMessage,
@@ -415,21 +497,22 @@ final_summary ve weekly_plan sadece ilerleme tamamlanmak üzereyken doldur.`;
         checklist_snapshot: checklistSnapshot,
         answers_json: mergedAnswers,
         assistant: fallbackAssistant,
-        state_patch: fallbackStatePatch,
+        state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progress.total, done: progress.done, percent: progress.pct } },
         next: { should_finalize: false, reason: "" },
       });
     }
 
     let assistantMessage = extractAssistantMessage(parsed as Record<string, unknown>, rawText);
     if (!assistantMessage.trim()) {
-      assistantMessage = "Kısa bir yanıt geldi; devam edelim. İlan sayfasında başvuru bölümünü görüyor musun?";
+      assistantMessage = "Kısa bir yanıt geldi; devam edelim.";
     }
-    const nextQuestion = normalizeNextQuestion(parsed as Record<string, unknown>);
-    const answersPatch = (parsed.answers_patch && typeof parsed.answers_patch === "object") ? parsed.answers_patch : {};
-    const finalAnswers = { ...mergedAnswers, ...answersPatch };
+    const finalAnswers = mergedAnswers as Record<string, unknown>;
     const reportFromGemini = (parsed.report && typeof parsed.report === "object") ? parsed.report : {};
     const reportJson = mapGeminiReportToOur(reportFromGemini);
     const reportMd = buildReportMd(reportJson, reportFromGemini);
+    if (parsed.report_patch && typeof parsed.report_patch === "object" && Array.isArray(parsed.report_patch.notes)) {
+      (reportJson as { notes?: string[] }).notes = [...((reportJson as { notes?: string[] }).notes ?? []), ...parsed.report_patch.notes];
+    }
 
     const score = typeof reportFromGemini.fit_analysis?.score === "number"
       ? Math.max(0, Math.min(100, reportFromGemini.fit_analysis.score))
@@ -452,32 +535,33 @@ final_summary ve weekly_plan sadece ilerleme tamamlanmak üzereyken doldur.`;
       .eq("id", jobGuideId)
       .eq("user_id", auth.user.id);
 
-    if (rawUserText && !isBootstrap) {
+    if (rawUserText) {
       await auth.supabase.from("job_guide_events").insert({
         job_guide_id: jobGuideId,
         type: "user_message",
         content: rawUserText,
       });
     }
+    const serverNextQuestion = getQuestionTextAndChoices(currentStepId, sourceKey);
+    const nextQuestionPayload = { id: currentStepId, text: serverNextQuestion.text, choices: serverNextQuestion.choices };
     await auth.supabase.from("job_guide_events").insert({
       job_guide_id: jobGuideId,
       type: "assistant_message",
-      content: JSON.stringify({ message: assistantMessage, next_question: nextQuestion }),
+      content: JSON.stringify({ message: assistantMessage, next_question: nextQuestionPayload }),
     });
 
-    const askId = (nextQuestion as NextQuestionOut & { id?: string }).id ?? "q_next";
     const assistant = {
       message_md: assistantMessage,
-      quick_replies: nextQuestion.choices ?? [],
+      quick_replies: serverNextQuestion.choices,
       ask: {
-        id: askId,
-        question: nextQuestion.text,
+        id: currentStepId,
+        question: serverNextQuestion.text,
         type: "choice" as const,
-        choices: nextQuestion.choices ?? ["Var", "Başvurdum", "Yok"],
+        choices: serverNextQuestion.choices,
       },
     };
     const state_patch = {
-      answers_patch: answersPatch,
+      answers_patch: {} as Record<string, unknown>,
       checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
       progress: { total: progress.total, done: progress.done, percent: progress.pct },
     };
@@ -485,7 +569,7 @@ final_summary ve weekly_plan sadece ilerleme tamamlanmak üzereyken doldur.`;
 
     return NextResponse.json({
       assistant_message: assistantMessage,
-      next_question: nextQuestion,
+      next_question: nextQuestionPayload,
       report_json: reportJson,
       report_md: reportMd,
       checklist_snapshot: checklistSnapshot,
