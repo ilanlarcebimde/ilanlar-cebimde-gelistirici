@@ -538,7 +538,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const sourceLabel = job.source_name ?? "";
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-50">
       {/* Üst: İlan özeti + ilerleme (tüm ekranlar) */}
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur shrink-0">
         <div className="px-4 py-3">
