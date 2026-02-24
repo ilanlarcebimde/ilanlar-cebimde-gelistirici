@@ -25,7 +25,6 @@ import {
   CV_PACKAGE_ITEMS,
   CV_COUPON_TEXT,
 } from "./guideContent";
-import { FormattedJobGuide, type FormattedJobGuideData } from "@/components/job-guide/FormattedJobGuide";
 
 type Job = {
   id: string;
@@ -54,11 +53,6 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
-  const [formattedOpen, setFormattedOpen] = useState(false);
-  const [formattedData, setFormattedData] = useState<FormattedJobGuideData | null>(null);
-  const [formattedSource, setFormattedSource] = useState<"gemini" | "fallback" | null>(null);
-  const [formattedLoading, setFormattedLoading] = useState(false);
-  const [formattedError, setFormattedError] = useState<string | null>(null);
 
   const fetchPanel = useCallback(async () => {
     if (!user?.id || !jobId) return;
@@ -149,101 +143,18 @@ setStepIndex(firstUnanswered >= 0 ? firstUnanswered : FLOW_STEPS.length);
     );
   }
 
-  const step = FLOW_STEPS[stepIndex];
+  const step = stepIndex < FLOW_STEPS.length ? FLOW_STEPS[stepIndex] : undefined;
   const isDone = stepIndex >= FLOW_STEPS.length;
-  const sourceGuide = getGuideBySource(job.source_name);
+  const sourceGuide = getGuideBySource(job.source_name ?? null);
 
-  const fetchFormatted = useCallback(async () => {
-    setFormattedLoading(true);
-    setFormattedError(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        setFormattedError("Oturum gerekli");
-        return;
-      }
-      const res = await fetch("/api/job-guides/format", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ jobId, answers }),
-      });
-      let json: { formatted?: unknown; source?: "gemini" | "fallback"; error?: string };
-      try {
-        json = (await res.json()) as typeof json;
-      } catch {
-        setFormattedError("Yanıt okunamadı");
-        return;
-      }
-      if (!res.ok) {
-        setFormattedError(json?.error ?? "İstek başarısız");
-        return;
-      }
-      const formatted = json?.formatted;
-      if (formatted && typeof formatted === "object" && formatted !== null && "ui" in formatted) {
-        setFormattedData(formatted as FormattedJobGuideData);
-        setFormattedSource(json.source ?? "fallback");
-        setFormattedOpen(true);
-        setFormattedError(null);
-      } else {
-        setFormattedError("Yanıt boş veya geçersiz");
-      }
-    } catch (e) {
-      setFormattedError(e instanceof Error ? e.message : "Bağlantı hatası");
-    } finally {
-      setFormattedLoading(false);
-    }
-  }, [jobId, answers]);
   const passportVisaGuide = getPassportVisaContentForCountry(job.location_text);
   const salaryLifeGuide = getSalaryLifeContentForCountry(job.location_text);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900">
-          ← Başvuru Paneli
-        </Link>
-        <button
-          type="button"
-          onClick={fetchFormatted}
-          disabled={formattedLoading}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          {formattedLoading ? "Hazırlanıyor…" : "Biçimlendirilmiş görünüm"}
-        </button>
-      </div>
-      {formattedOpen && formattedData && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setFormattedOpen(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm text-slate-500">
-                {formattedSource === "gemini" ? "Veri aynı, sadece düzenlendi (Gemini)" : "Şablon görünümü (veri değiştirilmedi)"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setFormattedOpen(false)}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
-              >
-                Kapat
-              </button>
-            </div>
-            <FormattedJobGuide data={formattedData} />
-          </div>
-        </div>
-      )}
-      {formattedError && (
-        <p className="mb-2 text-sm text-amber-700">
-          Biçimlendirme: {formattedError} (Fallback kullanıldı veya tekrar deneyin.)
-        </p>
-      )}
+      <Link href="/premium/job-guides" className="mb-4 inline-block text-sm font-medium text-slate-600 hover:text-slate-900">
+        ← Başvuru Paneli
+      </Link>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h1 className="text-lg font-bold text-slate-900 sm:text-xl">{job.title ?? "İlan"}</h1>
         {job.location_text && <p className="mt-1 text-sm text-slate-500">{job.location_text}</p>}
@@ -380,10 +291,13 @@ setStepIndex(firstUnanswered >= 0 ? firstUnanswered : FLOW_STEPS.length);
 }
 
 /** Bölge belge listesi: başlık + içerik (GuideText ile). */
-function DocumentBlock({ title, content }: { title: string; content: string }) {
+function DocumentBlock({ title, content }: { title?: string; content?: string }) {
+  if (content == null || content === "") return null;
   return (
     <div className="rounded-lg border border-slate-100 bg-white p-3 sm:p-4">
-      <h3 className="text-sm font-bold text-slate-800 sm:text-base">{title}</h3>
+      {title != null && title !== "" && (
+        <h3 className="text-sm font-bold text-slate-800 sm:text-base">{title}</h3>
+      )}
       <div className="mt-2">
         <GuideText content={content} />
       </div>
