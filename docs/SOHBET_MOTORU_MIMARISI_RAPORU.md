@@ -19,9 +19,7 @@ Bu dokümanda Başvuru Paneli sohbet motorunun **mevcut durumu** ve **hedeflenen
 **Mevcut durum (problem):**
 
 1. **blocking_issue === "Var (yazacağım)"** → `blocking_issue_text` adımı: **textarea** (serbest metin). ✅ İstenen tek yer burası olmalı.
-2. **GLASSDOOR, found_apply_section === "Göremedim"** → `screen_headings` adımı: **textarea** (“Göremediyseniz ekranda hangi başlıkları görüyorsunuz? … Yazın lütfen.”). ❌ Bu serbest metin **kaldırılmalı**; yerine 3 sabit seçenek gelmeli: **"Sağ tarafta"**, **"Alt bölümde"**, **"Yok"**.
-
-Yani şu an serbest metin **iki yerde** açılıyor; hedeflenen mimaride **sadece** `blocking_issue == "Var (yazacağım)"` için açılmalı.
+2. **GLASSDOOR, found_apply_section === "Göremedim"** → `apply_section_location` adımı: **3 buton** ("Sağ tarafta", "Alt bölümde", "Yok (göremiyorum)"). Serbest metin yok. UI’da textarea yalnızca `next_question.id === "blocking_issue_text"` iken gösterilir.
 
 ### next_question nasıl belirleniyor?
 
@@ -58,7 +56,7 @@ Kaynak: `src/data/jobGuideConfig.ts` — her step’in `answerKey` alanı.
 | answerKey | Açıklama | Seçenekler / tip |
 |-----------|----------|-------------------|
 | `found_apply_section` | Apply alanı görüldü mü | Gördüm, Göremedim, Emin değilim |
-| `screen_headings` | Apply nerede (Göremedim ise) | **Şu an:** textarea. **Hedef:** Sağ tarafta / Alt bölümde / Yok (3 buton) |
+| `apply_section_location` | Apply sayfada nerede (Göremedim ise) | Sağ tarafta / Alt bölümde / Yok (göremiyorum) — 3 buton, serbest metin yok |
 | `has_glassdoor_account` | Platformda hesap var mı | Evet, Hayır, Emin değilim |
 | `redirects_to_company_site` | Başvuru şirket sitesine mi yönlendiriyor | Evet, Hayır, Emin değilim |
 | `has_passport` | Pasaport var mı | Evet, Hayır, Emin değilim |

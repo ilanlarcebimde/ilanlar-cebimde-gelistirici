@@ -4,31 +4,22 @@
  * Rule: answerKey doluysa asla tekrar gösterme. showIf koşulu tutmuyorsa atla. İlk cevaplanmamış soruyu göster.
  */
 
-export const JOB_GUIDE_CONFIG_VERSION = "2026-02-24+v3";
+export const JOB_GUIDE_CONFIG_VERSION = "2026-02-24";
 
-/** Hızlı Rehber: ilk mesajda sadece bilgi, soru yok. "Yapılacaklar" (rapor kelimesi yok). */
+/** Hızlı Rehber: ilk mesajda sadece bilgi, soru yok. Drop-in lines. */
 export const QUICK_GUIDE_TEMPLATES = {
   title: "Hızlı Rehber",
   EURES: {
-    fullText: `Merhaba efendim. Bu iş ilanının kaynağı EURES'tir. EURES, Avrupa'da kamu destekli ve en güvenilir iş ilanlarının toplandığı resmi ağdır. Başvuruyu hızlıca tamamlamak için şu sırayı izleyin:
-
-✅ 1) İlan sayfasını açın: "İlana Git" → ilanı EURES'te açın.
-✅ 2) Başvuru bölümünü bulun: ilanda "How to apply / Apply" kısmını bulun (başvuru yöntemi burada yazar).
-✅ 3) Dil desteği: sayfa İngilizceyse Chrome'da sağ tık → Türkçeye çevir (telefon: ⋮ → Çevir).
-✅ 4) Giriş gerekiyorsa: bazı ilanlar EU Login / EURES hesabı isteyebilir.
-✅ 5) Başvuru yöntemine göre ilerleyin: "Apply" butonu → form/portal üzerinden; "E-posta ile başvuru" → istenen belgeleri maille göndererek; "Şirket sitesi" → şirketin kariyer sayfasına yönlenerek.
-
-Şimdi ben senden sadece gerekli bilgileri tek tek alacağım; her cevap sonrası "Yapılacaklar" listen netleşecek.`,
+    fullText: `Bu ilan kaynağı: EURES. Avrupa'da resmi ve güvenilir ilanların yayınlandığı ağdır.
+Başvuru için: "İlana Git" → ilanda "How to apply / Apply" bölümünü bul.
+Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir (telefonda ⋮ → Çevir).
+Ben senden kritik bilgileri alacağım; her cevap sonrası yapılacaklar netleşecek.`,
   },
   GLASSDOOR: {
-    fullText: `Merhaba efendim. Bu iş ilanının kaynağı Glassdoor'dur. Başvuru çoğu ilanda "Apply / Sign in to apply" alanından yapılır.
-
-✅ 1) İlanı açın: "İlana Git" → ilan sayfasını açın.
-✅ 2) Dil desteği: Chrome → sağ tık → Türkçeye çevir.
-✅ 3) Başvuru alanı: "Apply / Sign in to apply" görürseniz başvuru buradan yürür.
-✅ 4) Şirket sitesine atarsa: aynı ilanı şirketin kariyer sayfasında bulup oradan başvuracağız.
-
-Şimdi ben senden sadece gerekli bilgileri tek tek alacağım; her cevap sonrası "Yapılacaklar" listen netleşecek.`,
+    fullText: `Bu ilan kaynağı: GLASSDOOR.
+Başvuru genelde "Apply / Sign in to apply" alanından yapılır.
+Sayfa İngilizceyse: Chrome → sağ tık → Türkçeye çevir.
+Şirket sitesine yönlendirirse: aynı ilanı şirket sitesinde bulup oradan başvuracağız.`,
   },
 } as const;
 
@@ -62,21 +53,33 @@ export type FlowStep = {
   doneRule: DoneRule;
 };
 
-/** Seçenek setleri: Evet/Hayır/Emin değilim; Gördüm/Göremedim/Emin değilim; belgeler; dil. */
+/** UI inputType mapping: buttons/select/multi/textarea — textarea sadece blocking_issue_text için. */
+export type InputType = "buttons" | "select" | "multi" | "textarea";
+
+export const uiInputMapping = {
+  buttons: { component: "ChoiceButtons", selection: "single" as const, storeAs: "string" as const },
+  select: { component: "Select", selection: "single" as const, storeAs: "string" as const },
+  multi: { component: "MultiSelectChips", selection: "multiple" as const, storeAs: "string[]" as const },
+  textarea: { component: "Textarea", selection: "freeText" as const, storeAs: "string" as const, minRows: 4 },
+} as const;
+
+/** Seçenek setleri (drop-in): buttons/select/multi için. */
 const CHOICES = {
   yesNoMaybe: ["Evet", "Hayır", "Emin değilim"],
-  applySection: ["Gördüm", "Göremedim", "Emin değilim"],
-  applyMethod: ["Form/Portal", "E-posta", "Şirket sitesi", "Emin değilim"],
-  docProof: [
+  seenOrNot: ["Gördüm", "Göremedim", "Emin değilim"],
+  blocking: ["Yok", "Var (yazacağım)"],
+  applyMethodEures: ["Form/Portal", "E-posta", "Şirket sitesi", "Emin değilim"],
+  applySectionLocation: ["Sağ tarafta", "Alt bölümde", "Yok"],
+  language: ["A0", "A1–A2", "B1", "B2", "C1+"],
+  proofDocs: [
     "Ustalık belgesi / MYK",
     "Kalfalık belgesi",
-    "SGK hizmet dökümü",
-    "Sertifika",
+    "SGK hizmet dökümü / iş geçmişi",
+    "Sertifika (kurs/ehliyet vb.)",
     "Referans mektubu",
-    "Portföy (foto/video)",
+    "Portföy (fotoğraf/video)",
     "Hiçbiri",
   ],
-  languageLevel: ["A0", "A1–A2", "B1", "B2", "C1+"],
 } as const;
 
 export const QUESTION_FLOW = {
@@ -86,49 +89,49 @@ export const QUESTION_FLOW = {
   EURES: [
     {
       id: "found_apply_section",
-      checklistLabel: "Başvuru bölümü görüldü",
+      checklistLabel: "Başvuru bölümünü buldum",
       text: "İlan sayfasında “How to apply / Apply” bölümünü görüyor musunuz?",
-      choices: [...CHOICES.applySection],
+      choices: [...CHOICES.seenOrNot],
       answerKey: "found_apply_section",
       doneRule: { type: "notEmpty", answerKey: "found_apply_section" },
     },
     {
       id: "apply_method",
-      checklistLabel: "Başvuru yöntemi netleşti",
-      text: "İlanda başvuru yöntemi hangisi olarak yazıyor?",
-      choices: [...CHOICES.applyMethod],
+      checklistLabel: "Başvuru yöntemini netleştirdim",
+      text: "Bu ilanda başvuru yöntemi hangisi?",
+      choices: [...CHOICES.applyMethodEures],
       answerKey: "apply_method",
       showIf: { all: [{ answerKey: "found_apply_section", equalsAny: ["Gördüm", "Emin değilim"] }] },
       doneRule: { type: "notEmpty", answerKey: "apply_method" },
     },
     {
       id: "has_eu_login",
-      checklistLabel: "Giriş gerekliliği kontrol edildi",
-      text: "Başvuru için EU Login / EURES hesabı istiyor mu? (İlanda yazıyorsa)",
+      checklistLabel: "Giriş gereksinimini kontrol ettim",
+      text: "Başvuru için EU Login / EURES hesabı istiyor mu?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "needs_eu_login",
-      showIf: { all: [{ answerKey: "apply_method", equalsAny: ["Form/Portal", "Emin değilim"] }] },
+      showIf: { all: [{ answerKey: "found_apply_section", equalsAny: ["Gördüm", "Emin değilim"] }] },
       doneRule: { type: "notEmpty", answerKey: "needs_eu_login" },
     },
     {
-      id: "passport_status",
-      checklistLabel: "Pasaport durumu alındı",
-      text: "Geçerli bir pasaportunuz var mı?",
+      id: "has_passport",
+      checklistLabel: "Pasaport durumunu netleştirdim",
+      text: "Pasaportun var mı?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "has_passport",
       doneRule: { type: "notEmpty", answerKey: "has_passport" },
     },
     {
-      id: "citizenship_eu",
-      checklistLabel: "Çalışma izni uygunluğu için vatandaşlık alındı",
-      text: "AB / AEA vatandaşı mısınız?",
+      id: "is_eu_eea_citizen",
+      checklistLabel: "AB/AEA durumunu netleştirdim",
+      text: "AB/AEA vatandaşı mısın?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "is_eu_eea_citizen",
       doneRule: { type: "notEmpty", answerKey: "is_eu_eea_citizen" },
     },
     {
       id: "cv_ready",
-      checklistLabel: "CV durumu alındı",
+      checklistLabel: "CV hazır",
       text: "Bu ilana özel CV’niz hazır mı? (tercihen PDF)",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "cv_ready",
@@ -136,24 +139,24 @@ export const QUESTION_FLOW = {
     },
     {
       id: "proof_docs",
-      checklistLabel: "Mesleki kanıtlar toplandı",
-      text: "Mesleğinizi kanıtlamak için elinizde hangileri var? (Birden çok seçebilirsiniz)",
-      choices: [...CHOICES.docProof],
+      checklistLabel: "Mesleki kanıtları seçtim",
+      text: "Mesleki yeterliliğini kanıtlamak için hangileri var? (Birden fazla seçebilirsin)",
+      choices: [...CHOICES.proofDocs],
       input: { type: "multiselect" },
       answerKey: "proof_docs",
       doneRule: { type: "minSelected", answerKey: "proof_docs", value: 1 },
     },
     {
       id: "language_level",
-      checklistLabel: "Dil seviyesi alındı",
-      text: "İş dili için seviyeniz nedir?",
-      choices: [...CHOICES.languageLevel],
+      checklistLabel: "Dil seviyemi belirttim",
+      text: "Dil seviyen hangi aralıkta?",
+      choices: [...CHOICES.language],
       answerKey: "language_level",
       doneRule: { type: "notEmpty", answerKey: "language_level" },
     },
     {
       id: "blocking_issue",
-      checklistLabel: "Engel durumu alındı",
+      checklistLabel: "Engel durumunu belirttim",
       text: "Başvuruyu şu an tıkayan bir sorun var mı?",
       choices: ["Yok", "Var (yazacağım)"],
       answerKey: "blocking_issue",
@@ -161,8 +164,8 @@ export const QUESTION_FLOW = {
     },
     {
       id: "blocking_issue_text",
-      checklistLabel: "Engel detayı alındı",
-      text: "Lütfen tıkayan sorunu 1–2 cümleyle yazın (örn: vize, hesap açılmıyor, belge eksik…).",
+      checklistLabel: "Engeli açıkladım",
+      text: "Kısaca yaz: Seni en çok ne tıkıyor? (örn. vize / CV / giriş / dil / belge)",
       input: { type: "textarea", placeholder: "Sorunu yazın…" },
       answerKey: "blocking_issue_text",
       askOnce: true,
@@ -179,17 +182,17 @@ export const QUESTION_FLOW = {
   GLASSDOOR: [
     {
       id: "found_apply_section",
-      checklistLabel: "Başvuru alanı görüldü",
-      text: "İlan sayfasında “Apply / Sign in to apply” alanını görüyor musunuz?",
-      choices: [...CHOICES.applySection],
+      checklistLabel: "Apply alanını kontrol ettim",
+      text: "İlan sayfasında “Apply / Sign in to apply” alanını gördün mü?",
+      choices: [...CHOICES.seenOrNot],
       answerKey: "found_apply_section",
       doneRule: { type: "notEmpty", answerKey: "found_apply_section" },
     },
     {
-      id: "screen_headings",
-      checklistLabel: "Apply alanı konumu alındı",
-      text: "Apply butonunu göremediniz. Başvuru alanı sizin ekranınızda nerede görünüyor?",
-      choices: ["Sağ tarafta", "Alt bölümde", "Yok"],
+      id: "apply_section_location",
+      checklistLabel: "Apply konumunu netleştirdim",
+      text: "Apply alanını göremediysen genelde nerede olur?",
+      choices: [...CHOICES.applySectionLocation],
       answerKey: "screen_headings",
       askOnce: true,
       showIf: {
@@ -201,32 +204,33 @@ export const QUESTION_FLOW = {
       doneRule: { type: "notEmpty", answerKey: "screen_headings" },
     },
     {
-      id: "has_platform_account",
-      checklistLabel: "Hesap durumu alındı",
-      text: "Bu platformda hesabınız var mı / giriş yapabiliyor musunuz?",
+      id: "has_glassdoor_account",
+      checklistLabel: "Hesap durumunu belirttim",
+      text: "Glassdoor hesabın var mı?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "has_glassdoor_account",
       doneRule: { type: "notEmpty", answerKey: "has_glassdoor_account" },
     },
     {
-      id: "apply_method",
-      checklistLabel: "Yönlendirme durumu alındı",
-      text: "Başvuru sizi şirketin sitesine mi yönlendiriyor?",
+      id: "redirects_to_company_site",
+      checklistLabel: "Yönlendirmeyi kontrol ettim",
+      text: "Başvur butonuna basınca şirket sitesine yönlendiriyor mu?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "redirects_to_company_site",
+      showIf: { all: [{ answerKey: "found_apply_section", equalsAny: ["Gördüm", "Emin değilim"] }] },
       doneRule: { type: "notEmpty", answerKey: "redirects_to_company_site" },
     },
     {
-      id: "passport_status",
-      checklistLabel: "Pasaport durumu alındı",
-      text: "Geçerli bir pasaportunuz var mı?",
+      id: "has_passport",
+      checklistLabel: "Pasaport durumunu netleştirdim",
+      text: "Pasaportun var mı?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "has_passport",
       doneRule: { type: "notEmpty", answerKey: "has_passport" },
     },
     {
       id: "cv_ready",
-      checklistLabel: "CV durumu alındı",
+      checklistLabel: "CV hazır",
       text: "Bu ilana özel CV’niz hazır mı? (tercihen PDF)",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "cv_ready",
@@ -234,24 +238,24 @@ export const QUESTION_FLOW = {
     },
     {
       id: "proof_docs",
-      checklistLabel: "Mesleki kanıtlar toplandı",
-      text: "Mesleğinizi kanıtlamak için elinizde hangileri var? (Birden çok seçebilirsiniz)",
-      choices: [...CHOICES.docProof],
+      checklistLabel: "Mesleki kanıtları seçtim",
+      text: "Mesleki yeterliliğini kanıtlamak için hangileri var? (Birden fazla seçebilirsin)",
+      choices: [...CHOICES.proofDocs],
       input: { type: "multiselect" },
       answerKey: "proof_docs",
       doneRule: { type: "minSelected", answerKey: "proof_docs", value: 1 },
     },
     {
       id: "language_level",
-      checklistLabel: "Dil seviyesi alındı",
-      text: "İş dili için seviyeniz nedir?",
-      choices: [...CHOICES.languageLevel],
+      checklistLabel: "Dil seviyemi belirttim",
+      text: "Dil seviyen hangi aralıkta?",
+      choices: [...CHOICES.language],
       answerKey: "language_level",
       doneRule: { type: "notEmpty", answerKey: "language_level" },
     },
     {
       id: "blocking_issue",
-      checklistLabel: "Engel durumu alındı",
+      checklistLabel: "Engel durumunu belirttim",
       text: "Başvuruyu şu an tıkayan bir sorun var mı?",
       choices: ["Yok", "Var (yazacağım)"],
       answerKey: "blocking_issue",
@@ -259,8 +263,8 @@ export const QUESTION_FLOW = {
     },
     {
       id: "blocking_issue_text",
-      checklistLabel: "Engel detayı alındı",
-      text: "Lütfen tıkayan sorunu 1–2 cümleyle yazın (örn: vize, hesap açılmıyor, belge eksik…).",
+      checklistLabel: "Engeli açıkladım",
+      text: "Kısaca yaz: Seni en çok ne tıkıyor? (örn. vize / CV / giriş / dil / belge)",
       input: { type: "textarea", placeholder: "Sorunu yazın…" },
       answerKey: "blocking_issue_text",
       askOnce: true,
@@ -353,18 +357,23 @@ function getActiveFlowSteps(source: "eures" | "glassdoor" | "default"): FlowStep
   return QUESTION_FLOW.GLASSDOOR; // glassdoor | default
 }
 
-/** İlk cevaplanmamış soru. showIf koşulu olan adımlar koşul tutmuyorsa atlanır. answerKey doluysa asla tekrar gösterilmez. */
+/** İlk cevaplanmamış soru. showIf + doneRule. no-repeat: lastAskId verilirse ve dönen adım aynıysa bir sonraki cevaplanmamış adım döner. */
 export function getNextStep(
   answers: Record<string, unknown>,
-  source: "eures" | "glassdoor" | "default"
+  source: "eures" | "glassdoor" | "default",
+  lastAskId?: string | null
 ): FlowStep | null {
   const steps = getActiveFlowSteps(source);
+  let next: FlowStep | null = null;
   for (const step of steps) {
     if (step.showIf && !isShowIfMatch(answers, step.showIf)) continue;
     if (isStepAnswered(answers, step)) continue;
-    return step;
+    next = step;
+    break;
   }
-  return null;
+  if (!next) return null;
+  if (lastAskId && next.id === lastAskId) return getNextStepAfter(answers, source, lastAskId);
+  return next;
 }
 
 /** No-repeat: last_ask_id ile aynı soru dönmesin diye, ondan sonraki ilk cevaplanmamış adımı döndürür. */

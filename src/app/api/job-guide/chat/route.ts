@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseForUser, getSupabaseAdmin } from "@/lib/supabase/server";
 import {
   getNextStep,
-  getNextStepAfter,
   getStepDisplay,
   getProgressFromConfig,
   getStepById,
@@ -115,7 +114,7 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     if (String(value).trim() === "Gördüm") return "Güzel, başvuru alanını gördün.";
     if (String(value).trim() === "Göremedim") return "Tamam. Ekrandaki başlıkları yazacağın soruyla devam edelim.";
   }
-  if (askId === "visible_headings_text" || askId === "screen_headings") return "Tamam, not ettim. Buna göre yönlendireceğiz.";
+  if (askId === "visible_headings_text" || askId === "screen_headings" || askId === "apply_section_location") return "Tamam, not ettim. Buna göre yönlendireceğiz.";
   if (askId === "cv_status") {
     const val = String(value).trim();
     if (val === "PDF hazır") return "PDF hazır, iyi. Başvuruda ekleyeceğiz.";
@@ -227,19 +226,23 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
         else if (/şirket\s*sitesi|sitesine/i.test(t)) (patch as Record<string, unknown>).apply_method = "Şirket sitesi";
         else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).apply_method = "Emin değilim";
       } else if (step.answerKey === "proof_docs") {
-        const docOpts = ["Ustalık belgesi / MYK", "Kalfalık belgesi", "SGK hizmet dökümü", "Sertifika", "Referans mektubu", "Portföy (foto/video)", "Hiçbiri"];
+        const docOpts = ["Ustalık belgesi / MYK", "Kalfalık belgesi", "SGK hizmet dökümü / iş geçmişi", "SGK hizmet dökümü", "Sertifika (kurs/ehliyet vb.)", "Sertifika", "Referans mektubu", "Portföy (fotoğraf/video)", "Portföy (foto/video)", "Hiçbiri"];
         const selected = t.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
         const valid = selected.filter((s) => docOpts.some((o) => o === s || o.includes(s) || s.includes(o)));
         if (valid.length > 0) (patch as Record<string, unknown>).proof_docs = valid.length === 1 ? valid : valid;
         else if (docOpts.some((o) => t === o || t.includes(o))) (patch as Record<string, unknown>).proof_docs = [t.trim()];
+      } else if (step.answerKey === "apply_section_location") {
+        const trimmed = text.trim();
+        if (/sağ\s*tarafta|sag\s*tarafta/i.test(t)) (patch as Record<string, unknown>).apply_section_location = "Sağ tarafta";
+        else if (/alt\s*bölümde|alt\s*bolumde/i.test(t)) (patch as Record<string, unknown>).apply_section_location = "Alt bölümde";
+        else if (/yok\s*\(göremiyorum\)|göremiyorum|^yok$/i.test(t)) (patch as Record<string, unknown>).apply_section_location = "Yok";
+        else if (["Sağ tarafta", "Alt bölümde", "Yok", "Yok (göremiyorum)"].includes(trimmed)) (patch as Record<string, unknown>).apply_section_location = trimmed === "Yok (göremiyorum)" ? "Yok" : trimmed;
       } else if (step.answerKey === "screen_headings") {
-        if (/sağ\s*tarafta|sag\s*tarafta/.test(t)) (patch as Record<string, unknown>).screen_headings = "Sağ tarafta";
-        else if (/alt\s*bölümde|alt\s*bolumde/.test(t)) (patch as Record<string, unknown>).screen_headings = "Alt bölümde";
-        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>).screen_headings = "Yok";
-        else {
-          const trimmed = text.trim();
-          if (["Sağ tarafta", "Alt bölümde", "Yok"].includes(trimmed)) (patch as Record<string, unknown>).screen_headings = trimmed;
-        }
+        const trimmed = text.trim();
+        if (/sağ\s*tarafta|sag\s*tarafta/i.test(t)) (patch as Record<string, unknown>).screen_headings = "Sağ tarafta";
+        else if (/alt\s*bölümde|alt\s*bolumde/i.test(t)) (patch as Record<string, unknown>).screen_headings = "Alt bölümde";
+        else if (/yok|göremiyorum/i.test(t)) (patch as Record<string, unknown>).screen_headings = "Yok";
+        else if (["Sağ tarafta", "Alt bölümde", "Yok"].includes(trimmed)) (patch as Record<string, unknown>).screen_headings = trimmed;
       } else if (step.answerKey === "language_level") {
         if (/a0\b/i.test(t)) (patch as Record<string, unknown>).language_level = "A0";
         else if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).language_level = "A1–A2";
@@ -550,12 +553,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Chat: tek otorite = config. Sıradaki soru her zaman config'ten; no-repeat: aynı soru tekrar dönmesin.
-    let nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
-    if (nextStep && last_ask_id && nextStep.id === last_ask_id) {
-      const after = getNextStepAfter(mergedAnswers as Record<string, unknown>, sourceKey, last_ask_id);
-      if (after) nextStep = after;
-    }
+    // Chat: tek otorite = config. getNextStep(answers, source, lastAskId) no-repeat ile bir sonraki soruyu döner.
+    const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey, last_ask_id ?? undefined);
     if (nextStep === null) {
       let reportJsonFinal = guide?.report_json ?? {};
       let reportMdFinal: string | null = null;
@@ -587,10 +586,7 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error("[job-guide/chat] final report generation failed", e);
       }
-      const doneMessage =
-        reportMdFinal && reportMdFinal.length > 50
-          ? "Tüm sorular tamamlandı. Şu an netleşen yapılacaklar aşağıda."
-          : "Tüm sorular tamamlandı. Yapılacaklar panelinde özeti görebilirsiniz.";
+      const doneMessage = "Tüm kritik bilgiler tamamlandı. Şu an netleşen yapılacaklar aşağıda.";
       const state_patch = {
         answers_patch: {} as Record<string, unknown>,
         checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
@@ -806,14 +802,16 @@ export async function POST(req: NextRequest) {
       assistantMessage = (assistantMessage ? assistantMessage + "\n\n" : "") + defaultCvGuide;
     }
 
-    // CV Paketi CTA: cv_ready "Hayır" veya cv_status "Hazır değil"/"Yok" iken, tek mesaj + link + CV79
+    // CV Paketi CTA: sadece 1 kez — cv_ready "Hayır" ve promo_cv_shown yoksa
     const cvMissing = mergedAnswers.cv_ready === "Hayır" || mergedAnswers.cv_status === "Hazır değil" || mergedAnswers.cv_status === "Yok";
+    const promoAlreadyShown = mergedAnswers.promo_cv_shown === true;
     const shouldInjectCvCta =
-      cvMissing && (last_ask_id === "cv_ready" || last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
+      cvMissing && !promoAlreadyShown && (last_ask_id === "cv_ready" || last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
     if (shouldInjectCvCta) {
       const link = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
       const cta = `CV hazır değilse buradan 24 saat içinde hazırlatabilirsin.\n${link}\nİndirim kodu: CV79`;
       assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n" + cta : cta;
+      (mergedAnswers as Record<string, unknown>).promo_cv_shown = true;
     }
     if (confirmationMsg) {
       assistantMessage = confirmationMsg + "\n\n" + assistantMessage;
@@ -940,7 +938,7 @@ export async function POST(req: NextRequest) {
       },
     };
     const state_patch = {
-      answers_patch: {} as Record<string, unknown>,
+      answers_patch: shouldInjectCvCta ? { promo_cv_shown: true } as Record<string, unknown> : {} as Record<string, unknown>,
       checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
       progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
     };
