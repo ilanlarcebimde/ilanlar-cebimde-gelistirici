@@ -25,8 +25,6 @@ import {
   CV_PACKAGE_ITEMS,
   CV_COUPON_TEXT,
 } from "./guideContent";
-import { JobGuideModal } from "@/components/JobGuideModal";
-import { getMockGuideJson } from "./mockGuideJson";
 
 type Job = {
   id: string;
@@ -55,7 +53,6 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
-  const [readingModalOpen, setReadingModalOpen] = useState(false);
 
   const fetchPanel = useCallback(async () => {
     if (!user?.id || !jobId) return;
@@ -158,33 +155,9 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Link href="/premium/job-guides" className="text-sm font-medium text-slate-600 hover:text-slate-900">
-          ← Başvuru Paneli
-        </Link>
-        <button
-          type="button"
-          onClick={() => setReadingModalOpen(true)}
-          className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-100"
-        >
-          Rehberi oku (modal)
-        </button>
-      </div>
-      <JobGuideModal
-        open={readingModalOpen}
-        onClose={() => setReadingModalOpen(false)}
-        guideJson={
-          job
-            ? getMockGuideJson({
-                title: job.title ?? "İlan",
-                location: job.location_text ?? undefined,
-                source_name: job.source_name ?? undefined,
-                source_url: job.source_url ?? undefined,
-              })
-            : null
-        }
-        sourceUrl={job?.source_url ?? undefined}
-      />
+      <Link href="/premium/job-guides" className="mb-4 inline-block text-sm font-medium text-slate-600 hover:text-slate-900">
+        ← Başvuru Paneli
+      </Link>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h1 className="text-lg font-bold text-slate-900 sm:text-xl">{job.title ?? "İlan"}</h1>
         {job.location_text && <p className="mt-1 text-sm text-slate-500">{job.location_text}</p>}
