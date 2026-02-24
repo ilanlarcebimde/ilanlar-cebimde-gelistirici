@@ -10,7 +10,7 @@ import { ChannelsSidebar } from "./ChannelsSidebar";
 import { ChannelsFeed } from "./ChannelsFeed";
 import { AuthModal } from "@/components/AuthModal";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
-import { HowToApplyModal, type HowToApplyWebhookResponse } from "@/components/modals/HowToApplyModal";
+import { HowToApplyWizardModal } from "@/components/modals/HowToApplyWizardModal";
 import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 export function ChannelsLayout() {
@@ -26,9 +26,9 @@ export function ChannelsLayout() {
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [applyToast, setApplyToast] = useState<string | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
-  const [howToLoading, setHowToLoading] = useState(false);
-  const [howToData, setHowToData] = useState<HowToApplyWebhookResponse | null>(null);
+  const [howToJobId, setHowToJobId] = useState<string | null>(null);
   const [howToJobSourceUrl, setHowToJobSourceUrl] = useState<string | null>(null);
+  const [howToToken, setHowToToken] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
     async (post: FeedPost) => {
@@ -58,49 +58,17 @@ export function ChannelsLayout() {
           setTimeout(() => setApplyToast(null), 2000);
           return;
         }
-        setHowToJobSourceUrl(post.source_url ?? null);
-        setHowToData(null);
-        setHowToLoading(true);
-        setHowToOpen(true);
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) {
-          setHowToOpen(false);
-          setHowToLoading(false);
           setApplyToast("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
           setTimeout(() => setApplyToast(null), 3000);
           return;
         }
-        try {
-          const res = await fetch("/api/apply/howto", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ job_id: post.id }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const err = data as { error?: string; detail?: string };
-            const errMsg = err?.error === "Not found"
-              ? "İlan bulunamadı."
-              : err?.detail
-                ? String(err.detail).slice(0, 100)
-                : "Rehber alınamadı. Tekrar deneyin.";
-            setHowToOpen(false);
-            setHowToLoading(false);
-            setApplyToast(errMsg);
-            setTimeout(() => setApplyToast(null), 3000);
-            return;
-          }
-          setHowToData(data as HowToApplyWebhookResponse);
-        } catch (err) {
-          console.error("[ChannelsLayout] howto API error", err);
-          setHowToOpen(false);
-          setHowToLoading(false);
-          setApplyToast("Bağlantı hatası. Tekrar deneyin.");
-          setTimeout(() => setApplyToast(null), 3000);
-        } finally {
-          setHowToLoading(false);
-        }
+        setHowToJobId(post.id);
+        setHowToJobSourceUrl(post.source_url ?? null);
+        setHowToToken(token);
+        setHowToOpen(true);
       } catch (err) {
         console.error("[ChannelsLayout] applyGuide error", err);
         setApplyToast("Bir hata oluştu. Tekrar deneyin.");
@@ -220,16 +188,16 @@ export function ChannelsLayout() {
         initialJobId={pendingJobId}
       />
 
-      <HowToApplyModal
+      <HowToApplyWizardModal
         open={howToOpen}
         onClose={() => {
           setHowToOpen(false);
-          setHowToLoading(false);
-          setHowToData(null);
+          setHowToJobId(null);
           setHowToJobSourceUrl(null);
+          setHowToToken(null);
         }}
-        loading={howToLoading}
-        data={howToData}
+        jobId={howToJobId ?? ""}
+        accessToken={howToToken ?? ""}
         jobSourceUrl={howToJobSourceUrl}
       />
 
