@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { GuideRendererSafe, isGuideResponse } from "@/components/GuideRenderer";
 
 /** Full job record from DB (job_posts row). */
 export type FullJob = Record<string, unknown> & {
@@ -112,27 +113,6 @@ function randomUUID(): string {
   });
 }
 
-function renderStepResult(value: unknown): React.ReactNode {
-  if (value == null) return null;
-  if (Array.isArray(value)) {
-    return (
-      <ul className="list-disc list-inside space-y-1 text-slate-600">
-        {value.map((item, i) => (
-          <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>
-        ))}
-      </ul>
-    );
-  }
-  if (typeof value === "object") {
-    return (
-      <pre className="overflow-x-auto rounded-lg bg-slate-50 p-3 text-sm text-slate-700 whitespace-pre-wrap">
-        {JSON.stringify(value, null, 2)}
-      </pre>
-    );
-  }
-  return <p className="text-slate-600">{String(value)}</p>;
-}
-
 export function HowToApplyWizardModal({
   open,
   onClose,
@@ -156,6 +136,7 @@ export function HowToApplyWizardModal({
   const [canContinue, setCanContinue] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [nextStepLoading, setNextStepLoading] = useState(false);
 
   // Fetch full job when modal opens with jobId
   useEffect(() => {
@@ -228,14 +209,22 @@ export function HowToApplyWizardModal({
           },
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = await res.json();
+      } catch {
+        setWebhookError("Cevap işlenemedi.");
+        setLoading(false);
+        return;
+      }
       if (!res.ok) {
-        const err = data as { error?: string; detail?: string };
+        const err = parsed as { error?: string; detail?: string };
         setWebhookError(err?.detail ? String(err.detail).slice(0, 150) : "Rehber alınamadı. Tekrar deneyin.");
         setLoading(false);
         return;
       }
-      setStepResult(typeof data === "object" && data !== null ? (data as Record<string, unknown>) : { content: data });
+      setStepResult(parsed);
+      if (typeof parsed?.step === "number") setCurrentStep(parsed.step);
       setCanContinue(true);
     } catch {
       setWebhookError("Bağlantı hatası. Tekrar deneyin.");
@@ -243,6 +232,47 @@ export function HowToApplyWizardModal({
       setLoading(false);
     }
   }, [job, derived, accessToken, jobId, sessionId, currentStep]);
+
+  const handleNextStep = useCallback((sessionIdParam: string, nextStep: number) => {
+    if (!job || !derived || !accessToken) return;
+    setWebhookError(null);
+    setNextStepLoading(true);
+    fetch("/api/apply/howto-step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({
+        job_id: jobId,
+        session_id: sessionIdParam,
+        step: nextStep,
+        approved: true,
+        derived: {
+          source_key: derived.source_key,
+          country: derived.country,
+          country_code: derived.country_code,
+        },
+      }),
+    })
+      .then(async (res) => {
+        const parsed = await res.json().catch(() => null);
+        if (!res.ok) {
+          setNextStepLoading(false);
+          const err = parsed && typeof parsed === "object" && "detail" in parsed ? String(parsed.detail).slice(0, 150) : "Sonraki adım alınamadı.";
+          setWebhookError(err);
+          return;
+        }
+        if (parsed && typeof parsed === "object") {
+          setStepResult(parsed as Record<string, unknown>);
+          if (typeof (parsed as { step?: number }).step === "number") setCurrentStep((parsed as { step: number }).step);
+        } else {
+          setWebhookError("İçerik yüklenemedi.");
+        }
+        setNextStepLoading(false);
+      })
+      .catch(() => {
+        setNextStepLoading(false);
+        setWebhookError("Bağlantı hatası. Tekrar deneyin.");
+      });
+  }, [job, derived, accessToken, jobId]);
 
   const handleHayir = useCallback(() => {
     setApproved("no");
@@ -259,9 +289,6 @@ export function HowToApplyWizardModal({
   }, [currentStep]);
 
   if (!open) return null;
-
-  const ctaUrl = (stepResult?.cta as { url?: string })?.url ?? jobSourceUrl ?? null;
-  const ctaLabel = (stepResult?.cta as { label?: string })?.label ?? "İlana Git";
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -346,36 +373,40 @@ export function HowToApplyWizardModal({
                     </>
                   ) : (
                     <>
-                      <div className="space-y-3">
-                        {Object.entries(stepResult).filter(([k]) => k !== "cta").map(([key, value]) => (
-                          <div key={key}>
-                            <h3 className="text-sm font-bold capitalize text-slate-800">
-                              {key.replace(/_/g, " ")}
-                            </h3>
-                            <div className="mt-1">{renderStepResult(value)}</div>
+                      {isGuideResponse(stepResult) ? (
+                        <GuideRendererSafe
+                          data={stepResult}
+                          onNextStep={handleNextStep}
+                          nextStepLoading={nextStepLoading}
+                        />
+                      ) : (
+                        <>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+                            İçerik yüklenemedi.
                           </div>
-                        ))}
-                      </div>
-                      {canContinue && (
-                        <div className="mt-6 flex flex-wrap gap-3">
-                          <button
-                            type="button"
-                            onClick={handleDevam}
-                            className="min-h-[44px] rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
-                          >
-                            Devam
-                          </button>
-                          {ctaUrl && (
-                            <a
-                              href={ctaUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex min-h-[44px] items-center rounded-xl border-2 border-brand-600 px-6 py-2.5 text-sm font-semibold text-brand-600 hover:bg-brand-50"
-                            >
-                              {ctaLabel}
-                            </a>
+                          {webhookError && (
+                            <p className="mt-2 text-sm text-red-600">{webhookError}</p>
                           )}
-                        </div>
+                          <div className="mt-6 flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={handleDevam}
+                              className="min-h-[44px] rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+                            >
+                              Devam
+                            </button>
+                            {jobSourceUrl && (
+                              <a
+                                href={jobSourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex min-h-[44px] items-center rounded-xl border-2 border-brand-600 px-6 py-2.5 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+                              >
+                                İlana Git
+                              </a>
+                            )}
+                          </div>
+                        </>
                       )}
                     </>
                   )}
