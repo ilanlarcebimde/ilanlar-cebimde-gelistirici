@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { FeedPostCard, type FeedPost } from "@/components/kanal/FeedPostCard";
 import { FeedSkeleton } from "@/components/kanal/FeedSkeleton";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { HowToApplyModal, type HowToApplyWebhookResponse } from "@/components/modals/HowToApplyModal";
 
 const FLAG_CDN = "https://flagcdn.com";
 const PAGE_SIZE = 30;
@@ -42,18 +43,22 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [applyToast, setApplyToast] = useState<string | null>(null);
+  const [howToOpen, setHowToOpen] = useState(false);
+  const [howToLoading, setHowToLoading] = useState(false);
+  const [howToData, setHowToData] = useState<HowToApplyWebhookResponse | null>(null);
+  const [howToJobSourceUrl, setHowToJobSourceUrl] = useState<string | null>(null);
 
   const handleHowToApplyClick = useCallback(
-    (post: FeedPost) => {
+    async (post: FeedPost) => {
       console.log("APPLY FLOW", {
         user: !!user,
         subscriptionLoading,
         subscriptionActive,
         postId: post.id,
       });
-      setApplyToast("Kontrol ediliyor…");
-      const clearToast = () => {
-        setTimeout(() => setApplyToast(null), 2000);
+      const clearToast = (msg: string | null, delay = 2000) => {
+        if (msg !== null) setApplyToast(msg);
+        setTimeout(() => setApplyToast(null), delay);
       };
       try {
         if (!user) {
@@ -63,7 +68,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
             // ignore
           }
           router.replace("/giris?next=" + encodeURIComponent("/premium/job-guide/" + post.id));
-          clearToast();
+          clearToast(null);
           return;
         }
         if (!subscriptionLoading && !subscriptionActive) {
@@ -74,19 +79,55 @@ export function KanalFeedClient({ slug }: { slug: string }) {
             // ignore
           }
           setPremiumOpen(true);
-          clearToast();
+          clearToast(null);
           return;
         }
-        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
-        console.log("[KanalFeed] opening panel", target);
-        setTimeout(() => {
-          router.push(target);
-          clearToast();
-        }, 0);
+        setHowToJobSourceUrl(post.source_url ?? null);
+        setHowToData(null);
+        setHowToLoading(true);
+        setHowToOpen(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setApplyToast("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+          setTimeout(() => setApplyToast(null), 3000);
+          return;
+        }
+        try {
+          const res = await fetch("/api/apply/howto", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ job_id: post.id }),
+          });
+          const data = await res.json().catch(() => ({})) as HowToApplyWebhookResponse | { error?: string };
+          if (!res.ok) {
+            const errMsg = (data as { error?: string }).error === "Not found"
+              ? "İlan bulunamadı."
+              : (data as { detail?: string }).detail
+                ? String((data as { detail?: string }).detail).slice(0, 100)
+                : "Rehber alınamadı. Tekrar deneyin.";
+            setHowToOpen(false);
+            setHowToLoading(false);
+            setApplyToast(errMsg);
+            setTimeout(() => setApplyToast(null), 3000);
+            return;
+          }
+          setHowToData(data as HowToApplyWebhookResponse);
+        } catch (err) {
+          console.error("[KanalFeedClient] howto API error", err);
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setApplyToast("Bağlantı hatası. Tekrar deneyin.");
+          setTimeout(() => setApplyToast(null), 3000);
+        } finally {
+          setHowToLoading(false);
+        }
       } catch (err) {
         console.error("[KanalFeedClient] applyGuide error", err);
         setApplyToast("Bir hata oluştu. Tekrar deneyin.");
-        clearToast();
+        setTimeout(() => setApplyToast(null), 2000);
       }
     },
     [user, subscriptionActive, subscriptionLoading, router]
@@ -417,6 +458,19 @@ export function KanalFeedClient({ slug }: { slug: string }) {
         open={premiumOpen}
         onClose={() => { setPremiumOpen(false); setPendingJobId(null); }}
         initialJobId={pendingJobId}
+      />
+
+      <HowToApplyModal
+        open={howToOpen}
+        onClose={() => {
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setHowToData(null);
+          setHowToJobSourceUrl(null);
+        }}
+        loading={howToLoading}
+        data={howToData}
+        jobSourceUrl={howToJobSourceUrl}
       />
 
       {applyToast && (

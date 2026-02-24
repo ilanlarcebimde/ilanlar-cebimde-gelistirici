@@ -8,6 +8,7 @@ import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { ChannelsSidebar } from "@/components/kanallar/ChannelsSidebar";
 import { PanelFeed } from "@/components/kanallar/PanelFeed";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { HowToApplyModal, type HowToApplyWebhookResponse } from "@/components/modals/HowToApplyModal";
 import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 const DEBOUNCE_MS = 300;
@@ -23,6 +24,10 @@ export function YurtdisiPanelClient() {
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [applyToast, setApplyToast] = useState<string | null>(null);
+  const [howToOpen, setHowToOpen] = useState(false);
+  const [howToLoading, setHowToLoading] = useState(false);
+  const [howToData, setHowToData] = useState<HowToApplyWebhookResponse | null>(null);
+  const [howToJobSourceUrl, setHowToJobSourceUrl] = useState<string | null>(null);
   const [subscribedChannels, setSubscribedChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
@@ -31,17 +36,13 @@ export function YurtdisiPanelClient() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleHowToApplyClick = useCallback(
-    (post: FeedPost) => {
+    async (post: FeedPost) => {
       console.log("APPLY FLOW", {
         user: !!user,
         subscriptionLoading,
         subscriptionActive,
         postId: post.id,
       });
-      setApplyToast("Kontrol ediliyor…");
-      const clearToast = () => {
-        setTimeout(() => setApplyToast(null), 2000);
-      };
       try {
         if (!user) {
           try {
@@ -50,7 +51,8 @@ export function YurtdisiPanelClient() {
             // ignore
           }
           router.replace("/giris?next=" + encodeURIComponent("/premium/job-guide/" + post.id));
-          clearToast();
+          setApplyToast("Kontrol ediliyor…");
+          setTimeout(() => setApplyToast(null), 2000);
           return;
         }
         if (!subscriptionLoading && !subscriptionActive) {
@@ -61,19 +63,56 @@ export function YurtdisiPanelClient() {
             // ignore
           }
           setPremiumOpen(true);
-          clearToast();
+          setApplyToast("Kontrol ediliyor…");
+          setTimeout(() => setApplyToast(null), 2000);
           return;
         }
-        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
-        console.log("[YurtdisiPanel] opening panel", target);
-        setTimeout(() => {
-          router.push(target);
-          clearToast();
-        }, 0);
+        setHowToJobSourceUrl(post.source_url ?? null);
+        setHowToData(null);
+        setHowToLoading(true);
+        setHowToOpen(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setApplyToast("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+          setTimeout(() => setApplyToast(null), 3000);
+          return;
+        }
+        try {
+          const res = await fetch("/api/apply/howto", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ job_id: post.id }),
+          });
+          const data = await res.json().catch(() => ({})) as HowToApplyWebhookResponse | { error?: string; detail?: string };
+          if (!res.ok) {
+            const errMsg = data?.error === "Not found"
+              ? "İlan bulunamadı."
+              : data?.detail
+                ? String(data.detail).slice(0, 100)
+                : "Rehber alınamadı. Tekrar deneyin.";
+            setHowToOpen(false);
+            setHowToLoading(false);
+            setApplyToast(errMsg);
+            setTimeout(() => setApplyToast(null), 3000);
+            return;
+          }
+          setHowToData(data as HowToApplyWebhookResponse);
+        } catch (err) {
+          console.error("[YurtdisiPanel] howto API error", err);
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setApplyToast("Bağlantı hatası. Tekrar deneyin.");
+          setTimeout(() => setApplyToast(null), 3000);
+        } finally {
+          setHowToLoading(false);
+        }
       } catch (err) {
         console.error("[YurtdisiPanel] applyGuide error", err);
         setApplyToast("Bir hata oluştu. Tekrar deneyin.");
-        clearToast();
+        setTimeout(() => setApplyToast(null), 2000);
       }
     },
     [user, subscriptionActive, subscriptionLoading, router]
@@ -262,6 +301,19 @@ export function YurtdisiPanelClient() {
         open={premiumOpen}
         onClose={() => { setPremiumOpen(false); setPendingJobId(null); }}
         initialJobId={pendingJobId}
+      />
+
+      <HowToApplyModal
+        open={howToOpen}
+        onClose={() => {
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setHowToData(null);
+          setHowToJobSourceUrl(null);
+        }}
+        loading={howToLoading}
+        data={howToData}
+        jobSourceUrl={howToJobSourceUrl}
       />
 
       {applyToast && (

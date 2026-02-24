@@ -11,6 +11,7 @@ import { PanelFeed } from "@/components/kanallar/PanelFeed";
 import { FeedHeader } from "@/components/FeedHeader";
 import { AuthModal } from "@/components/AuthModal";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
+import { HowToApplyModal, type HowToApplyWebhookResponse } from "@/components/modals/HowToApplyModal";
 import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 const BASE_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
@@ -40,6 +41,10 @@ export function UcretsizPanelClient() {
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [applyToast, setApplyToast] = useState<string | null>(null);
+  const [howToOpen, setHowToOpen] = useState(false);
+  const [howToLoading, setHowToLoading] = useState(false);
+  const [howToData, setHowToData] = useState<HowToApplyWebhookResponse | null>(null);
+  const [howToJobSourceUrl, setHowToJobSourceUrl] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
@@ -48,15 +53,13 @@ export function UcretsizPanelClient() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleHowToApplyClick = useCallback(
-    (post: FeedPost) => {
+    async (post: FeedPost) => {
       console.log("APPLY FLOW", {
         user: !!user,
         subscriptionLoading,
         subscriptionActive,
         postId: post.id,
       });
-      setApplyToast("Kontrol ediliyor…");
-      const clearToast = () => setTimeout(() => setApplyToast(null), 2000);
       try {
         if (!user) {
           setPendingJobId(post.id);
@@ -82,13 +85,48 @@ export function UcretsizPanelClient() {
           setTimeout(() => setApplyToast(null), 3000);
           return;
         }
-        const target = "/premium/job-guide/" + encodeURIComponent(post.id);
-        console.log("[UcretsizPanel] opening panel", target);
-        setApplyToast("Yönlendiriliyor…");
-        setTimeout(() => {
-          router.push(target);
-          setTimeout(() => setApplyToast(null), 2500);
-        }, 0);
+        setHowToJobSourceUrl(post.source_url ?? null);
+        setHowToData(null);
+        setHowToLoading(true);
+        setHowToOpen(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setApplyToast("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+          setTimeout(() => setApplyToast(null), 3000);
+          return;
+        }
+        try {
+          const res = await fetch("/api/apply/howto", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ job_id: post.id }),
+          });
+          const data = await res.json().catch(() => ({})) as HowToApplyWebhookResponse | { error?: string; detail?: string };
+          if (!res.ok) {
+            const errMsg = data?.error === "Not found"
+              ? "İlan bulunamadı."
+              : data?.detail
+                ? String(data.detail).slice(0, 100)
+                : "Rehber alınamadı. Tekrar deneyin.";
+            setHowToOpen(false);
+            setHowToLoading(false);
+            setApplyToast(errMsg);
+            setTimeout(() => setApplyToast(null), 3000);
+            return;
+          }
+          setHowToData(data as HowToApplyWebhookResponse);
+        } catch (err) {
+          console.error("[UcretsizPanel] howto API error", err);
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setApplyToast("Bağlantı hatası. Tekrar deneyin.");
+          setTimeout(() => setApplyToast(null), 3000);
+        } finally {
+          setHowToLoading(false);
+        }
       } catch (err) {
         console.error("[UcretsizPanel] applyGuide error", err);
         setApplyToast("Bir hata oluştu. Tekrar deneyin.");
@@ -313,6 +351,19 @@ export function UcretsizPanelClient() {
           initialJobId={pendingJobId}
         />
       </AnimatePresence>
+
+      <HowToApplyModal
+        open={howToOpen}
+        onClose={() => {
+          setHowToOpen(false);
+          setHowToLoading(false);
+          setHowToData(null);
+          setHowToJobSourceUrl(null);
+        }}
+        loading={howToLoading}
+        data={howToData}
+        jobSourceUrl={howToJobSourceUrl}
+      />
 
       {applyToast && (
         <div className="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg">
