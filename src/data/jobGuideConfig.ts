@@ -82,11 +82,45 @@ const CHOICES = {
   ],
 } as const;
 
+/** Katman A — Hizmet seçimi (tek soru, çoklu seçim). answers_json.services_selected → expandServicesSelected ile 7× Evet/Hayır. */
+export const SERVICE_CHOICES = [
+  "Adım adım başvuru rehberi",
+  "Gerekli belgeler listesi",
+  "Çalışma izni ve vize süreci",
+  "Net maaş ve yaşam gider hesabı",
+  "Risk değerlendirmesi",
+  "Sana özel uygunluk analizi",
+  "1 haftalık başvuru planı",
+] as const;
+
+/** services_selected (string[]) → service_* Evet/Hayır alanları. Chat route'da last_ask_id === "service_pick" sonrası çağrılır. */
+export function expandServicesSelected(answers: Record<string, unknown>): Record<string, string> {
+  const s = new Set((answers.services_selected as string[] | undefined) || []);
+  return {
+    service_apply_guide: s.has("Adım adım başvuru rehberi") ? "Evet" : "Hayır",
+    service_documents: s.has("Gerekli belgeler listesi") ? "Evet" : "Hayır",
+    service_work_permit_visa: s.has("Çalışma izni ve vize süreci") ? "Evet" : "Hayır",
+    service_salary_life_calc: s.has("Net maaş ve yaşam gider hesabı") ? "Evet" : "Hayır",
+    service_risk_assessment: s.has("Risk değerlendirmesi") ? "Evet" : "Hayır",
+    service_fit_analysis: s.has("Sana özel uygunluk analizi") ? "Evet" : "Hayır",
+    service_one_week_plan: s.has("1 haftalık başvuru planı") ? "Evet" : "Hayır",
+  };
+}
+
 export const QUESTION_FLOW = {
   /** Varsayılan kaynak için GLASSDOOR akışı kullanılır. */
   COMMON: [] as FlowStep[],
 
   EURES: [
+    {
+      id: "service_pick",
+      checklistLabel: "Hizmetleri seçtim",
+      text: "Hangi konularda yardım isteyiyorsun? (Birden fazla seçebilirsin)",
+      choices: [...SERVICE_CHOICES],
+      input: { type: "multiselect" },
+      answerKey: "services_selected",
+      doneRule: { type: "minSelected", answerKey: "services_selected", value: 1 },
+    },
     {
       id: "found_apply_section",
       checklistLabel: "Başvuru bölümünü buldum",
@@ -105,7 +139,7 @@ export const QUESTION_FLOW = {
       doneRule: { type: "notEmpty", answerKey: "apply_method" },
     },
     {
-      id: "has_eu_login",
+      id: "needs_eu_login",
       checklistLabel: "Giriş gereksinimini kontrol ettim",
       text: "Başvuru için EU Login / EURES hesabı istiyor mu?",
       choices: [...CHOICES.yesNoMaybe],
@@ -180,6 +214,15 @@ export const QUESTION_FLOW = {
   ] as FlowStep[],
 
   GLASSDOOR: [
+    {
+      id: "service_pick",
+      checklistLabel: "Hizmetleri seçtim",
+      text: "Hangi konularda yardım isteyiyorsun? (Birden fazla seçebilirsin)",
+      choices: [...SERVICE_CHOICES],
+      input: { type: "multiselect" },
+      answerKey: "services_selected",
+      doneRule: { type: "minSelected", answerKey: "services_selected", value: 1 },
+    },
     {
       id: "found_apply_section",
       checklistLabel: "Apply alanını kontrol ettim",

@@ -5,10 +5,12 @@ import {
   getStepDisplay,
   getProgressFromConfig,
   getStepById,
+  expandServicesSelected,
   type FlowStep,
   type FlowInput,
   QUICK_GUIDE_TEMPLATES,
 } from "@/data/jobGuideConfig";
+import { buildDeterministicGuide, getBootstrapMessage } from "@/lib/job-guide/deterministicGuide";
 import {
   buildChecklist,
   getMissingTop,
@@ -114,6 +116,7 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     if (String(value).trim() === "Gördüm") return "Güzel, başvuru alanını gördün.";
     if (String(value).trim() === "Göremedim") return "Tamam. Ekrandaki başlıkları yazacağın soruyla devam edelim.";
   }
+  if (askId === "service_pick") return "Tamam, seçtiğin konulara göre rehberi hazırlıyorum.";
   if (askId === "visible_headings_text" || askId === "screen_headings" || askId === "apply_section_location") return "Tamam, not ettim. Buna göre yönlendireceğiz.";
   if (askId === "cv_status") {
     const val = String(value).trim();
@@ -444,7 +447,10 @@ export async function POST(req: NextRequest) {
     const rawUserText = (typeof message_text === "string" ? message_text : typeof user_message === "string" ? user_message : "").trim();
     console.log("[job-guide/chat] body", { hasMessage: !!rawUserText, jobGuideId, jobPostId, mode: body.mode, isBootstrap });
     const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
-    const mergedAnswers = { ...answers_json, ...normalizedPatch };
+    let mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
+    if (last_ask_id === "service_pick") {
+      mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) };
+    }
 
     const { data: guide } = await auth.supabase
       .from("job_guides")
@@ -494,15 +500,16 @@ export async function POST(req: NextRequest) {
 
     const quickGuideText = getQuickGuideText(sourceKey);
     if (isBootstrap) {
-      // İlk mesajda sohbet balonunda Hızlı Rehber metni yok; sadece panelde gösterilir. Kullanıcı "Devam" ile ilk soruyu başlatır.
-      const bootstrapMessage = "Merhaba. Hızlı Rehber yukarıdaki panelde. Devam etmek için aşağıdaki butona tıklayın.";
+      // İlk mesaj: 1 kez selam + kaynak + başvuru adımları. greeting_shown ile sonraki turlarda selam tekrarlanmaz.
+      const bootstrapMessage = getBootstrapMessage(sourceKey);
+      const bootstrapAnswers = { ...mergedAnswers, greeting_shown: true } as Record<string, unknown>;
       const assistant = {
         message_md: bootstrapMessage,
         quick_replies: [] as string[],
         ask: undefined as { id: string; question: string; type: "choice" | "textarea"; choices?: string[]; input?: unknown } | undefined,
       };
       const state_patch = {
-        answers_patch: {},
+        answers_patch: { greeting_shown: true } as Record<string, unknown>,
         checklist_patch: [],
         progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
       };
@@ -513,14 +520,14 @@ export async function POST(req: NextRequest) {
         report_json: guide?.report_json ?? {},
         report_md: null,
         checklist_snapshot: checklistSnapshot,
-        answers_json: mergedAnswers,
+        answers_json: bootstrapAnswers,
         assistant,
         state_patch,
         next: { should_finalize: false, reason: "" },
       });
     }
 
-    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise Gemini çağrılmadan ilk soru döndürülür.
+    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise ilk soru (service_pick) döndürülür. greeting_shown= true patchlenir.
     const isContinueStart = (!rawUserText || rawUserText.trim() === "" || rawUserText.trim().toLowerCase() === "__continue__") && Object.keys(mergedAnswers as object).length === 0;
     if (isContinueStart) {
       const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
@@ -528,16 +535,18 @@ export async function POST(req: NextRequest) {
         const firstQuestion = getQuestionTextAndChoices(nextStep);
         const askId = nextStep.id;
         const nextQuestionPayload = { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input };
+        const continueMessage = getBootstrapMessage(sourceKey);
+        const continueAnswers = { ...mergedAnswers, greeting_shown: true } as Record<string, unknown>;
         return NextResponse.json({
-          assistant_message: "İlk soruyla devam ediyoruz.",
+          assistant_message: continueMessage,
           next_question: nextQuestionPayload,
           quick_guide_text: quickGuideText,
           report_json: guide?.report_json ?? {},
           report_md: null,
           checklist_snapshot: checklistSnapshot,
-          answers_json: mergedAnswers,
+          answers_json: continueAnswers,
           assistant: {
-            message_md: "İlk soruyla devam ediyoruz.",
+            message_md: continueMessage,
             quick_replies: firstQuestion.choices ?? [],
             ask: {
               id: askId,
@@ -547,7 +556,11 @@ export async function POST(req: NextRequest) {
               input: firstQuestion.input,
             },
           },
-          state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
+          state_patch: {
+            answers_patch: { greeting_shown: true } as Record<string, unknown>,
+            checklist_patch: [],
+            progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
+          },
           next: { should_finalize: false, reason: "" },
         });
       }
@@ -608,6 +621,12 @@ export async function POST(req: NextRequest) {
       });
     }
     const currentStepId = nextStep.id;
+
+    // SERVICES_GATE: Deterministik rehber (EURES/Glassdoor şablonu + seçili hizmetler). LLM opsiyonel.
+    const useDeterministicGuide = true;
+    let assistantMessage = useDeterministicGuide
+      ? buildDeterministicGuide(jobPost as { source_name?: string | null; location_text?: string | null }, mergedAnswers, nextStep, sourceKey)
+      : "";
 
     // RAG / Grounding: ilan sayfası + resmî vize (Supabase whitelist öncelikli, yoksa in-memory fallback)
     const sourceUrl = typeof jobPost.source_url === "string" ? jobPost.source_url : "";
@@ -701,34 +720,7 @@ export async function POST(req: NextRequest) {
     const confirmationMsg = last_ask_id && normalizedPatch && Object.keys(normalizedPatch).length > 0
       ? getConfirmationMessage(last_ask_id, lastAnswerValue)
       : null;
-    const system = buildGeminiSystemPrompt();
 
-    const userPrompt = buildGeminiUserPrompt({
-      jobPost: jobPost as Record<string, unknown>,
-      answersJson: mergedAnswers as Record<string, unknown>,
-      messageText: rawUserText,
-      currentStepId,
-      jobContent,
-      groundingContext,
-      live: liveItems,
-      cvUpsellUrl: "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi",
-      cvDiscountCode: "CV79",
-    });
-
-    console.log("[job-guide/chat] calling Gemini", { liveCount: liveItems.length });
-    let rawText: string;
-    try {
-      rawText = await callGeminiJson({
-        system,
-        user: userPrompt,
-        timeoutMs: 25000,
-        maxOutputTokens: 1600,
-      });
-      console.log("[job-guide/chat] gemini ok", { len: rawText?.length ?? 0 });
-    } catch (geminiErr) {
-      console.error("[job-guide/chat] gemini fail", geminiErr);
-      throw geminiErr;
-    }
     type ParsedShape = {
       assistant_message?: string;
       micro_tips?: string[];
@@ -744,45 +736,75 @@ export async function POST(req: NextRequest) {
       flags?: { should_offer_cv_package?: boolean; needs_official_source?: boolean; final_ready?: boolean };
     };
     let parsed: ParsedShape;
-    try {
-      parsed = extractJsonStrict<ParsedShape>(rawText);
-    } catch (parseErr) {
-      console.error("[job-guide/chat] parse fail", parseErr);
-      const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
-      try {
-        await auth.supabase.from("job_guide_events").insert({
-          job_guide_id: jobGuideId,
-          type: "error",
-          content: JSON.stringify({ error: "JSON_PARSE_FAILED", snippet: errSnippet }),
-        });
-      } catch {
-        /* ignore */
-      }
-      const fallbackMessage = "Şu an AI yanıtını işleyemedim. Yine de devam edelim.";
-      const stepForFallback = getStepById(currentStepId);
-      const serverNext = stepForFallback ? getQuestionTextAndChoices(stepForFallback) : { text: "Adımlar tamamlandı.", choices: [] as string[] };
-      const fallbackQuestion = { id: currentStepId, text: serverNext.text, choices: serverNext.choices, input: serverNext.input };
-      const fallbackAssistant = {
-        message_md: fallbackMessage,
-        quick_replies: serverNext.choices ?? [],
-        ask: { id: currentStepId, question: fallbackQuestion.text, type: (serverNext.input ? "textarea" : "choice") as "choice" | "textarea", choices: fallbackQuestion.choices, input: serverNext.input },
-      };
-      return NextResponse.json({
-        assistant_message: fallbackMessage,
-        next_question: fallbackQuestion,
-        report_json: {},
-        report_md: null,
-        checklist_snapshot: checklistSnapshot,
-        answers_json: mergedAnswers,
-        assistant: fallbackAssistant,
-        state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
-        next: { should_finalize: false, reason: "" },
-      });
-    }
 
-    let assistantMessage = extractAssistantMessage(parsed as Record<string, unknown>, rawText);
-    if (!assistantMessage.trim()) {
-      assistantMessage = "Kısa bir yanıt geldi; devam edelim.";
+    if (!useDeterministicGuide) {
+      const system = buildGeminiSystemPrompt();
+      const userPrompt = buildGeminiUserPrompt({
+        jobPost: jobPost as Record<string, unknown>,
+        answersJson: mergedAnswers as Record<string, unknown>,
+        messageText: rawUserText,
+        currentStepId,
+        jobContent,
+        groundingContext,
+        live: liveItems,
+        cvUpsellUrl: "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi",
+        cvDiscountCode: "CV79",
+      });
+      console.log("[job-guide/chat] calling Gemini", { liveCount: liveItems.length });
+      let rawText: string;
+      try {
+        rawText = await callGeminiJson({
+          system,
+          user: userPrompt,
+          timeoutMs: 25000,
+          maxOutputTokens: 1600,
+        });
+        console.log("[job-guide/chat] gemini ok", { len: rawText?.length ?? 0 });
+      } catch (geminiErr) {
+        console.error("[job-guide/chat] gemini fail", geminiErr);
+        throw geminiErr;
+      }
+      try {
+        parsed = extractJsonStrict<ParsedShape>(rawText);
+      } catch (parseErr) {
+        console.error("[job-guide/chat] parse fail", parseErr);
+        const errSnippet = typeof rawText === "string" ? rawText.slice(0, 400) : "";
+        try {
+          await auth.supabase.from("job_guide_events").insert({
+            job_guide_id: jobGuideId,
+            type: "error",
+            content: JSON.stringify({ error: "JSON_PARSE_FAILED", snippet: errSnippet }),
+          });
+        } catch {
+          /* ignore */
+        }
+        const fallbackMessage = "Şu an AI yanıtını işleyemedim. Yine de devam edelim.";
+        const stepForFallback = getStepById(currentStepId);
+        const serverNext = stepForFallback ? getQuestionTextAndChoices(stepForFallback) : { text: "Adımlar tamamlandı.", choices: [] as string[] };
+        const fallbackQuestion = { id: currentStepId, text: serverNext.text, choices: serverNext.choices, input: serverNext.input };
+        const fallbackAssistant = {
+          message_md: fallbackMessage,
+          quick_replies: serverNext.choices ?? [],
+          ask: { id: currentStepId, question: fallbackQuestion.text, type: (serverNext.input ? "textarea" : "choice") as "choice" | "textarea", choices: fallbackQuestion.choices, input: serverNext.input },
+        };
+        return NextResponse.json({
+          assistant_message: fallbackMessage,
+          next_question: fallbackQuestion,
+          report_json: {},
+          report_md: null,
+          checklist_snapshot: checklistSnapshot,
+          answers_json: mergedAnswers,
+          assistant: fallbackAssistant,
+          state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
+          next: { should_finalize: false, reason: "" },
+        });
+      }
+      assistantMessage = extractAssistantMessage(parsed as Record<string, unknown>, rawText);
+      if (!assistantMessage.trim()) {
+        assistantMessage = "Kısa bir yanıt geldi; devam edelim.";
+      }
+    } else {
+      parsed = {};
     }
     const { cleaned: redactedMessage, hadForbidden } = redactForbiddenPhrases(assistantMessage);
     if (hadForbidden) assistantMessage = redactedMessage;
@@ -812,6 +834,31 @@ export async function POST(req: NextRequest) {
       const cta = `CV hazır değilse buradan 24 saat içinde hazırlatabilirsin.\n${link}\nİndirim kodu: CV79`;
       assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n" + cta : cta;
       (mergedAnswers as Record<string, unknown>).promo_cv_shown = true;
+    }
+    // Vize/çalışma izni CTA: AB hedef + AB/AEA vatandaşı değil + hizmet seçildi → tek seferlik
+    const wantsVisaHelp = mergedAnswers.service_work_permit_visa === "Evet";
+    const notEUCitizen = mergedAnswers.is_eu_eea_citizen === "Hayır" || !mergedAnswers.is_eu_eea_citizen;
+    const promoVisaAlreadyShown = mergedAnswers.promo_visa_shown === true;
+    const isEuCountry = country && /almanya|belçika|hollanda|avusturya|irlanda|polonya|fransa|italya|isveç|finlandiya|danimarka|norveç|avrupa|eu\b|eea/i.test(country);
+    const shouldInjectVisaCta = wantsVisaHelp && notEUCitizen && isEuCountry && !promoVisaAlreadyShown
+      && (last_ask_id === "has_passport" || last_ask_id === "is_eu_eea_citizen");
+    if (shouldInjectVisaCta) {
+      const visaNote = visaContextError
+        ? "Resmi kaynak verisi bu oturumda alınamadı. Çalışma izni/vize için ilandaki \"How to apply\" koşullarına ve hedef ülke resmi sitesine bakın."
+        : "Çalışma izni ve vize sürecini seçtin; yukarıdaki rehberde resmi kaynak varsa ona göre ilerleyeceğiz.";
+      assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n" + visaNote : visaNote;
+      (mergedAnswers as Record<string, unknown>).promo_visa_shown = true;
+    }
+    // Maaş/yaşam gideri CTA: hizmet seçildi ama canlı veri yok → tek seferlik
+    const wantsSalaryHelp = mergedAnswers.service_salary_life_calc === "Evet";
+    const promoSalaryAlreadyShown = mergedAnswers.promo_salary_shown === true;
+    const hasLiveSalary = liveItems.some((x) => x.kind === "salary" && !x.blocked);
+    const shouldInjectSalaryCta = wantsSalaryHelp && !hasLiveSalary && !promoSalaryAlreadyShown
+      && (last_ask_id === "service_pick" || last_ask_id === "cv_ready" || last_ask_id === "language_level");
+    if (shouldInjectSalaryCta) {
+      const salaryNote = "Net maaş ve yaşam gideri için resmi kaynak verisi bu oturumda alınamadı. Yaklaşık hesap yapmıyoruz; ilan metninde maaş varsa ona bakın.";
+      assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n📌 " + salaryNote : "📌 " + salaryNote;
+      (mergedAnswers as Record<string, unknown>).promo_salary_shown = true;
     }
     if (confirmationMsg) {
       assistantMessage = confirmationMsg + "\n\n" + assistantMessage;
@@ -938,7 +985,13 @@ export async function POST(req: NextRequest) {
       },
     };
     const state_patch = {
-      answers_patch: shouldInjectCvCta ? { promo_cv_shown: true } as Record<string, unknown> : {} as Record<string, unknown>,
+      answers_patch: (() => {
+        const patch: Record<string, unknown> = {};
+        if (shouldInjectCvCta) patch.promo_cv_shown = true;
+        if (shouldInjectVisaCta) patch.promo_visa_shown = true;
+        if (shouldInjectSalaryCta) patch.promo_salary_shown = true;
+        return patch;
+      })(),
       checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
       progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
     };
