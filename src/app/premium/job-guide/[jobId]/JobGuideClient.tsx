@@ -5,16 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { ReportViewer, type ReportJson } from "@/components/premium/ReportViewer";
 import type { JobSummary } from "@/components/premium/JobSummaryCard";
-import {
-  buildChecklist,
-  calcProgress,
-  answersFromJson,
-  getMissingTop,
-  getProgressFromSevenQuestions,
-  type Answers,
-  type ChecklistModule,
-} from "./checklistRules";
-import { getChecklistFromFlow } from "@/data/jobGuideConfig";
+import { answersFromJson, type Answers } from "./checklistRules";
 
 type JobGuide = {
   id: string;
@@ -127,7 +118,7 @@ function LoadingShell() {
   );
 }
 
-type MobileTab = "sohbet" | "checklist" | "report";
+type MobileTab = "sohbet" | "report";
 
 export function JobGuideClient({ jobId }: { jobId: string }) {
   const [job, setJob] = useState<JobSummary | null>(null);
@@ -140,7 +131,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
   const [lastAskId, setLastAskId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [report, setReport] = useState<ReportJson | null>(null);
-  const [checklistSnapshot, setChecklistSnapshot] = useState<{ total: number; done: number; percent: number; missing_top3?: string[] } | null>(null);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
   const [reportDrawerOpen, setReportDrawerOpen] = useState(false);
@@ -172,7 +162,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     setLastAskId(null);
     setAnswers({});
     setReport(null);
-    setChecklistSnapshot(null);
     let cancelled = false;
     const trimmedId = String(jobId).trim();
     if (!trimmedId) {
@@ -401,11 +390,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setInlineTextareaValue("");
         setInlineMultiSelected([]);
         if (d.report_json) setReport(d.report_json);
-        if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
-        else {
-          const prog = d.state_patch?.progress;
-          if (prog) setChecklistSnapshot({ total: prog.total ?? 0, done: prog.done ?? 0, percent: prog.percent ?? 0 });
-        }
         if (d.answers_json) {
           setGuide((g) => (g ? { ...g, answers_json: d.answers_json! } : null));
           setAnswers(answersFromJson(d.answers_json));
@@ -529,11 +513,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setInlineMultiSelected([]);
         if (d.report_json) setReport(d.report_json);
         if (d.next?.should_finalize) setReportDrawerOpen(true);
-        if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
-        else {
-          const prog = d.state_patch?.progress;
-          if (prog) setChecklistSnapshot({ total: prog.total ?? 0, done: prog.done ?? 0, percent: prog.percent ?? 0 });
-        }
         if (d.answers_json) {
           setGuide((g) => (g ? { ...g, answers_json: d.answers_json! } : null));
           setAnswers(answersFromJson(d.answers_json));
@@ -567,48 +546,22 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     messagesBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const jobForChecklist = useMemo(
-    () => (job ? { id: job.id, title: job.title, location_text: job.location_text, source_name: job.source_name, source_url: job.source_url, snippet: (job as { snippet?: string }).snippet } : null),
-    [job]
-  );
-  const sourceForFlow = useMemo(() => {
-    const name = (job?.source_name ?? "").toLowerCase();
-    if (name.includes("eures")) return "eures" as const;
-    return "glassdoor" as const;
-  }, [job?.source_name]);
-  const currentStepIdForChecklist = nextQuestion?.id ?? (messages.length === 0 ? "__first__" : undefined);
-  const flowChecklist = useMemo(
-    () => (job && guide
-      ? getChecklistFromFlow(
-          (guide.answers_json ?? {}) as Record<string, unknown>,
-          sourceForFlow,
-          currentStepIdForChecklist
-        )
-      : []),
-    [job, guide, guide?.answers_json, sourceForFlow, currentStepIdForChecklist]
-  );
-  const modules = useMemo(
-    () => (flowChecklist.length > 0 && flowChecklist[0].items.length > 0 ? flowChecklist : buildChecklist(jobForChecklist, answers)),
-    [flowChecklist, jobForChecklist, answers]
-  );
-  const progressFrom7 = useMemo(() => getProgressFromSevenQuestions(answers), [answers]);
-  const progress = useMemo(() => calcProgress(modules), [modules]);
-  const missingTop3 = useMemo(() => getMissingTop(modules, 3), [modules]);
-  const progressPercent = checklistSnapshot?.percent ?? progressFrom7.pct;
-  const missingLabels = checklistSnapshot?.missing_top3 ?? missingTop3;
-
   const handleUpdateReport = useCallback(async () => {
     if (!guide || !jobId) return;
     const token = await getSession();
     if (!token) return;
     setReportUpdateError(null);
     setReportUpdating(true);
-    const snapshot = { total: progress.total, done: progress.done, percent: progress.pct, missing_top5: getMissingTop(modules, 5) };
     try {
       const res = await fetch("/api/job-guide/update", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ jobGuideId: guide.id, jobPostId: jobId, answers_json: answers, checklist_snapshot: snapshot }),
+        body: JSON.stringify({
+          jobGuideId: guide.id,
+          jobPostId: jobId,
+          answers_json: answers,
+          checklist_snapshot: { total: 0, done: 0, percent: 0, missing_top5: [] },
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -622,7 +575,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     } finally {
       setReportUpdating(false);
     }
-  }, [guide, jobId, getSession, answers, progress, modules]);
+  }, [guide, jobId, getSession, answers]);
 
   const handleSaveReport = useCallback(() => {
     if (!guide) return;
@@ -646,7 +599,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-50">
-      {/* Üst: İlan özeti + ilerleme (tüm ekranlar) */}
+      {/* Üst: İlan özeti */}
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur shrink-0">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -657,22 +610,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
             {sourceLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{sourceLabel}</span>}
             {locationLabel && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{locationLabel}</span>}
           </div>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%`, background: "linear-gradient(90deg, #0ea5e9 0%, #22c55e 100%)" }}
-              />
-            </div>
-            <span className="text-sm font-medium text-slate-700 shrink-0">%{progressPercent}</span>
-          </div>
-          {/* Hızlı Özet: 2 satır — kaynak rehberi + sonraki soru; "Şu an" ilk eksik adım */}
-          <div className="mt-2 text-xs text-slate-600 space-y-0.5">
-            <p className="font-medium text-slate-700">Hızlı Özet</p>
-            <p>{sourceLabel ? `Bu ilan ${sourceLabel} üzerinden. İlana Git → sayfayı gerekirse Türkçeye çevir.` : "Bu ilan için başvuru rehberi."}</p>
-            {missingLabels.length > 0 && <p>Şu an: {missingLabels[0]}</p>}
-            {nextQuestion?.text && <p className="pt-0.5">Soru: {nextQuestion.text} {nextQuestion.choices?.length ? `(${nextQuestion.choices.slice(0, 3).join(" / ")})` : ""}</p>}
-          </div>
+          {sourceLabel && (
+            <p className="mt-2 text-xs text-slate-600">{sourceLabel} üzerinden. İlana Git ile sayfayı açıp gerekirse Türkçeye çevirin.</p>
+          )}
         </div>
 
         {/* Mobil: Tab bar */}
@@ -686,13 +626,6 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           </button>
           <button
             type="button"
-            onClick={() => setMobileTab("checklist")}
-            className={`flex-1 py-3 text-sm font-medium ${mobileTab === "checklist" ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50" : "text-slate-600"}`}
-          >
-            Kontrol Listesi
-          </button>
-          <button
-            type="button"
             onClick={() => setMobileTab("report")}
             className={`flex-1 py-3 text-sm font-medium ${mobileTab === "report" ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50" : "text-slate-600"}`}
           >
@@ -701,63 +634,9 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         </div>
       </header>
 
-      {/* Desktop: 3 kolon | Mobil: tek içerik (tab'a göre). overflow-hidden ile yükseklik sınırlanır, input kaybolmaz. */}
+      {/* Desktop: 2 kolon (sohbet + Bu ilan) | Mobil: tab (sohbet / yapılacaklar) */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Sol: Kontrol Listesi (sadece desktop) */}
-        <aside className="w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto hidden md:block">
-          <div className="p-4">
-            <h2 className="text-sm font-bold text-slate-900 mb-3">Kontrol Listesi</h2>
-            {job.source_url && (
-              <a href={job.source_url} target="_blank" rel="noreferrer" className="block rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 text-center mb-4">
-                İlana Git
-              </a>
-            )}
-            {modules.map((m) => (
-              <div key={m.id} className="mb-3 rounded-xl border border-slate-200 p-3">
-                <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                  <span>{m.icon}</span> {m.title}
-                </p>
-                <ul className="mt-1.5 space-y-1">
-                  {m.items.map((it) => (
-                    <li key={it.id} className="flex items-center justify-between text-xs">
-                      <span className={it.done ? "text-slate-400 line-through" : "text-slate-700"}>{it.label}</span>
-                      <span className={it.done ? "text-green-600" : "text-slate-300"}>✔</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </aside>
-
-        {/* Mobil checklist tab içeriği */}
-        {mobileTab === "checklist" && (
-          <div className="md:hidden flex-1 overflow-y-auto bg-white p-4">
-            <h2 className="text-base font-bold text-slate-900 mb-3">Kontrol Listesi</h2>
-            {job.source_url && (
-              <a href={job.source_url} target="_blank" rel="noreferrer" className="block rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 text-center mb-4">
-                İlana Git
-              </a>
-            )}
-            {modules.map((m) => (
-              <div key={m.id} className="mb-4 rounded-xl border border-slate-200 p-4">
-                <p className="font-bold text-slate-900 flex items-center gap-2">
-                  <span>{m.icon}</span> {m.title}
-                </p>
-                <ul className="mt-2 space-y-2">
-                  {m.items.map((it) => (
-                    <li key={it.id} className="flex items-center justify-between text-sm">
-                      <span className={it.done ? "text-slate-500 line-through" : "text-slate-800"}>{it.label}</span>
-                      <span className={it.done ? "text-green-600" : "text-slate-300"}>✔</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Orta: Sohbet — flex-col + min-h-0 ile input her zaman altta (sticky bottom). Boşken placeholder göster. */}
+        {/* Sohbet — flex-col + min-h-0 ile input her zaman altta (sticky bottom). Boşken placeholder göster. */}
         <section className="flex-1 min-w-0 min-h-0 hidden md:flex md:flex-col md:overflow-hidden border-r border-slate-200 bg-slate-50/50">
           <div className="flex-1 min-h-0 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-4">
