@@ -1,12 +1,12 @@
 "use client";
 
-// ——— TypeScript tipleri ———
-
-export type GuideBlock =
-  | { type: "bullets"; heading: string; items: string[] | null }
-  | { type: "text"; heading: string; text: string | null }
-  | { type: "table"; heading: string; rows: { k: string; v: string }[] | null }
-  | { type: "template"; heading: string; text: string | null };
+export type GuideBlock = {
+  type: "bullets" | "text" | "table" | "template";
+  heading: string;
+  items: string[] | null;
+  text: string | null;
+  rows: { k: string; v: string }[] | null;
+};
 
 export type GuideResponse = {
   session_id: string;
@@ -29,14 +29,10 @@ export function isGuideResponse(data: unknown): data is GuideResponse {
   );
 }
 
-// ——— Blok render (ham JSON asla gösterilmez) ———
-
-function BlockBullets({ block }: { block: { heading: string; items: string[] | null } }) {
+function BlockBullets({ block }: { block: GuideBlock }) {
   return (
     <section className="space-y-2">
-      {block.heading ? (
-        <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
-      ) : null}
+      <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
       <ul className="list-inside space-y-1 text-slate-600" style={{ listStyleType: "disc" }}>
         {(block.items ?? []).map((item, i) => (
           <li key={i}>{item}</li>
@@ -46,34 +42,26 @@ function BlockBullets({ block }: { block: { heading: string; items: string[] | n
   );
 }
 
-function BlockText({ block }: { block: { heading: string; text: string | null } }) {
+function BlockText({ block }: { block: GuideBlock }) {
   return (
     <section className="space-y-2">
-      {block.heading ? (
-        <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
-      ) : null}
-      {block.text ? (
-        <p className="text-slate-600 whitespace-pre-wrap">{block.text}</p>
-      ) : null}
+      <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
+      <p className="text-slate-600 whitespace-pre-wrap">{block.text ?? ""}</p>
     </section>
   );
 }
 
-function BlockTable({ block }: { block: { heading: string; rows: { k: string; v: string }[] | null } }) {
+function BlockTable({ block }: { block: GuideBlock }) {
   return (
     <section className="space-y-2">
-      {block.heading ? (
-        <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
-      ) : null}
+      <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
       {block.rows && block.rows.length > 0 ? (
         <div className="overflow-hidden rounded-lg border border-slate-200">
           <table className="min-w-full text-sm">
             <tbody>
               {block.rows.map((row, i) => (
                 <tr key={i} className="border-b border-slate-100 last:border-0">
-                  <td className="bg-slate-50 px-4 py-2 font-medium text-slate-700 align-top w-[40%]">
-                    {row.k}
-                  </td>
+                  <td className="bg-slate-50 px-4 py-2 font-medium text-slate-700 align-top w-[40%]">{row.k}</td>
                   <td className="px-4 py-2 text-slate-600">{row.v}</td>
                 </tr>
               ))}
@@ -85,17 +73,13 @@ function BlockTable({ block }: { block: { heading: string; rows: { k: string; v:
   );
 }
 
-function BlockTemplate({ block }: { block: { heading: string; text: string | null } }) {
+function BlockTemplate({ block }: { block: GuideBlock }) {
   return (
     <section className="space-y-2">
-      {block.heading ? (
-        <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
-      ) : null}
-      {block.text ? (
-        <pre className="overflow-x-auto rounded-lg bg-slate-100 p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono">
-          {block.text}
-        </pre>
-      ) : null}
+      <h3 className="text-sm font-bold text-slate-800">{block.heading}</h3>
+      <pre className="overflow-x-auto rounded-lg bg-slate-100 p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono">
+        {block.text ?? ""}
+      </pre>
     </section>
   );
 }
@@ -193,7 +177,7 @@ export function GuideRenderer({ data, onNextStep, nextStepLoading = false }: Gui
   );
 }
 
-/** Ham JSON göstermeden güvenli render: GuideResponse ise GuideRenderer, değilse fallback mesajı */
+/** GuideResponse ise GuideRenderer; değilse aynı card stiliyle "İçerik yüklenemedi." */
 export function GuideRendererSafe({
   data,
   onNextStep,
@@ -214,7 +198,7 @@ export function GuideRendererSafe({
   }
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+      <div className="bg-white rounded-2xl shadow-md p-6 space-y-6 text-center text-slate-600">
         İçerik yüklenemedi.
       </div>
     </div>
