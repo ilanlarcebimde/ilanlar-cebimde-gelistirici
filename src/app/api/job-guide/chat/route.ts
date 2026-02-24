@@ -115,7 +115,7 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     if (String(value).trim() === "Gördüm") return "Güzel, başvuru alanını gördün.";
     if (String(value).trim() === "Göremedim") return "Tamam. Ekrandaki başlıkları yazacağın soruyla devam edelim.";
   }
-  if (askId === "visible_headings_text") return "Tamam, başlıkları not ettim. Buna göre yönlendireceğiz.";
+  if (askId === "visible_headings_text" || askId === "screen_headings") return "Tamam, not ettim. Buna göre yönlendireceğiz.";
   if (askId === "cv_status") {
     const val = String(value).trim();
     if (val === "PDF hazır") return "PDF hazır, iyi. Başvuruda ekleyeceğiz.";
@@ -232,8 +232,14 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
         const valid = selected.filter((s) => docOpts.some((o) => o === s || o.includes(s) || s.includes(o)));
         if (valid.length > 0) (patch as Record<string, unknown>).proof_docs = valid.length === 1 ? valid : valid;
         else if (docOpts.some((o) => t === o || t.includes(o))) (patch as Record<string, unknown>).proof_docs = [t.trim()];
-      } else if (step.answerKey === "screen_headings" && t.length >= 3) {
-        (patch as Record<string, unknown>).screen_headings = t;
+      } else if (step.answerKey === "screen_headings") {
+        if (/sağ\s*tarafta|sag\s*tarafta/.test(t)) (patch as Record<string, unknown>).screen_headings = "Sağ tarafta";
+        else if (/alt\s*bölümde|alt\s*bolumde/.test(t)) (patch as Record<string, unknown>).screen_headings = "Alt bölümde";
+        else if (/^yok$/i.test(t)) (patch as Record<string, unknown>).screen_headings = "Yok";
+        else {
+          const trimmed = text.trim();
+          if (["Sağ tarafta", "Alt bölümde", "Yok"].includes(trimmed)) (patch as Record<string, unknown>).screen_headings = trimmed;
+        }
       } else if (step.answerKey === "language_level") {
         if (/a0\b/i.test(t)) (patch as Record<string, unknown>).language_level = "A0";
         else if (/a1\s*[-–]?\s*a2/.test(t)) (patch as Record<string, unknown>).language_level = "A1–A2";
@@ -485,8 +491,8 @@ export async function POST(req: NextRequest) {
 
     const quickGuideText = getQuickGuideText(sourceKey);
     if (isBootstrap) {
-      // İlk mesajda sadece Hızlı Rehber; soru yok. Kullanıcı "Devam" ile ilk soruyu başlatır.
-      const bootstrapMessage = quickGuideText;
+      // İlk mesajda sohbet balonunda Hızlı Rehber metni yok; sadece panelde gösterilir. Kullanıcı "Devam" ile ilk soruyu başlatır.
+      const bootstrapMessage = "Merhaba. Hızlı Rehber yukarıdaki panelde. Devam etmek için aşağıdaki butona tıklayın.";
       const assistant = {
         message_md: bootstrapMessage,
         quick_replies: [] as string[],
@@ -584,7 +590,7 @@ export async function POST(req: NextRequest) {
       const doneMessage =
         reportMdFinal && reportMdFinal.length > 50
           ? "Tüm sorular tamamlandı. Şu an netleşen yapılacaklar aşağıda."
-          : "Tüm sorular tamamlandı. Yapılacaklar hazırlanıyor; sayfayı yenileyebilir veya birkaç saniye sonra tekrar bakabilirsin.";
+          : "Tüm sorular tamamlandı. Yapılacaklar panelinde özeti görebilirsiniz.";
       const state_patch = {
         answers_patch: {} as Record<string, unknown>,
         checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,

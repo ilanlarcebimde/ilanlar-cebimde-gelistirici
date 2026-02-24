@@ -187,9 +187,9 @@ export const QUESTION_FLOW = {
     },
     {
       id: "screen_headings",
-      checklistLabel: "Ekran başlıkları alındı",
-      text: "Göremediyseniz ekranda hangi başlıkları görüyorsunuz? (örn: Company, Reviews, Salaries…) Yazın lütfen.",
-      input: { type: "textarea", placeholder: "Gördüklerinizi yazın…" },
+      checklistLabel: "Apply alanı konumu alındı",
+      text: "Apply butonunu göremediniz. Başvuru alanı sizin ekranınızda nerede görünüyor?",
+      choices: ["Sağ tarafta", "Alt bölümde", "Yok"],
       answerKey: "screen_headings",
       askOnce: true,
       showIf: {
@@ -198,7 +198,7 @@ export const QUESTION_FLOW = {
           { answerKey: "screen_headings", isEmpty: true },
         ],
       },
-      doneRule: { type: "minLength", answerKey: "screen_headings", value: 3 },
+      doneRule: { type: "notEmpty", answerKey: "screen_headings" },
     },
     {
       id: "has_platform_account",
