@@ -169,18 +169,25 @@ setStepIndex(firstUnanswered >= 0 ? firstUnanswered : FLOW_STEPS.length);
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ jobId, answers }),
       });
-      const json = (await res.json()) as { formatted?: FormatterOutput; source?: "gemini" | "fallback"; error?: string };
+      let json: { formatted?: unknown; source?: "gemini" | "fallback"; error?: string };
+      try {
+        json = (await res.json()) as typeof json;
+      } catch {
+        setFormattedError("Yanıt okunamadı");
+        return;
+      }
       if (!res.ok) {
         setFormattedError(json?.error ?? "İstek başarısız");
         return;
       }
-      if (json.formatted) {
-        setFormattedData(json.formatted);
+      const formatted = json?.formatted;
+      if (formatted && typeof formatted === "object" && formatted !== null && "ui" in formatted) {
+        setFormattedData(formatted as FormatterOutput);
         setFormattedSource(json.source ?? "fallback");
         setFormattedOpen(true);
         setFormattedError(null);
       } else {
-        setFormattedError("Yanıt boş");
+        setFormattedError("Yanıt boş veya geçersiz");
       }
     } catch (e) {
       setFormattedError(e instanceof Error ? e.message : "Bağlantı hatası");

@@ -14,7 +14,14 @@ type FormattedJobGuideProps = {
 export function FormattedJobGuide({ data, collapseThreshold = MAX_VISIBLE_BULLETS }: FormattedJobGuideProps) {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
-  const { header, sections, cta } = data.ui;
+  const ui = data?.ui;
+  const header = ui?.header ?? { title: "", meta: [] };
+  const sections = Array.isArray(ui?.sections) ? ui.sections : [];
+  const cta = ui?.cta;
+
+  if (!ui) {
+    return <p className="text-slate-600">Görüntülenecek veri yok.</p>;
+  }
 
   const toggleSection = (index: number) => {
     setExpandedSections((prev) => {
@@ -31,11 +38,11 @@ export function FormattedJobGuide({ data, collapseThreshold = MAX_VISIBLE_BULLET
       style={{ maxWidth: "min(72ch, 760px)" }}
     >
       <header className="space-y-2 border-b border-slate-200 pb-4">
-        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{header.title}</h1>
-        {header.meta.length > 0 && (
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{header?.title ?? "İlan"}</h1>
+        {Array.isArray(header?.meta) && header.meta.length > 0 && (
           <ul className="flex flex-wrap gap-x-3 gap-y-1 text-slate-600">
             {header.meta.map((m, i) => (
-              <li key={i}>{m}</li>
+              <li key={i}>{String(m)}</li>
             ))}
           </ul>
         )}
@@ -43,18 +50,18 @@ export function FormattedJobGuide({ data, collapseThreshold = MAX_VISIBLE_BULLET
 
       <div className="space-y-5">
         {sections.map((section, idx) => {
-          const bullets = section.bullets ?? [];
+          const bullets = Array.isArray(section?.bullets) ? section.bullets : [];
           const isLong = bullets.length > collapseThreshold;
           const isExpanded = expandedSections.has(idx);
           const visibleBullets = isLong && !isExpanded ? bullets.slice(0, collapseThreshold) : bullets;
 
           return (
             <section key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <h2 className="text-lg font-semibold text-slate-900">{section.title}</h2>
+              <h2 className="text-lg font-semibold text-slate-900">{section?.title ?? ""}</h2>
               <ul className="mt-3 list-disc space-y-2 pl-5">
                 {visibleBullets.map((b, i) => (
                   <li key={i} className="list-disc text-slate-700">
-                    {b}
+                    {String(b)}
                   </li>
                 ))}
               </ul>
