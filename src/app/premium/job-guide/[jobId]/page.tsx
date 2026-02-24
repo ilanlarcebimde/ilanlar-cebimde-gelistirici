@@ -1,29 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { JobGuideClient } from "./JobGuideClient";
+import { useRouter, useParams } from "next/navigation";
+import { useEffect } from "react";
 
-function LoadingShell() {
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="text-center">
-        <h1 className="text-lg font-bold text-slate-900">Premium Başvuru Paneli</h1>
-        <p className="mt-2 text-slate-600">İlan yükleniyor…</p>
-      </div>
-    </div>
-  );
-}
-
-export default function PremiumJobGuidePage({ params }: { params: Promise<{ jobId: string }> }) {
-  const [jobId, setJobId] = useState<string | null>(null);
+/** Rehber sohbet kaldırıldı; ilan id’yi koruyup başvuru paneline yönlendir. */
+export default function PremiumJobGuideRedirectPage() {
+  const router = useRouter();
+  const params = useParams();
+  const jobId = typeof params?.jobId === "string" ? params.jobId.trim() : "";
 
   useEffect(() => {
-    void Promise.resolve(params).then((p) => setJobId(p.jobId ?? null));
-  }, [params]);
+    const target = jobId ? `/premium/job-guides?jobId=${encodeURIComponent(jobId)}` : "/premium/job-guides";
+    router.replace(target);
+  }, [jobId, router]);
 
-  if (!jobId) {
-    return <LoadingShell />;
-  }
-
-  return <JobGuideClient key={jobId} jobId={jobId} />;
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <p className="text-slate-600">Yönlendiriliyorsunuz…</p>
+    </div>
+  );
 }

@@ -67,7 +67,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
           clearToast();
           return;
         }
-        const target = "/premium/job-guide/" + post.id;
+        const target = "/premium/job-guides?jobId=" + encodeURIComponent(post.id);
         console.log("[KanalFeed] opening panel", target);
         setTimeout(() => {
           router.push(target);

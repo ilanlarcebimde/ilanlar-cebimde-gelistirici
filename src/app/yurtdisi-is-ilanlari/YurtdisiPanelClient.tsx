@@ -54,7 +54,7 @@ export function YurtdisiPanelClient() {
           clearToast();
           return;
         }
-        const target = "/premium/job-guide/" + post.id;
+        const target = "/premium/job-guides?jobId=" + encodeURIComponent(post.id);
         console.log("[YurtdisiPanel] opening panel", target);
         setTimeout(() => {
           router.push(target);

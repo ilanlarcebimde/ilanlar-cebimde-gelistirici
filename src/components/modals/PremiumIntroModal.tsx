@@ -86,7 +86,7 @@ export function PremiumIntroModal({
           // ignore
         }
       }
-      const target = jobIdForRedirect ? `/premium/job-guide/${jobIdForRedirect}` : "/premium/job-guides";
+      const target = jobIdForRedirect ? `/premium/job-guides?jobId=${encodeURIComponent(jobIdForRedirect)}` : "/premium/job-guides";
       router.replace(target);
     } catch {
       setCouponMessage({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
@@ -115,7 +115,7 @@ export function PremiumIntroModal({
     sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
     if (initialJobId) {
       try {
-        sessionStorage.setItem("premium_after_payment_redirect", "/premium/job-guide/" + initialJobId);
+        sessionStorage.setItem("premium_after_payment_redirect", "/premium/job-guides?jobId=" + encodeURIComponent(initialJobId));
       } catch {
         // ignore
       }

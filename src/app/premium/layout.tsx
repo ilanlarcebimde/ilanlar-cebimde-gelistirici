@@ -75,7 +75,7 @@ export default function PremiumLayout({
         console.log("[PremiumLayout] redirect: no_subscription (after 3 retries)");
         try {
           sessionStorage.setItem("premium_redirect_reason", "no_subscription");
-          const jobId = pathname?.startsWith("/premium/job-guide/") ? pathname.replace("/premium/job-guide/", "").split("/")[0]?.trim() || null : null;
+          const jobId = pathname?.startsWith("/premium/job-guide/") ? pathname.replace(/^\/premium\/job-guide\/?/, "").split("/")[0]?.trim() || null : null;
           if (jobId) sessionStorage.setItem("premium_redirect_job_id", jobId);
         } catch {
           // ignore
