@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { FLOW_STEPS, type FlowStepDef } from "./flowSteps";
+import { JobGuideFlowModal } from "./JobGuideFlowModal";
 import {
   getGuideBySource,
   TRANSLATION_GUIDE_TITLE,
@@ -53,6 +54,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
+  const [flowModalOpen, setFlowModalOpen] = useState(false);
 
   const fetchPanel = useCallback(async () => {
     if (!user?.id || !jobId) return;
@@ -89,6 +91,8 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
         const svc = (data.guide.answers_json as Record<string, unknown>).services_selected;
         setMultiSelected(Array.isArray(svc) ? (svc as string[]) : []);
       }
+      const hasUnfinished = firstUnanswered >= 0 && firstUnanswered < FLOW_STEPS.length;
+      setFlowModalOpen(hasUnfinished);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Bağlantı hatası");
     } finally {
@@ -155,9 +159,30 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
+      <JobGuideFlowModal
+        open={flowModalOpen}
+        onClose={() => setFlowModalOpen(false)}
+        jobId={jobId}
+        guideId={guide.id}
+        initialStepIndex={stepIndex}
+        initialAnswers={answers}
+        onComplete={() => {
+          setFlowModalOpen(false);
+          fetchPanel();
+        }}
+      />
       <Link href="/premium/job-guides" className="mb-4 inline-block text-sm font-medium text-slate-600 hover:text-slate-900">
         ← Başvuru Paneli
       </Link>
+      {!flowModalOpen && (
+        <button
+          type="button"
+          onClick={() => setFlowModalOpen(true)}
+          className="mb-2 ml-3 rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-600 hover:bg-slate-50"
+        >
+          Soru akışı (modal)
+        </button>
+      )}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h1 className="text-lg font-bold text-slate-900 sm:text-xl">{job.title ?? "İlan"}</h1>
         {job.location_text && <p className="mt-1 text-sm text-slate-500">{job.location_text}</p>}
