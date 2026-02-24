@@ -238,7 +238,7 @@ export function getRegionFromLocation(locationText: string | null | undefined): 
   const t = locationText.trim().toLowerCase();
   const europe = /almanya|germany|hollanda|netherlands|belçika|belgium|irlanda|ireland|avrupa|europe|fransa|france|polonya|poland|avusturya|austria|isviçre|switzerland|finlandiya|finland|isveç|sweden|norveç|norway|danimarka|denmark|portekiz|portugal|ispanya|spain|italya|italy|macaristan|hungary|romanya|romania|çek|czech|slovakya|slovakia|litvanya|lithuania|lettonia|estonya|estonia|yunanistan|greece|malta|cyprus|kıbrıs/i;
   const arab = /katar|qatar|suudi|saudi|dubai|bae|uae|birleşik arap|bahreyn|bahrain|umman|oman|kuveyt|kuwait|mısır|egypt|ürdün|jordan|libya|cezayir|algeria|fas|morocco/i;
-  const america = /amerika|abd|usa|a\.b\.d|kanada|canada|america|united states/i;
+  const america = /alaska|amerika|abd|usa|a\.b\.d|kanada|canada|america|united states/i;
   if (europe.test(t)) return "europe";
   if (arab.test(t)) return "arab";
   if (america.test(t)) return "america";
