@@ -127,7 +127,7 @@ export function buildDeterministicGuide(
   return lines.join("\n").trim();
 }
 
-/** Bootstrap (1 kez): kısa selam + kaynak + Hızlı Rehber panelde + ilk kritik soruya geçiş. Sorular config'ten. */
+/** Bootstrap (1 kez): kısa selam + kaynak + Hızlı Rehber panelde. Sorular config'ten. */
 export function getBootstrapMessage(source: JobSource): string {
   const isEures = source === "eures";
   const kaynak = isEures ? "EURES" : "GLASSDOOR";
@@ -139,8 +139,6 @@ export function getBootstrapMessage(source: JobSource): string {
     "",
     "**" + kaynak + "’da başvuru nasıl yapılır:**",
     ...steps.map((s) => "✅ " + s),
-    "",
-    "Şimdi 1 kritik soruya geçiyorum.",
   ];
   return lines.join("\n").trim();
 }
