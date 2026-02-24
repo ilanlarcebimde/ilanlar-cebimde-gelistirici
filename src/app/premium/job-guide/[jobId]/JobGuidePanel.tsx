@@ -60,8 +60,16 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setError((err as { error?: string }).error ?? "Yüklenemedi");
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        const code = err?.error;
+        const msg = code === "job_posts_fetch_failed"
+          ? "İlan verisi yüklenemedi. Lütfen başvuru paneline dönüp tekrar deneyin."
+          : code === "Not found" || res.status === 404
+            ? "Bu ilan bulunamadı."
+            : code === "supabase_admin_not_configured"
+              ? "Sunucu yapılandırma hatası. Lütfen daha sonra tekrar deneyin."
+              : err?.error ?? "Yüklenemedi";
+        setError(msg);
         return;
       }
       const data = (await res.json()) as { job: Job; guide: Guide };

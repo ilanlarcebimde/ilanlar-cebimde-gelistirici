@@ -17,7 +17,8 @@ async function getUserFromRequest(req: NextRequest) {
   return user ? { user, supabase } : null;
 }
 
-const JOB_COLS = "id, title, position_text, location_text, source_name, source_url, snippet, published_at, analysis_status, analysis_json";
+/** Temel kolonlar (migration 011); analysis_status/analysis_json (022) yoksa sorgu yine çalışır. */
+const JOB_COLS = "id, title, position_text, location_text, source_name, source_url, snippet, published_at";
 
 export async function GET(
   req: NextRequest,
@@ -49,19 +50,33 @@ export async function GET(
         { status: 503 }
       );
     }
-    const { data: job, error: jobErr } = await admin
+    let job: Record<string, unknown> | null = null;
+    const { data: jobAdmin, error: jobErr } = await admin
       .from("job_posts")
       .select(JOB_COLS)
       .eq("id", jobId)
       .maybeSingle();
 
     if (jobErr) {
-      console.error("[premium/panel] job_posts query error", jobId, jobErr);
-      return NextResponse.json(
-        { error: "job_posts_fetch_failed", detail: jobErr.message?.slice(0, 200) ?? "Unknown", requestedId: jobId },
-        { status: 500 }
-      );
+      console.warn("[premium/panel] job_posts admin query failed, trying with user client", jobId, jobErr.message);
+      const { data: jobUser, error: jobUserErr } = await auth.supabase
+        .from("job_posts")
+        .select(JOB_COLS)
+        .eq("id", jobId)
+        .eq("status", "published")
+        .maybeSingle();
+      if (jobUserErr || !jobUser) {
+        console.error("[premium/panel] job_posts query error", jobId, jobErr);
+        return NextResponse.json(
+          { error: "job_posts_fetch_failed", detail: (jobUserErr ?? jobErr).message?.slice(0, 200) ?? "Unknown", requestedId: jobId },
+          { status: 500 }
+        );
+      }
+      job = jobUser as Record<string, unknown>;
+    } else {
+      job = jobAdmin as Record<string, unknown> | null;
     }
+
     if (!job) {
       console.warn("[premium/panel] job not found", { jobId, length: jobId.length });
       return NextResponse.json({ error: "Not found", requestedId: jobId }, { status: 404 });
