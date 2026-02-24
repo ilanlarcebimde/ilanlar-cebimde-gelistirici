@@ -1,10 +1,10 @@
 /**
- * Job Guide config — 2026-02-24+v2
- * Deterministic flow: showIf koşulu tutmuyorsa atla; answerKey doluysa asla tekrar gösterme; ilk cevaplanmamış soruyu göster.
- * Rule: answerKey doluysa asla tekrar gösterme. showIf koşulu tutmuyorsa atla. İlk cevaplanmamış soruyu göster.
+ * Job Guide config — 2026-02-25
+ * Önce kaynağa göre öğretici mini-rehber (bootstrap), sonra kritik sorular. LLM soru üretmez.
+ * textarea sadece blocking_issue_text. screen_headings kaldırıldı; apply_section_location 3 seçenek.
  */
 
-export const JOB_GUIDE_CONFIG_VERSION = "2026-02-24";
+export const JOB_GUIDE_CONFIG_VERSION = "2026-02-25";
 
 /** Hızlı Rehber: ilk mesajda sadece bilgi, soru yok. Drop-in lines. */
 export const QUICK_GUIDE_TEMPLATES = {
@@ -63,24 +63,39 @@ export const uiInputMapping = {
   textarea: { component: "Textarea", selection: "freeText" as const, storeAs: "string" as const, minRows: 4 },
 } as const;
 
-/** Seçenek setleri (drop-in): buttons/select/multi için. */
+/** Ortak choice set'leri (drop-in). Serbest metin sadece blocking_issue_text. */
 const CHOICES = {
+  yesNo: ["Evet", "Hayır"],
   yesNoMaybe: ["Evet", "Hayır", "Emin değilim"],
-  seenOrNot: ["Gördüm", "Göremedim", "Emin değilim"],
+  foundApply: ["Gördüm", "Göremedim", "Emin değilim"],
+  applyMethod: ["Form/Portal", "E-posta", "Şirket sitesi", "Emin değilim"],
+  langLevel: ["A0", "A1–A2", "B1", "B2", "C1+"],
   blocking: ["Yok", "Var (yazacağım)"],
+  applyLocation3: ["Sağ tarafta", "Alt bölümde", "Yok"],
+  /** @deprecated use foundApply */
+  seenOrNot: ["Gördüm", "Göremedim", "Emin değilim"],
+  /** @deprecated use applyMethod */
   applyMethodEures: ["Form/Portal", "E-posta", "Şirket sitesi", "Emin değilim"],
-  applySectionLocation: ["Sağ tarafta", "Alt bölümde", "Yok"],
+  /** @deprecated use langLevel */
   language: ["A0", "A1–A2", "B1", "B2", "C1+"],
-  proofDocs: [
-    "Ustalık belgesi / MYK",
-    "Kalfalık belgesi",
-    "SGK hizmet dökümü / iş geçmişi",
-    "Sertifika (kurs/ehliyet vb.)",
-    "Referans mektubu",
-    "Portföy (fotoğraf/video)",
-    "Hiçbiri",
-  ],
+  /** @deprecated use applyLocation3 */
+  applySectionLocation: ["Sağ tarafta", "Alt bölümde", "Yok"],
 } as const;
+
+/** Mesleki yeterlilik kanıtları — çoklu seçim (10+ seçenek). */
+export const PROOF_DOCS = [
+  "Ustalık belgesi / MYK",
+  "Kalfalık belgesi",
+  "SGK hizmet dökümü",
+  "İş sözleşmesi / görev yazısı",
+  "Referans mektubu (usta/şef/amir)",
+  "Sertifika (kurs/ehliyet/operatör vb.)",
+  "Portföy (fotoğraf/video)",
+  "Çıraklık / mesleki eğitim belgesi",
+  "Adli sicil kaydı (temiz) / iyi hal belgesi",
+  "Sağlık raporu / işe giriş raporu",
+  "Hiçbiri",
+] as const;
 
 /** Katman A — Hizmet seçimi (tek soru, çoklu seçim). answers_json.services_selected → expandServicesSelected ile 7× Evet/Hayır. */
 export const SERVICE_CHOICES = [
@@ -113,15 +128,6 @@ export const QUESTION_FLOW = {
 
   EURES: [
     {
-      id: "service_pick",
-      checklistLabel: "Hizmetleri seçtim",
-      text: "Hangi konularda yardım isteyiyorsun? (Birden fazla seçebilirsin)",
-      choices: [...SERVICE_CHOICES],
-      input: { type: "multiselect" },
-      answerKey: "services_selected",
-      doneRule: { type: "minSelected", answerKey: "services_selected", value: 1 },
-    },
-    {
       id: "found_apply_section",
       checklistLabel: "Başvuru bölümünü buldum",
       text: "İlan sayfasında “How to apply / Apply” bölümünü görüyor musunuz?",
@@ -144,7 +150,7 @@ export const QUESTION_FLOW = {
       text: "Başvuru için EU Login / EURES hesabı istiyor mu?",
       choices: [...CHOICES.yesNoMaybe],
       answerKey: "needs_eu_login",
-      showIf: { all: [{ answerKey: "found_apply_section", equalsAny: ["Gördüm", "Emin değilim"] }] },
+      showIf: { all: [{ answerKey: "apply_method", equalsAny: ["Form/Portal", "Emin değilim"] }] },
       doneRule: { type: "notEmpty", answerKey: "needs_eu_login" },
     },
     {
@@ -175,7 +181,7 @@ export const QUESTION_FLOW = {
       id: "proof_docs",
       checklistLabel: "Mesleki kanıtları seçtim",
       text: "Mesleki yeterliliğini kanıtlamak için hangileri var? (Birden fazla seçebilirsin)",
-      choices: [...CHOICES.proofDocs],
+      choices: [...PROOF_DOCS],
       input: { type: "multiselect" },
       answerKey: "proof_docs",
       doneRule: { type: "minSelected", answerKey: "proof_docs", value: 1 },
@@ -203,26 +209,12 @@ export const QUESTION_FLOW = {
       input: { type: "textarea", placeholder: "Sorunu yazın…" },
       answerKey: "blocking_issue_text",
       askOnce: true,
-      showIf: {
-        all: [
-          { answerKey: "blocking_issue", equals: "Var (yazacağım)" },
-          { answerKey: "blocking_issue_text", isEmpty: true },
-        ],
-      },
+      showIf: { all: [{ answerKey: "blocking_issue", equals: "Var (yazacağım)" }] },
       doneRule: { type: "minLength", answerKey: "blocking_issue_text", value: 3 },
     },
   ] as FlowStep[],
 
   GLASSDOOR: [
-    {
-      id: "service_pick",
-      checklistLabel: "Hizmetleri seçtim",
-      text: "Hangi konularda yardım isteyiyorsun? (Birden fazla seçebilirsin)",
-      choices: [...SERVICE_CHOICES],
-      input: { type: "multiselect" },
-      answerKey: "services_selected",
-      doneRule: { type: "minSelected", answerKey: "services_selected", value: 1 },
-    },
     {
       id: "found_apply_section",
       checklistLabel: "Apply alanını kontrol ettim",
@@ -233,18 +225,12 @@ export const QUESTION_FLOW = {
     },
     {
       id: "apply_section_location",
-      checklistLabel: "Apply konumunu netleştirdim",
-      text: "Apply alanını göremediysen genelde nerede olur?",
-      choices: [...CHOICES.applySectionLocation],
-      answerKey: "screen_headings",
-      askOnce: true,
-      showIf: {
-        all: [
-          { answerKey: "found_apply_section", equals: "Göremedim" },
-          { answerKey: "screen_headings", isEmpty: true },
-        ],
-      },
-      doneRule: { type: "notEmpty", answerKey: "screen_headings" },
+      checklistLabel: "Apply konumu işaretlendi",
+      text: "Göremediysen: Apply alanı genelde nerede oluyor?",
+      choices: [...CHOICES.applyLocation3],
+      answerKey: "apply_section_location",
+      showIf: { all: [{ answerKey: "found_apply_section", equals: "Göremedim" }] },
+      doneRule: { type: "notEmpty", answerKey: "apply_section_location" },
     },
     {
       id: "has_glassdoor_account",
@@ -283,7 +269,7 @@ export const QUESTION_FLOW = {
       id: "proof_docs",
       checklistLabel: "Mesleki kanıtları seçtim",
       text: "Mesleki yeterliliğini kanıtlamak için hangileri var? (Birden fazla seçebilirsin)",
-      choices: [...CHOICES.proofDocs],
+      choices: [...PROOF_DOCS],
       input: { type: "multiselect" },
       answerKey: "proof_docs",
       doneRule: { type: "minSelected", answerKey: "proof_docs", value: 1 },
@@ -306,17 +292,11 @@ export const QUESTION_FLOW = {
     },
     {
       id: "blocking_issue_text",
-      checklistLabel: "Engeli açıkladım",
-      text: "Kısaca yaz: Seni en çok ne tıkıyor? (örn. vize / CV / giriş / dil / belge)",
+      checklistLabel: "Engel detayı alındı",
+      text: "Kısaca yaz: Seni şu an ne durduruyor?",
       input: { type: "textarea", placeholder: "Sorunu yazın…" },
       answerKey: "blocking_issue_text",
-      askOnce: true,
-      showIf: {
-        all: [
-          { answerKey: "blocking_issue", equals: "Var (yazacağım)" },
-          { answerKey: "blocking_issue_text", isEmpty: true },
-        ],
-      },
+      showIf: { all: [{ answerKey: "blocking_issue", equals: "Var (yazacağım)" }] },
       doneRule: { type: "minLength", answerKey: "blocking_issue_text", value: 3 },
     },
   ] as FlowStep[],

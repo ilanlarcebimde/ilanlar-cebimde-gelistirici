@@ -52,7 +52,7 @@ function getNetlesenler(answers: Record<string, unknown>, source: JobSource): st
     items.push(`Başvuru yöntemi: ${answers.apply_method}`);
   }
   if (items.length === 0) {
-    items.push("Seçtiğin hizmetlere göre adım adım ilerliyoruz.");
+    items.push("Kritik bilgileri topluyoruz; her cevap sonrası yapılacaklar netleşecek.");
   }
   return items.slice(0, 3);
 }
@@ -96,18 +96,20 @@ export function buildDeterministicGuide(
   return lines.join("\n").trim();
 }
 
-/** Bootstrap mesajı (1 kez): selam + kaynak + 3–5 madde EURES/Glassdoor başvuru + kapanış. Sonraki turlarda selam yok (greeting_shown). */
+/** Bootstrap (1 kez): kısa selam + kaynak + Hızlı Rehber panelde + ilk kritik soruya geçiş. Sorular config'ten. */
 export function getBootstrapMessage(source: JobSource): string {
   const isEures = source === "eures";
   const kaynak = isEures ? "EURES" : "GLASSDOOR";
   const steps = isEures ? EURES_STEPS : GLASSDOOR_STEPS;
   const lines: string[] = [
-    "Merhaba efendim. Bu ilan kaynağı: " + kaynak + ". Şimdi başvuru sürecini hızlıca netleştireceğim.",
+    "Merhaba efendim. Bu ilan kaynağı: " + kaynak + ".",
+    "",
+    "**Hızlı Rehber** sol panelde; kaynağa göre başvuru adımları orada.",
     "",
     "**" + kaynak + "’da başvuru nasıl yapılır:**",
     ...steps.map((s) => "✅ " + s),
     "",
-    "Şimdi birkaç kritik bilgiyi netleştirip seni doğru adıma yönlendireceğim. Aşağıdan hangi konularda yardım istediğini seç.",
+    "Şimdi 1 kritik soruya geçiyorum.",
   ];
   return lines.join("\n").trim();
 }

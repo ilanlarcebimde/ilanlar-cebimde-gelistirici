@@ -5,7 +5,7 @@ import {
   getStepDisplay,
   getProgressFromConfig,
   getStepById,
-  expandServicesSelected,
+  PROOF_DOCS,
   type FlowStep,
   type FlowInput,
   QUICK_GUIDE_TEMPLATES,
@@ -116,7 +116,6 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     if (String(value).trim() === "Gördüm") return "Güzel, başvuru alanını gördün.";
     if (String(value).trim() === "Göremedim") return "Tamam. Ekrandaki başlıkları yazacağın soruyla devam edelim.";
   }
-  if (askId === "service_pick") return "Tamam, seçtiğin konulara göre rehberi hazırlıyorum.";
   if (askId === "visible_headings_text" || askId === "screen_headings" || askId === "apply_section_location") return "Tamam, not ettim. Buna göre yönlendireceğiz.";
   if (askId === "cv_status") {
     const val = String(value).trim();
@@ -229,11 +228,11 @@ function normalizeUserMessageToAnswers(text: string, lastAskId?: string): Record
         else if (/şirket\s*sitesi|sitesine/i.test(t)) (patch as Record<string, unknown>).apply_method = "Şirket sitesi";
         else if (/emin değilim/.test(t)) (patch as Record<string, unknown>).apply_method = "Emin değilim";
       } else if (step.answerKey === "proof_docs") {
-        const docOpts = ["Ustalık belgesi / MYK", "Kalfalık belgesi", "SGK hizmet dökümü / iş geçmişi", "SGK hizmet dökümü", "Sertifika (kurs/ehliyet vb.)", "Sertifika", "Referans mektubu", "Portföy (fotoğraf/video)", "Portföy (foto/video)", "Hiçbiri"];
+        const docOpts = [...PROOF_DOCS];
         const selected = t.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
-        const valid = selected.filter((s) => docOpts.some((o) => o === s || o.includes(s) || s.includes(o)));
-        if (valid.length > 0) (patch as Record<string, unknown>).proof_docs = valid.length === 1 ? valid : valid;
-        else if (docOpts.some((o) => t === o || t.includes(o))) (patch as Record<string, unknown>).proof_docs = [t.trim()];
+        const valid = selected.filter((s) => docOpts.some((o) => o === s || (typeof o === "string" && (o.includes(s) || s.includes(o)))));
+        if (valid.length > 0) (patch as Record<string, unknown>).proof_docs = valid;
+        else if (docOpts.some((o) => t === o || (typeof o === "string" && t.includes(o)))) (patch as Record<string, unknown>).proof_docs = [t.trim()];
       } else if (step.answerKey === "apply_section_location") {
         const trimmed = text.trim();
         if (/sağ\s*tarafta|sag\s*tarafta/i.test(t)) (patch as Record<string, unknown>).apply_section_location = "Sağ tarafta";
@@ -447,10 +446,7 @@ export async function POST(req: NextRequest) {
     const rawUserText = (typeof message_text === "string" ? message_text : typeof user_message === "string" ? user_message : "").trim();
     console.log("[job-guide/chat] body", { hasMessage: !!rawUserText, jobGuideId, jobPostId, mode: body.mode, isBootstrap });
     const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
-    let mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
-    if (last_ask_id === "service_pick") {
-      mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) };
-    }
+    const mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
 
     const { data: guide } = await auth.supabase
       .from("job_guides")
@@ -527,7 +523,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise ilk soru (service_pick) döndürülür. greeting_shown= true patchlenir.
+    // "Devam" ile ilk soru: mesaj boş veya __continue__ ise ilk soru (found_apply_section) döndürülür. greeting_shown= true patchlenir.
     const isContinueStart = (!rawUserText || rawUserText.trim() === "" || rawUserText.trim().toLowerCase() === "__continue__") && Object.keys(mergedAnswers as object).length === 0;
     if (isContinueStart) {
       const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
@@ -854,7 +850,7 @@ export async function POST(req: NextRequest) {
     const promoSalaryAlreadyShown = mergedAnswers.promo_salary_shown === true;
     const hasLiveSalary = liveItems.some((x) => x.kind === "salary" && !x.blocked);
     const shouldInjectSalaryCta = wantsSalaryHelp && !hasLiveSalary && !promoSalaryAlreadyShown
-      && (last_ask_id === "service_pick" || last_ask_id === "cv_ready" || last_ask_id === "language_level");
+      && (last_ask_id === "cv_ready" || last_ask_id === "language_level");
     if (shouldInjectSalaryCta) {
       const salaryNote = "Net maaş ve yaşam gideri için resmi kaynak verisi bu oturumda alınamadı. Yaklaşık hesap yapmıyoruz; ilan metninde maaş varsa ona bakın.";
       assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n📌 " + salaryNote : "📌 " + salaryNote;
