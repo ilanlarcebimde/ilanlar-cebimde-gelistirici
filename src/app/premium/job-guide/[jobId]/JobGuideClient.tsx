@@ -14,6 +14,7 @@ import {
   type Answers,
   type ChecklistModule,
 } from "./checklistRules";
+import { getChecklistFromFlow } from "@/data/jobGuideConfig";
 
 type JobGuide = {
   id: string;
@@ -502,8 +503,10 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
           state_patch?: { progress?: { total?: number; done?: number; percent?: number }; answers_patch?: Record<string, unknown> };
           assistant_message?: string;
           next_question?: NextQuestionSingle;
+          next?: { should_finalize?: boolean; reason?: string };
           quick_guide_text?: string;
           report_json?: ReportJson;
+          report_md?: string | null;
           checklist_snapshot?: { total: number; done: number; percent: number; missing_top3?: string[] };
           answers_json?: Record<string, unknown>;
         };
@@ -525,6 +528,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         setInlineTextareaValue("");
         setInlineMultiSelected([]);
         if (d.report_json) setReport(d.report_json);
+        if (d.next?.should_finalize) setReportDrawerOpen(true);
         if (d.checklist_snapshot) setChecklistSnapshot(d.checklist_snapshot);
         else {
           const prog = d.state_patch?.progress;
@@ -567,7 +571,19 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     () => (job ? { id: job.id, title: job.title, location_text: job.location_text, source_name: job.source_name, source_url: job.source_url, snippet: (job as { snippet?: string }).snippet } : null),
     [job]
   );
-  const modules = useMemo(() => buildChecklist(jobForChecklist, answers), [jobForChecklist, answers]);
+  const sourceForFlow = useMemo(() => {
+    const name = (job?.source_name ?? "").toLowerCase();
+    if (name.includes("eures")) return "eures" as const;
+    return "glassdoor" as const;
+  }, [job?.source_name]);
+  const flowChecklist = useMemo(
+    () => (job && guide ? getChecklistFromFlow((guide.answers_json ?? {}) as Record<string, unknown>, sourceForFlow) : []),
+    [job, guide, guide?.answers_json, sourceForFlow]
+  );
+  const modules = useMemo(
+    () => (flowChecklist.length > 0 && flowChecklist[0].items.length > 0 ? flowChecklist : buildChecklist(jobForChecklist, answers)),
+    [flowChecklist, jobForChecklist, answers]
+  );
   const progressFrom7 = useMemo(() => getProgressFromSevenQuestions(answers), [answers]);
   const progress = useMemo(() => calcProgress(modules), [modules]);
   const missingTop3 = useMemo(() => getMissingTop(modules, 3), [modules]);
@@ -695,7 +711,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                   <span>{m.icon}</span> {m.title}
                 </p>
                 <ul className="mt-1.5 space-y-1">
-                  {m.items.slice(0, 3).map((it) => (
+                  {m.items.map((it) => (
                     <li key={it.id} className="flex items-center justify-between text-xs">
                       <span className={it.done ? "text-slate-400 line-through" : "text-slate-700"}>{it.label}</span>
                       <span className={it.done ? "text-green-600" : "text-slate-300"}>✔</span>

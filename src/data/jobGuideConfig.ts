@@ -470,3 +470,29 @@ export function getStepById(id: string): FlowStep | undefined {
   }
   return undefined;
 }
+
+/** Kontrol listesi: akıştaki adımlara göre. ✔ sadece o adım gerçekten cevaplandıysa. */
+export function getChecklistFromFlow(
+  answers: Record<string, unknown>,
+  source: "eures" | "glassdoor" | "default"
+): Array<{ id: string; title: string; icon: string; items: Array<{ id: string; label: string; done: boolean; hint?: string }> }> {
+  const steps = getActiveFlowSteps(source);
+  const items: Array<{ id: string; label: string; done: boolean; hint?: string }> = [];
+  for (const step of steps) {
+    if (step.showIf && !isShowIfMatch(answers, step.showIf)) continue;
+    items.push({
+      id: step.id,
+      label: step.checklistLabel,
+      done: isStepAnswered(answers, step),
+    });
+  }
+  if (items.length === 0) return [];
+  return [
+    {
+      id: "flow",
+      title: "Kontrol listesi",
+      icon: "📋",
+      items,
+    },
+  ];
+}
