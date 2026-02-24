@@ -145,7 +145,7 @@ export function expandServicesSelected(answers: Record<string, unknown>): Record
       ? raw.split(/[,;\n|]+/).map((s) => s.trim()).filter(Boolean)
       : [];
   const s = new Set(arr);
-  const validIds = new Set(SERVICE_CHOICE_IDS);
+  const validIds = new Set<string>(SERVICE_CHOICE_IDS);
   if (arr.length > 0 && arr.some((x) => !validIds.has(x))) {
     if (typeof console !== "undefined") console.warn("[job-guide] expandServicesSelected: label/legacy path used, prefer services_selected_ids");
   }
