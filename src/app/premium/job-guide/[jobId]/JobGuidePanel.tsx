@@ -174,22 +174,29 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
           </section>
         )}
 
-        {stepIndex >= 1 && (
-          <section className="mt-6 rounded-xl border border-slate-200 bg-amber-50/50 p-4 sm:p-5" aria-label="İstenebilecek belgeler">
-            <h2 className="text-base font-bold text-slate-900 sm:text-lg">İstenebilecek Belgeler (Bölgeye Göre)</h2>
-            <p className="mt-1 text-sm text-slate-600">{DOCUMENTS_INTRO}</p>
-            {job.location_text && getRegionFromLocation(job.location_text) && (
-              <p className="mt-1 text-sm font-medium text-brand-700">
-                İlanınızın bölgesi: {getRegionFromLocation(job.location_text) === "europe" ? "Avrupa" : getRegionFromLocation(job.location_text) === "arab" ? "Arap ülkeleri" : "Amerika / Kanada"}
-              </p>
-            )}
-            <div className="mt-4 space-y-6 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
-              <DocumentBlock title={DOCUMENTS_EUROPE_TITLE} content={DOCUMENTS_EUROPE_CONTENT} />
-              <DocumentBlock title={DOCUMENTS_ARAB_TITLE} content={DOCUMENTS_ARAB_CONTENT} />
-              <DocumentBlock title={DOCUMENTS_AMERICA_TITLE} content={DOCUMENTS_AMERICA_CONTENT} />
-            </div>
-          </section>
-        )}
+        {stepIndex >= 1 && (() => {
+          const region = getRegionFromLocation(job.location_text);
+          const regionLabel = region === "europe" ? "Avrupa" : region === "arab" ? "Arap ülkeleri" : region === "america" ? "Amerika / Kanada" : null;
+          return (
+            <section className="mt-6 rounded-xl border border-slate-200 bg-amber-50/50 p-4 sm:p-5" aria-label="İstenebilecek belgeler">
+              <h2 className="text-base font-bold text-slate-900 sm:text-lg">İstenebilecek Belgeler (Bölgeye Göre)</h2>
+              <p className="mt-1 text-sm text-slate-600">{DOCUMENTS_INTRO}</p>
+              {region && regionLabel && (
+                <p className="mt-1 text-sm font-medium text-brand-700">
+                  İlanınızın bölgesi: {regionLabel}
+                </p>
+              )}
+              <div className="mt-4 space-y-6 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                {region === "europe" && <DocumentBlock title={DOCUMENTS_EUROPE_TITLE} content={DOCUMENTS_EUROPE_CONTENT} />}
+                {region === "arab" && <DocumentBlock title={DOCUMENTS_ARAB_TITLE} content={DOCUMENTS_ARAB_CONTENT} />}
+                {region === "america" && <DocumentBlock title={DOCUMENTS_AMERICA_TITLE} content={DOCUMENTS_AMERICA_CONTENT} />}
+                {!region && (
+                  <p className="text-slate-600">İlan konumundan bölge tespit edilemedi. Konumda ülke veya bölge adı (ör. Avrupa, İrlanda, Katar, ABD) belirtilmiş ilanlar için ilgili belge listesi gösterilir.</p>
+                )}
+              </div>
+            </section>
+          );
+        })()}
 
         {stepIndex >= 2 && answers.want_passport_visa === "Evet" && (
           <section className="mt-6 rounded-xl border border-slate-200 bg-violet-50/50 p-4 sm:p-5" aria-label="Pasaport ve vize rehberi">
