@@ -29,47 +29,78 @@ function getSelectedServicesList(answers: Record<string, unknown>): string[] {
   if (answers.service_salary_life_calc === "Evet") out.push("Net maaş ve yaşam gider hesabı");
   if (answers.service_risk_assessment === "Evet") out.push("Risk değerlendirmesi");
   if (answers.service_fit_analysis === "Evet") out.push("Sana özel uygunluk analizi");
-  if (answers.service_one_week_plan === "Evet") out.push("1 haftalık başvuru planı");
+  if (answers.service_one_week_plan === "Evet") out.push("7 günlük başvuru planı");
   return out;
 }
 
-/** Şu an netleşen 3 madde: cevaplanan alanlara göre kısa özet. */
-function getNetlesenler(answers: Record<string, unknown>, source: JobSource): string[] {
+/** Sadece service_* ve greeting_shown / services_selected sayılmaz; gerçek cevaplar varsa genel rehber gösterilmez. */
+const ONLY_SERVICE_KEYS = new Set([
+  "greeting_shown", "services_selected",
+  "service_apply_guide", "service_documents", "service_work_permit_visa",
+  "service_salary_life_calc", "service_risk_assessment", "service_fit_analysis", "service_one_week_plan",
+]);
+
+function hasMeaningfulAnswers(answers: Record<string, unknown>): boolean {
+  return Object.keys(answers).some((k) => !ONLY_SERVICE_KEYS.has(k));
+}
+
+/** answerKey → kullanıcıya gösterilecek kısa etiket (Şu an netleşenler için). */
+const ANSWER_LABELS: Record<string, string> = {
+  found_apply_section: "Başvuru bölümü",
+  apply_method: "Başvuru yöntemi",
+  needs_eu_login: "EU Login gereksinimi",
+  apply_section_location: "Apply konumu",
+  has_glassdoor_account: "Glassdoor hesabı",
+  redirects_to_company_site: "Şirket sitesine yönlendirme",
+  has_passport: "Pasaport",
+  is_eu_eea_citizen: "AB/AEA vatandaşlığı",
+  cv_ready: "CV",
+  proof_docs: "Mesleki kanıtlar",
+  language_level: "Dil seviyesi",
+  blocking_issue: "Engel",
+  blocking_issue_text: "Engel detayı",
+};
+
+/** mergedAnswers'tan dinamik "Şu an netleşenler" listesi (Sağır asistan çözümü). */
+function getNetlesenler(answers: Record<string, unknown>, _source: JobSource): string[] {
   const items: string[] = [];
-  if (answers.found_apply_section) {
-    items.push(`Başvuru bölümü: ${answers.found_apply_section}`);
+  const selected = getSelectedServicesList(answers);
+  if (selected.length > 0) {
+    items.push(`Seçilen konular: ${selected.join(", ")}`);
   }
-  if (answers.has_passport) {
-    items.push(`Pasaport: ${answers.has_passport}`);
-  }
-  if (answers.cv_ready) {
-    items.push(`CV: ${answers.cv_ready}`);
-  }
-  if (answers.language_level) {
-    items.push(`Dil seviyesi: ${answers.language_level}`);
-  }
-  if (source === "eures" && answers.apply_method) {
-    items.push(`Başvuru yöntemi: ${answers.apply_method}`);
+  for (const [key, label] of Object.entries(ANSWER_LABELS)) {
+    const v = answers[key];
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      if (v.length > 0) items.push(`${label}: ${(v as string[]).join(", ")}`);
+    } else {
+      const s = String(v).trim();
+      if (s) items.push(`${label}: ${s}`);
+    }
   }
   if (items.length === 0) {
     items.push("Kritik bilgileri topluyoruz; her cevap sonrası yapılacaklar netleşecek.");
   }
-  return items.slice(0, 3);
+  return items;
 }
 
-/** Chat mesajı: greeting_shown ise selam yok; direkt şu anki durum + yapılacaklar. */
+/**
+ * Chat mesajı. Bozuk plak: genel 4 adımlık rehber SADECE ilk turda (henüz anlamlı cevap yok).
+ * 2. ve sonraki turlarda: empatik onay (confirmationLine) + Şu an netleşenler (dinamik).
+ */
 export function buildDeterministicGuide(
   job: { source_name?: string | null; location_text?: string | null },
   answers: Record<string, unknown>,
   nextStep: FlowStep | null,
-  source: JobSource
+  source: JobSource,
+  confirmationLine?: string | null
 ): string {
   const sourceName = (job.source_name ?? "").toLowerCase();
   const isEures = sourceName.includes("eures") || source === "eures";
   const steps = isEures ? EURES_STEPS : GLASSDOOR_STEPS;
-  const selected = getSelectedServicesList(answers);
   const netlesenler = getNetlesenler(answers, source);
   const greetingAlreadyShown = answers.greeting_shown === true;
+  const showGeneralGuide = !hasMeaningfulAnswers(answers);
 
   const lines: string[] = [];
   if (!greetingAlreadyShown) {
@@ -77,19 +108,19 @@ export function buildDeterministicGuide(
       ? "Merhaba efendim. Bu ilan kaynağı EURES. EURES üzerinden başvuru için ilandaki **How to apply / Apply** bölümünden ilerlenir."
       : "Merhaba efendim. Bu ilan kaynağı Glassdoor. Başvuru çoğu ilanda **Apply / Sign in to apply** alanından yapılır.";
     lines.push(intro);
+  } else if (confirmationLine) {
+    lines.push(confirmationLine);
   } else {
     lines.push("**Şu anki durum:**");
-    if (selected.length > 0) {
-      lines.push(`Seçtiğin konular: ${selected.join(", ")}.`);
-    }
     lines.push(...netlesenler.map((n) => "• " + n));
-    if (lines.length <= 1) lines.push("Seçtiğin hizmetlere göre adım adım ilerliyoruz.");
   }
 
   lines.push("");
-  lines.push("**Şimdi yapman gereken:**");
-  steps.forEach((s) => lines.push(`✅ ${s}`));
-  lines.push("");
+  if (showGeneralGuide) {
+    lines.push("**Şimdi yapman gereken:**");
+    steps.forEach((s) => lines.push(`✅ ${s}`));
+    lines.push("");
+  }
   lines.push("**Şu an netleşenler:**");
   netlesenler.forEach((n) => lines.push(`• ${n}`));
 

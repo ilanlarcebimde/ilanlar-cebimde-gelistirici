@@ -97,7 +97,7 @@ export const PROOF_DOCS = [
   "Hiçbiri",
 ] as const;
 
-/** Katman A — Hizmet seçimi (tek soru, çoklu seçim). answers_json.services_selected → expandServicesSelected ile 7× Evet/Hayır. */
+/** 7 tema — Akıllı Danışman. answers_json.services_selected → expandServicesSelected ile 7× Evet/Hayır. */
 export const SERVICE_CHOICES = [
   "Adım adım başvuru rehberi",
   "Gerekli belgeler listesi",
@@ -105,12 +105,13 @@ export const SERVICE_CHOICES = [
   "Net maaş ve yaşam gider hesabı",
   "Risk değerlendirmesi",
   "Sana özel uygunluk analizi",
-  "1 haftalık başvuru planı",
+  "7 günlük başvuru planı",
 ] as const;
 
-/** services_selected (string[]) → service_* Evet/Hayır alanları. Chat route'da last_ask_id === "service_pick" sonrası çağrılır. */
+/** services_selected (string[]) → 7 service_* Evet/Hayır. Chat route'da last_ask_id === "service_pick" sonrası çağrılır. */
 export function expandServicesSelected(answers: Record<string, unknown>): Record<string, string> {
   const s = new Set((answers.services_selected as string[] | undefined) || []);
+  const has7Gunluk = s.has("7 günlük başvuru planı") || s.has("1 haftalık başvuru planı");
   return {
     service_apply_guide: s.has("Adım adım başvuru rehberi") ? "Evet" : "Hayır",
     service_documents: s.has("Gerekli belgeler listesi") ? "Evet" : "Hayır",
@@ -118,7 +119,7 @@ export function expandServicesSelected(answers: Record<string, unknown>): Record
     service_salary_life_calc: s.has("Net maaş ve yaşam gider hesabı") ? "Evet" : "Hayır",
     service_risk_assessment: s.has("Risk değerlendirmesi") ? "Evet" : "Hayır",
     service_fit_analysis: s.has("Sana özel uygunluk analizi") ? "Evet" : "Hayır",
-    service_one_week_plan: s.has("1 haftalık başvuru planı") ? "Evet" : "Hayır",
+    service_one_week_plan: has7Gunluk ? "Evet" : "Hayır",
   };
 }
 

@@ -20,7 +20,7 @@ import {
 import { fetchUrlToPlainText, getVisaContextForCountry } from "@/lib/jobGuideGrounding";
 import { getCountrySources } from "@/lib/external/sources";
 import { fetchExternalWithCache } from "@/lib/external/fetchWithCache";
-import { callGeminiJson, extractJsonStrict, redactForbiddenPhrases, applyGuardrails } from "@/lib/ai/gemini";
+import { callGeminiJson, extractJsonStrict, redactForbiddenPhrases, applyGuardrails, getConsultancyStrategyFromGemini } from "@/lib/ai/gemini";
 import { buildGeminiSystemPrompt, buildGeminiUserPrompt, type LiveContextItem } from "@/lib/job-guide/prompts";
 import { generateFinalReport } from "@/lib/job-guide/generateReport";
 
@@ -125,7 +125,7 @@ function getConfirmationMessage(askId: string, value: unknown): string | null {
     if (val === "Hazır ama PDF değil") return "Tamam. Mümkünse PDF'e çevirip yüklemek başvuruda daha iyi görünür.";
     if (val === "Hazır değil") return "Tamam. CV hazır değilse başvuru zayıf kalır; önce CV'yi netleştirelim.";
   }
-  if (askId === "language_level") return "Tamam, dil seviyeni not ettim.";
+  if (askId === "language_level") return valTrim ? `Tamam, dil seviyeni ${valTrim} olarak not aldım.` : "Tamam, dil seviyeni not ettim.";
   if (askId === "apply_method") return "Tamam, başvuru yöntemi netleşti.";
   if (askId === "qualification_proof_bundle") return "Tamam, elindeki kanıtları not ettim.";
   if (askId === "qualification_plan_text") return "Tamam, belgesiz alternatif planını not ettim.";
@@ -635,10 +635,26 @@ export async function POST(req: NextRequest) {
     }
     const currentStepId = nextStep.id;
 
-    // SERVICES_GATE: Deterministik rehber (EURES/Glassdoor şablonu + seçili hizmetler). LLM opsiyonel.
+    // Onay cümlesi: az önce cevaplanan soru için (Bozuk plak: 2. turda sadece bu satır + netleşenler)
+    const lastStepForConfirm = last_ask_id ? getStepById(last_ask_id) : undefined;
+    const lastAnswerValueForConfirm = lastStepForConfirm
+      ? mergedAnswers[lastStepForConfirm.answerKey]
+      : (mergedAnswers[last_ask_id as string] ?? mergedAnswers.passport);
+    const confirmationMsg =
+      last_ask_id && normalizedPatch && Object.keys(normalizedPatch).length > 0
+        ? getConfirmationMessage(last_ask_id, lastAnswerValueForConfirm)
+        : null;
+
+    // SERVICES_GATE: Deterministik rehber. confirmationLine ile 2. turda genel rehber tekrarı yok.
     const useDeterministicGuide = true;
     let assistantMessage = useDeterministicGuide
-      ? buildDeterministicGuide(jobPost as { source_name?: string | null; location_text?: string | null }, mergedAnswers, nextStep, sourceKey)
+      ? buildDeterministicGuide(
+          jobPost as { source_name?: string | null; location_text?: string | null },
+          mergedAnswers,
+          nextStep,
+          sourceKey,
+          confirmationMsg ?? undefined
+        )
       : "";
 
     // RAG / Grounding: ilan sayfası + resmî vize (Supabase whitelist öncelikli, yoksa in-memory fallback)
@@ -725,14 +741,10 @@ export async function POST(req: NextRequest) {
         : "",
     ].join("");
 
-    // Onay cümlesi: az önce cevaplanan soru için (config step.answerKey ile değer alınır)
     const lastStep = last_ask_id ? getStepById(last_ask_id) : undefined;
     const lastAnswerValue = lastStep
       ? mergedAnswers[lastStep.answerKey]
       : (mergedAnswers[last_ask_id as string] ?? mergedAnswers.passport);
-    const confirmationMsg = last_ask_id && normalizedPatch && Object.keys(normalizedPatch).length > 0
-      ? getConfirmationMessage(last_ask_id, lastAnswerValue)
-      : null;
 
     type ParsedShape = {
       assistant_message?: string;
@@ -873,13 +885,45 @@ export async function POST(req: NextRequest) {
       assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n📌 " + salaryNote : "📌 " + salaryNote;
       (mergedAnswers as Record<string, unknown>).promo_salary_shown = true;
     }
-    if (confirmationMsg) {
+    if (confirmationMsg && !useDeterministicGuide) {
       assistantMessage = confirmationMsg + "\n\n" + assistantMessage;
     }
-    // Ülke-özel mini rehber: Pasaport "Hayır" cevabında anında kısa yol (araştırın yok)
+
+    // FAZ 3: Danışmanlık müdahalesi — negatif/eksik cevapta Gemini (Web Search) ile 3 maddelik strateji
+    let consultancyTriggeredForPassport = false;
+    const passportNoAnswer = last_ask_id === "has_passport" && mergedAnswers.has_passport === "Hayır";
+    const cvNoAnswer = last_ask_id === "cv_ready" && mergedAnswers.cv_ready === "Hayır";
+    const proofDocsEmpty = last_ask_id === "proof_docs" && (() => {
+      const docs = mergedAnswers.proof_docs;
+      if (!docs) return true;
+      if (!Array.isArray(docs)) return false;
+      return docs.length === 0 || docs.includes("Hiçbiri");
+    })();
+    const consultancyTriggered = useDeterministicGuide && (passportNoAnswer || cvNoAnswer || proofDocsEmpty);
+    if (consultancyTriggered) {
+      const jobTitle = String(jobPost.title ?? jobPost.position_text ?? "ilan").slice(0, 200);
+      const missingItem = passportNoAnswer ? "Pasaport" : cvNoAnswer ? "CV" : "Mesleki yeterlilik belgesi (kanıt)";
+      if (passportNoAnswer) consultancyTriggeredForPassport = true;
+      try {
+        const strategy = await getConsultancyStrategyFromGemini({
+          country: country || "Hedef ülke",
+          jobTitle,
+          missingItem,
+          existingContext: (passportNoAnswer || missingItem.includes("vize")) && visaContextBlock ? visaContextBlock.slice(0, 5000) : undefined,
+        });
+        if (strategy && strategy.trim()) {
+          assistantMessage = strategy.trim() + "\n\nŞimdi başvuruyu şekillendirmeye devam edelim.";
+          (mergedAnswers as Record<string, unknown>)[passportNoAnswer ? "consultancy_pasaport" : cvNoAnswer ? "consultancy_cv" : "consultancy_belgeler"] = strategy.trim();
+        }
+      } catch (e) {
+        console.error("[job-guide/chat] consultancy strategy failed", e);
+      }
+    }
+
+    // Ülke-özel mini rehber: Pasaport "Hayır" — danışmanlık müdahalesi yoksa statik kısa yol
     const passportNo = (last_ask_id === "passport_status" || last_ask_id === "has_passport") &&
       (mergedAnswers.has_passport === "Hayır" || mergedAnswers.passport_status === "Yok");
-    if (passportNo) {
+    if (passportNo && !consultancyTriggeredForPassport) {
       const miniGuide = [
         "🛂 **Pasaport:** Türkiye'de Nüfus Müdürlüğü'nden randevu alıp başvurunuzu yapın; kimlik ve fotoğraf gerekli.",
         `🌍 **Vize/Çalışma izni:** ${country ? `${country} için ` : ""}AB/AEA vatandaşı değilseniz genelde işveren sponsorluğu veya çalışma izni gerekir. İlandaki "How to apply" koşullarına bakacağız.`,

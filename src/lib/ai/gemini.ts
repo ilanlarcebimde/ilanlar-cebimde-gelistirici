@@ -135,3 +135,90 @@ export function applyGuardrails(
 
   return out.trim() || message;
 }
+
+/** Google Search ile grounding: danışmanlık metni (3 maddelik strateji). API desteklemiyorsa fallback düz metin. */
+export async function callGeminiWithSearch(opts: {
+  system: string;
+  user: string;
+  timeoutMs?: number;
+  maxOutputTokens?: number;
+}): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY_MISSING");
+  const model = (process.env.GEMINI_MODEL || "gemini-2.0-flash")
+    .trim()
+    .replace(/^models\//, "");
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const text = `${opts.system}\n\n---\n\n${opts.user}`;
+
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), opts.timeoutMs ?? 25000);
+
+  const body: Record<string, unknown> = {
+    contents: [{ role: "user", parts: [{ text }] }],
+    generationConfig: {
+      temperature: 0.2,
+      topP: 0.9,
+      maxOutputTokens: opts.maxOutputTokens ?? 1400,
+    },
+    tools: [{ google_search: {} }],
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: controller.signal,
+    body: JSON.stringify(body),
+  }).finally(() => clearTimeout(t));
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`GEMINI_HTTP_${res.status}:${txt.slice(0, 200)}`);
+  }
+
+  const data = (await res.json()) as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+  };
+  const rawText =
+    data?.candidates?.[0]?.content?.parts
+      ?.map((p) => p?.text)
+      .filter(Boolean)
+      .join("") ?? "";
+
+  if (!rawText.trim()) throw new Error("GEMINI_EMPTY_RESPONSE");
+  return rawText.trim();
+}
+
+/** Eksik belge/kriter için 3 maddelik uygulanabilir strateji (Google Search veya RAG + Gemini). */
+export async function getConsultancyStrategyFromGemini(opts: {
+  country: string;
+  jobTitle: string;
+  missingItem: string;
+  existingContext?: string;
+}): Promise<string> {
+  const system = `Sen uzman bir yurtdışı kariyer danışmanısın. Kullanıcı ${opts.country} ülkesindeki "${opts.jobTitle}" ilanına başvuracak ancak "${opts.missingItem}" YOK veya eksik.
+İnternette araştırma yap ve bu belgenin/iznin/pasaportun hangi resmi kurumlardan, nasıl alınacağına dair 3 maddelik, çok kısa ve uygulanabilir bir strateji ver. Asla varsayım yapma. Sadece net adımlar. Türkçe yanıtla.`;
+
+  const user = opts.existingContext
+    ? `Ek bağlam (resmi kaynak özeti):\n${opts.existingContext}\n\nYukarıdaki bağlama göre 3 maddelik strateji üret.`
+    : "3 maddelik kısa strateji üret.";
+
+  try {
+    return await callGeminiWithSearch({
+      system,
+      user,
+      timeoutMs: 20000,
+      maxOutputTokens: 800,
+    });
+  } catch {
+    return await callGeminiJson({
+      system,
+      user,
+      temperature: 0.2,
+      maxOutputTokens: 800,
+      timeoutMs: 20000,
+    });
+  }
+}
