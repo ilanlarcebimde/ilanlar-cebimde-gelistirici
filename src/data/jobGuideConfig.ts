@@ -108,17 +108,41 @@ export const SERVICE_CHOICES = [
   "7 günlük başvuru planı",
 ] as const;
 
-/** services_selected (string[]) → 7 service_* Evet/Hayır. Chat route'da last_ask_id === "service_pick" sonrası çağrılır. */
+/** ID'ler — client answers_patch ile gönderir; metin eşleşmesine güvenilmez. */
+export const SERVICE_CHOICE_IDS = [
+  "apply_guide",
+  "docs_list",
+  "work_permit_visa",
+  "salary_life_calc",
+  "risk_assessment",
+  "fit_analysis",
+  "one_week_plan",
+] as const;
+
+function isServiceSelected(s: Set<string>, id: string, label: string): boolean {
+  return s.has(id) || s.has(label);
+}
+
+/** services_selected (string[] — ID veya label) → 7 service_* Evet/Hayır. Chat route'da last_ask_id === "service_pick" sonrası çağrılır. */
 export function expandServicesSelected(answers: Record<string, unknown>): Record<string, string> {
-  const s = new Set((answers.services_selected as string[] | undefined) || []);
-  const has7Gunluk = s.has("7 günlük başvuru planı") || s.has("1 haftalık başvuru planı");
+  const raw = answers.services_selected;
+  const arr = Array.isArray(raw)
+    ? (raw as string[]).map((x) => (typeof x === "string" ? x.trim() : String(x))).filter(Boolean)
+    : typeof raw === "string"
+      ? raw.split(/[,;\n|]+/).map((s) => s.trim()).filter(Boolean)
+      : [];
+  const s = new Set(arr);
+  const has7Gunluk =
+    s.has("one_week_plan") ||
+    s.has("7 günlük başvuru planı") ||
+    s.has("1 haftalık başvuru planı");
   return {
-    service_apply_guide: s.has("Adım adım başvuru rehberi") ? "Evet" : "Hayır",
-    service_documents: s.has("Gerekli belgeler listesi") ? "Evet" : "Hayır",
-    service_work_permit_visa: s.has("Çalışma izni ve vize süreci") ? "Evet" : "Hayır",
-    service_salary_life_calc: s.has("Net maaş ve yaşam gider hesabı") ? "Evet" : "Hayır",
-    service_risk_assessment: s.has("Risk değerlendirmesi") ? "Evet" : "Hayır",
-    service_fit_analysis: s.has("Sana özel uygunluk analizi") ? "Evet" : "Hayır",
+    service_apply_guide: isServiceSelected(s, "apply_guide", "Adım adım başvuru rehberi") ? "Evet" : "Hayır",
+    service_documents: isServiceSelected(s, "docs_list", "Gerekli belgeler listesi") ? "Evet" : "Hayır",
+    service_work_permit_visa: isServiceSelected(s, "work_permit_visa", "Çalışma izni ve vize süreci") ? "Evet" : "Hayır",
+    service_salary_life_calc: isServiceSelected(s, "salary_life_calc", "Net maaş ve yaşam gider hesabı") ? "Evet" : "Hayır",
+    service_risk_assessment: isServiceSelected(s, "risk_assessment", "Risk değerlendirmesi") ? "Evet" : "Hayır",
+    service_fit_analysis: isServiceSelected(s, "fit_analysis", "Sana özel uygunluk analizi") ? "Evet" : "Hayır",
     service_one_week_plan: has7Gunluk ? "Evet" : "Hayır",
   };
 }
@@ -397,6 +421,12 @@ function isStepAnswered(answers: Record<string, unknown>, step: FlowStep): boole
 function getActiveFlowSteps(source: "eures" | "glassdoor" | "default"): FlowStep[] {
   if (source === "eures") return QUESTION_FLOW.EURES;
   return QUESTION_FLOW.GLASSDOOR; // glassdoor | default
+}
+
+/** Akıştaki ilk adım (service_pick). getNextStep null döndüğünde DONE dememek için fallback. */
+export function getFirstStep(source: "eures" | "glassdoor" | "default"): FlowStep {
+  const steps = getActiveFlowSteps(source);
+  return steps[0];
 }
 
 /** İlk cevaplanmamış soru. showIf + doneRule. no-repeat: lastAskId verilirse ve dönen adım aynıysa bir sonraki cevaplanmamış adım döner. */

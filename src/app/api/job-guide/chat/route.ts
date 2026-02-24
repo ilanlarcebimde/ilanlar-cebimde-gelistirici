@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseForUser, getSupabaseAdmin } from "@/lib/supabase/server";
 import {
   getNextStep,
+  getFirstStep,
   getStepDisplay,
   getProgressFromConfig,
   getStepById,
   PROOF_DOCS,
   expandServicesSelected,
+  SERVICE_CHOICE_IDS,
   type FlowStep,
   type FlowInput,
   QUICK_GUIDE_TEMPLATES,
@@ -417,6 +419,7 @@ export async function POST(req: NextRequest) {
       mode?: "bootstrap" | "chat";
       last_ask_id?: string;
       answers_json?: Record<string, unknown>;
+      answers_patch?: Record<string, unknown>;
       chat_history?: Array<{ role: string; text: string }>;
       client_context?: { locale?: string };
       wants_live_visa?: boolean;
@@ -435,6 +438,7 @@ export async function POST(req: NextRequest) {
       mode,
       last_ask_id,
       answers_json = {},
+      answers_patch: bodyAnswersPatch,
       chat_history = [],
       wants_live_visa,
       wants_live_salary,
@@ -446,12 +450,32 @@ export async function POST(req: NextRequest) {
     // bootstrap = ilk asistan mesajı; chat = kullanıcı cevabı sonrası
     const isBootstrap = mode === "bootstrap" || user_message === "__start__" || (typeof user_message === "string" && !user_message.trim());
     const rawUserText = (typeof message_text === "string" ? message_text : typeof user_message === "string" ? user_message : "").trim();
-    console.log("[job-guide/chat] body", { hasMessage: !!rawUserText, jobGuideId, jobPostId, mode: body.mode, isBootstrap });
-    const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
-    let mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
+    const answers_patch = bodyAnswersPatch && typeof bodyAnswersPatch === "object" ? (bodyAnswersPatch as Record<string, unknown>) : undefined;
+    console.log("[job-guide/chat] body", {
+      hasMessage: !!rawUserText,
+      hasAnswersPatch: !!answers_patch,
+      services_selectedType: answers_patch?.services_selected != null ? typeof answers_patch.services_selected : undefined,
+      jobGuideId,
+      jobPostId,
+      mode: body.mode,
+      isBootstrap,
+    });
+
+    // Deterministik akış: answers_patch varsa doğrudan merge et; metin parse etme.
+    let mergedAnswers: Record<string, unknown>;
+    if (answers_patch && Object.keys(answers_patch).length > 0) {
+      mergedAnswers = { ...answers_json, ...answers_patch } as Record<string, unknown>;
+    } else {
+      const normalizedPatch = rawUserText && !isBootstrap ? normalizeUserMessageToAnswers(rawUserText, last_ask_id) : {};
+      mergedAnswers = { ...answers_json, ...normalizedPatch } as Record<string, unknown>;
+    }
     if (last_ask_id === "service_pick") {
       mergedAnswers = { ...mergedAnswers, ...expandServicesSelected(mergedAnswers) };
     }
+    console.log("[job-guide/chat] mergedAnswers.services_selected", {
+      type: Array.isArray(mergedAnswers.services_selected) ? "array" : typeof mergedAnswers.services_selected,
+      length: Array.isArray(mergedAnswers.services_selected) ? (mergedAnswers.services_selected as unknown[]).length : undefined,
+    });
 
     const { data: guide } = await auth.supabase
       .from("job_guides")
@@ -516,6 +540,7 @@ export async function POST(req: NextRequest) {
               type: (firstQuestion.input?.type === "textarea" ? "textarea" : "choice") as "choice" | "textarea",
               choices: firstQuestion.choices,
               input: firstQuestion.input,
+              choice_ids: firstStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined,
             }
           : undefined,
       };
@@ -527,7 +552,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         assistant_message: bootstrapMessage,
         next_question: firstQuestion && firstStep
-          ? { id: firstStep.id, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input }
+          ? { id: firstStep.id, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input, choice_ids: firstStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined }
           : null,
         quick_guide_text: quickGuideText,
         report_json: guide?.report_json ?? {},
@@ -547,7 +572,7 @@ export async function POST(req: NextRequest) {
       if (nextStep) {
         const firstQuestion = getQuestionTextAndChoices(nextStep);
         const askId = nextStep.id;
-        const nextQuestionPayload = { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input };
+        const nextQuestionPayload = { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input, choice_ids: nextStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined };
         const continueMessage = getBootstrapMessage(sourceKey);
         const continueAnswers = { ...mergedAnswers, greeting_shown: true } as Record<string, unknown>;
         return NextResponse.json({
@@ -567,6 +592,7 @@ export async function POST(req: NextRequest) {
               type: (firstQuestion.input ? "textarea" : "choice") as "choice" | "textarea",
               choices: firstQuestion.choices,
               input: firstQuestion.input,
+              choice_ids: nextStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined,
             },
           },
           state_patch: {
@@ -579,8 +605,87 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // service_pick: multiselect cevabı answers_patch ile gelmeli; yoksa veya geçersizse aynı soruyu tekrar döndür (akışı bitirme).
+    const servicePickStep = getFirstStep(sourceKey);
+    const servicesSelectedValid =
+      Array.isArray(mergedAnswers.services_selected) && (mergedAnswers.services_selected as unknown[]).length >= 1;
+    if (
+      !isBootstrap &&
+      last_ask_id === "service_pick" &&
+      !servicesSelectedValid
+    ) {
+      const firstQuestion = getQuestionTextAndChoices(servicePickStep);
+      const blockingMessage = "Seçimlerini alamadım, lütfen chip'lerden seçip Devam'a bas.";
+      console.log("[job-guide/chat] service_pick blocking: services_selected missing or invalid, re-asking");
+      return NextResponse.json({
+        assistant_message: blockingMessage,
+        next_question: {
+          id: servicePickStep.id,
+          text: firstQuestion.text,
+          choices: firstQuestion.choices,
+          input: firstQuestion.input,
+          choice_ids: servicePickStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined,
+        },
+        quick_guide_text: quickGuideText,
+        report_json: guide?.report_json ?? {},
+        report_md: null,
+        checklist_snapshot: checklistSnapshot,
+        answers_json: mergedAnswers,
+        assistant: {
+          message_md: blockingMessage,
+          quick_replies: firstQuestion.choices ?? [],
+          ask: {
+            id: servicePickStep.id,
+            question: firstQuestion.text,
+            type: (firstQuestion.input?.type === "textarea" ? "textarea" : "choice") as "choice" | "textarea",
+            choices: firstQuestion.choices,
+            input: firstQuestion.input,
+            choice_ids: servicePickStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined,
+          },
+        },
+        state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
+        next: { should_finalize: false, reason: "service_pick_blocking" },
+        has_blocking_issue: true,
+      });
+    }
+
     // Chat: tek otorite = config. getNextStep(answers, source, lastAskId) no-repeat ile bir sonraki soruyu döner.
-    const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey, last_ask_id ?? undefined);
+    let nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey, last_ask_id ?? undefined);
+    console.log("[job-guide/chat] getNextStep result", { nextStepId: nextStep?.id ?? null, doneRule: nextStep ? "resolved" : "null" });
+
+    // Güvenlik kilidi: next null ve service_pick geçersizse DONE deme; ilk soruya dön.
+    if (nextStep === null && !servicesSelectedValid) {
+      const firstStep = getFirstStep(sourceKey);
+      const firstQuestion = getQuestionTextAndChoices(firstStep);
+      const fallbackMessage = "Seçimlerini alamadım, lütfen chip'lerden seçip Devam'a bas.";
+      console.log("[job-guide/chat] getNextStep returned null and services_selected invalid, returning first step with has_blocking_issue");
+      const choiceIds = firstStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined;
+      return NextResponse.json({
+        assistant_message: fallbackMessage,
+        next_question: { id: firstStep.id, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input, choice_ids: choiceIds },
+        quick_guide_text: quickGuideText,
+        report_json: guide?.report_json ?? {},
+        report_md: null,
+        checklist_snapshot: checklistSnapshot,
+        answers_json: mergedAnswers,
+        assistant: {
+          message_md: fallbackMessage,
+          quick_replies: firstQuestion.choices ?? [],
+          ask: {
+            id: firstStep.id,
+            question: firstQuestion.text,
+            type: (firstQuestion.input?.type === "textarea" ? "textarea" : "choice") as "choice" | "textarea",
+            choices: firstQuestion.choices,
+            input: firstQuestion.input,
+            choice_ids: choiceIds,
+          },
+        },
+        state_patch: { answers_patch: {}, checklist_patch: [], progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct } },
+        next: { should_finalize: false, reason: "next_step_not_found" },
+        has_blocking_issue: true,
+      });
+    }
+
     if (nextStep === null) {
       let reportJsonFinal = guide?.report_json ?? {};
       let reportMdFinal: string | null = null;
@@ -641,7 +746,7 @@ export async function POST(req: NextRequest) {
       ? mergedAnswers[lastStepForConfirm.answerKey]
       : (mergedAnswers[last_ask_id as string] ?? mergedAnswers.passport);
     const confirmationMsg =
-      last_ask_id && normalizedPatch && Object.keys(normalizedPatch).length > 0
+      last_ask_id && lastStepForConfirm && mergedAnswers[lastStepForConfirm.answerKey] != null
         ? getConfirmationMessage(last_ask_id, lastAnswerValueForConfirm)
         : null;
 
@@ -1023,7 +1128,13 @@ export async function POST(req: NextRequest) {
       });
     }
     const serverNextQuestion = getQuestionTextAndChoices(nextStep);
-    const nextQuestionPayload = { id: nextStep.id, text: serverNextQuestion.text, choices: serverNextQuestion.choices, input: serverNextQuestion.input };
+    const nextQuestionPayload = {
+      id: nextStep.id,
+      text: serverNextQuestion.text,
+      choices: serverNextQuestion.choices,
+      input: serverNextQuestion.input,
+      choice_ids: nextStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined,
+    };
     await auth.supabase.from("job_guide_events").insert({
       job_guide_id: jobGuideId,
       type: "assistant_message",
@@ -1039,6 +1150,7 @@ export async function POST(req: NextRequest) {
         type: (serverNextQuestion.input ? "textarea" : "choice") as "choice" | "textarea",
         choices: serverNextQuestion.choices,
         input: serverNextQuestion.input,
+        choice_ids: nextStep.id === "service_pick" ? [...SERVICE_CHOICE_IDS] : undefined,
       },
     };
     const state_patch = {

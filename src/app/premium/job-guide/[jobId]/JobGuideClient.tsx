@@ -23,6 +23,7 @@ type NextQuestionSingle = {
   id?: string;
   text: string;
   choices?: string[];
+  choice_ids?: string[];
   input?: { type: "text"; placeholder: string } | { type: "textarea"; placeholder: string } | { type: "multiselect" };
 };
 type ChatMessage = {
@@ -377,7 +378,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         if (d.quick_guide_text) setQuickGuideText(d.quick_guide_text);
         const ask = d.assistant?.ask;
         const nextQ: NextQuestionSingle | null = ask
-          ? { id: ask.id, text: ask.question ?? "", choices: ask.choices, input: ask.input }
+          ? { id: ask.id, text: ask.question ?? "", choices: ask.choices, input: ask.input, choice_ids: (ask as { choice_ids?: string[] }).choice_ids }
           : (d.next_question ?? null);
         if (ask?.id) setLastAskId(ask.id);
         const msg: ChatMessage = {
@@ -413,17 +414,26 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     return () => { cancelled = true; controller.abort(); clearTimeout(timeoutId); clearTimeout(safetyId); bootstrapInFlightRef.current = false; };
   }, [loading, guide, job, messages.length, getSession]);
 
+  /** Gönderim: metin string veya { message, answers_patch }. Çoklu seçimde answers_patch ile ID/label dizisi gönder (metin birleştirme yok). */
   const sendMessage = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || !guide || !job || sending) return;
+    async (textOrPayload: string | { message?: string; answers_patch?: Record<string, unknown> }) => {
+      const isPayload = typeof textOrPayload === "object" && textOrPayload !== null && "answers_patch" in textOrPayload;
+      const trimmed = isPayload
+        ? (String((textOrPayload as { message?: string }).message ?? "").trim() || "__answers__")
+        : String(textOrPayload).trim();
+      if (!trimmed && !(isPayload && (textOrPayload as { answers_patch?: Record<string, unknown> }).answers_patch)) return;
+      if (!guide || !job || sending) return;
       const token = await getSession();
       if (!token) {
         setMessages((prev) => [...prev, { role: "assistant", text: "⚠️ Giriş bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin." }]);
         return;
       }
 
-      const userMsg: ChatMessage = { role: "user", text: trimmed, ts: new Date().toISOString() };
+      const answersPatch = isPayload ? (textOrPayload as { answers_patch?: Record<string, unknown> }).answers_patch : undefined;
+      const displayText = trimmed === "__answers__" && answersPatch?.services_selected
+        ? (Array.isArray(answersPatch.services_selected) ? (answersPatch.services_selected as string[]).join(", ") : String(answersPatch.services_selected))
+        : trimmed;
+      const userMsg: ChatMessage = { role: "user", text: displayText || "Devam", ts: new Date().toISOString() };
       const prevNextQ = nextQuestion;
       setMessages((prev) => [...prev, userMsg]);
       setNextQuestion(null);
@@ -447,19 +457,21 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         if (!chatFallback12sRef.current) setSending(false);
       }, 30000);
       try {
-        if (typeof window !== "undefined") console.log("CHAT_SEND", { jobGuideId: guide.id, jobPostId: job.id });
+        if (typeof window !== "undefined") console.log("CHAT_SEND", { jobGuideId: guide.id, jobPostId: job.id, hasAnswersPatch: !!answersPatch });
+        const body: Record<string, unknown> = {
+          jobGuideId: guide.id,
+          jobPostId: job.id,
+          mode: "chat",
+          message_text: trimmed,
+          last_ask_id: lastAskId ?? undefined,
+          answers_json: guide.answers_json,
+          chat_history: messages.map((m) => ({ role: m.role, text: m.text })),
+        };
+        if (answersPatch && Object.keys(answersPatch).length > 0) body.answers_patch = answersPatch;
         const res = await fetch("/api/job-guide/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            jobGuideId: guide.id,
-            jobPostId: job.id,
-            mode: "chat",
-            message_text: trimmed,
-            last_ask_id: lastAskId ?? undefined,
-            answers_json: guide.answers_json,
-            chat_history: messages.map((m) => ({ role: m.role, text: m.text })),
-          }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
@@ -498,7 +510,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
         if (d.quick_guide_text) setQuickGuideText(d.quick_guide_text);
         const ask = d.assistant?.ask;
         const nextQ: NextQuestionSingle | null = ask
-          ? { id: ask.id, text: ask.question ?? "", choices: ask.choices, input: ask.input }
+          ? { id: ask.id, text: ask.question ?? "", choices: ask.choices, input: ask.input, choice_ids: (d.assistant?.ask as { choice_ids?: string[] } | undefined)?.choice_ids }
           : (d.next_question ?? null);
         const assistantMsg: ChatMessage = {
           role: "assistant",
@@ -706,7 +718,14 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                               type="button"
                               onClick={() => {
                                 if (inlineMultiSelected.length > 0) {
-                                  sendMessage(inlineMultiSelected.join(", "));
+                                  const choiceIds = m.next_question?.choice_ids;
+                                  const ids = choiceIds && choiceIds.length === (m.next_question?.choices?.length ?? 0)
+                                    ? inlineMultiSelected.map((label) => {
+                                        const i = (m.next_question!.choices ?? []).indexOf(label);
+                                        return i >= 0 ? choiceIds[i] : label;
+                                      })
+                                    : inlineMultiSelected;
+                                  sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
                                   setInlineMultiSelected([]);
                                 }
                               }}
@@ -881,7 +900,14 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
                                 type="button"
                                 onClick={() => {
                                   if (inlineMultiSelected.length > 0) {
-                                    sendMessage(inlineMultiSelected.join(", "));
+                                    const choiceIds = m.next_question?.choice_ids;
+                                    const ids = choiceIds && choiceIds.length === (m.next_question?.choices?.length ?? 0)
+                                      ? inlineMultiSelected.map((label) => {
+                                          const i = (m.next_question!.choices ?? []).indexOf(label);
+                                          return i >= 0 ? choiceIds[i] : label;
+                                        })
+                                      : inlineMultiSelected;
+                                    sendMessage({ message: "__answers__", answers_patch: { services_selected: ids } });
                                     setInlineMultiSelected([]);
                                   }
                                 }}
