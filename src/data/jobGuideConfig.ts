@@ -472,19 +472,36 @@ export function getStepById(id: string): FlowStep | undefined {
   return undefined;
 }
 
-/** Kontrol listesi: akıştaki adımlara göre. ✔ sadece o adım gerçekten cevaplandıysa. */
+/**
+ * Kontrol listesi: akıştaki adımlara göre.
+ * currentStepId verilirse (akış devam ediyor): ✔ sadece bu sorudan ÖNCE gelen adımlar — sorulmadan tik atılmaz.
+ * currentStepId null/undefined (akış bitti): ✔ = isStepAnswered(answers, step).
+ */
 export function getChecklistFromFlow(
   answers: Record<string, unknown>,
-  source: "eures" | "glassdoor" | "default"
+  source: "eures" | "glassdoor" | "default",
+  currentStepId?: string | null
 ): Array<{ id: string; title: string; icon: string; items: Array<{ id: string; label: string; done: boolean; hint?: string }> }> {
   const steps = getActiveFlowSteps(source);
-  const items: Array<{ id: string; label: string; done: boolean; hint?: string }> = [];
+  const visibleSteps: FlowStep[] = [];
   for (const step of steps) {
     if (step.showIf && !isShowIfMatch(answers, step.showIf)) continue;
+    visibleSteps.push(step);
+  }
+  const isBeforeFirstQuestion = currentStepId === "" || currentStepId === "__first__";
+  const currentIndex = isBeforeFirstQuestion ? 0 : (currentStepId != null ? visibleSteps.findIndex((s) => s.id === currentStepId) : -1);
+  const useOrderRule = isBeforeFirstQuestion || (currentStepId != null && currentIndex >= 0);
+
+  const items: Array<{ id: string; label: string; done: boolean; hint?: string }> = [];
+  for (let i = 0; i < visibleSteps.length; i++) {
+    const step = visibleSteps[i];
+    const done = useOrderRule
+      ? i < currentIndex
+      : isStepAnswered(answers, step);
     items.push({
       id: step.id,
       label: step.checklistLabel,
-      done: isStepAnswered(answers, step),
+      done,
     });
   }
   if (items.length === 0) return [];

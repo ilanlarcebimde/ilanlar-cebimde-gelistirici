@@ -576,9 +576,16 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
     if (name.includes("eures")) return "eures" as const;
     return "glassdoor" as const;
   }, [job?.source_name]);
+  const currentStepIdForChecklist = nextQuestion?.id ?? (messages.length === 0 ? "__first__" : undefined);
   const flowChecklist = useMemo(
-    () => (job && guide ? getChecklistFromFlow((guide.answers_json ?? {}) as Record<string, unknown>, sourceForFlow) : []),
-    [job, guide, guide?.answers_json, sourceForFlow]
+    () => (job && guide
+      ? getChecklistFromFlow(
+          (guide.answers_json ?? {}) as Record<string, unknown>,
+          sourceForFlow,
+          currentStepIdForChecklist
+        )
+      : []),
+    [job, guide, guide?.answers_json, sourceForFlow, currentStepIdForChecklist]
   );
   const modules = useMemo(
     () => (flowChecklist.length > 0 && flowChecklist[0].items.length > 0 ? flowChecklist : buildChecklist(jobForChecklist, answers)),
