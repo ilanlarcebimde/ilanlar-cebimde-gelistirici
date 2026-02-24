@@ -78,7 +78,7 @@ export function extractJsonStrict<T = Record<string, unknown>>(raw: string): T {
   }
 }
 
-/** "Araştırın" vb. yasak ifadeleri tespit edip mesajdan çıkarır veya uyarı döner. */
+/** "Araştırın" / "kontrol edin" vb. yasak ifadeleri tespit edip "Resmi veri çekilemedi" diline çevirir. */
 export function redactForbiddenPhrases(text: string): {
   cleaned: string;
   hadForbidden: boolean;
@@ -88,14 +88,49 @@ export function redactForbiddenPhrases(text: string): {
     /\baraştır\b/gi,
     /\bgoogle\s*(layın|'da\s*arat)/gi,
     /\bkaynaklara\s*bakın\b/gi,
+    /\bkontrol\s+edin\b/gi,
+    /\bkontrol\s+edebilirsin\b/gi,
+    /\baraştırabilirsin\b/gi,
   ];
+  const replacement = "Resmi veri şu an çekilemedi; ilan metninde veya resmi kaynaklarda belirtilene göre ilerleyin.";
   let cleaned = text;
   let hadForbidden = false;
   for (const re of forbidden) {
     if (re.test(cleaned)) {
       hadForbidden = true;
-      cleaned = cleaned.replace(re, "[kullanma: sadece verilen context]");
+      cleaned = cleaned.replace(re, replacement);
     }
   }
   return { cleaned, hadForbidden };
+}
+
+export type GuardrailsOptions = {
+  answers: Record<string, unknown>;
+  reportMdEmpty: boolean;
+};
+
+/** Varsayım ("pasaportun var", "harika" cevapsız), "rapor aşağıda" yalanı, yasak fiiller. */
+export function applyGuardrails(
+  message: string,
+  opts: GuardrailsOptions
+): string {
+  let out = redactForbiddenPhrases(message).cleaned;
+
+  const hasPassportAnswer = opts.answers?.passport_status != null && String(opts.answers.passport_status).trim() !== "";
+  if (!hasPassportAnswer) {
+    out = out
+      .replace(/\bpasaportun\s+var\b/gi, "pasaport durumunu bir sonraki soruda belirteceksin")
+      .replace(/\bpasaport\s+var\b/gi, "pasaport durumunu bir sonraki soruda belirteceksin")
+      .replace(/\bharika\s*!?\s*(pasaport|pasaportun)/gi, "Pasaport durumunu aşağıdaki soruda belirt.")
+      .replace(/\bharika\s*!?\s*$/gim, "");
+  }
+
+  if (opts.reportMdEmpty) {
+    out = out
+      .replace(/\braporda\s+(var|yazıyor|göreceksin|kontrol\s+edeceğiz)\b/gi, "rehberde")
+      .replace(/\brapor\s+aşağıda\b/gi, "Özet ve adımlar yukarıdaki rehberde.")
+      .replace(/\brapor\s+ve\s+1\s+haftalık\s+plan\s+aşağıda\b/gi, "Tüm adımlar tamamlandığında özet rapor oluşturulacak.");
+  }
+
+  return out.trim() || message;
 }

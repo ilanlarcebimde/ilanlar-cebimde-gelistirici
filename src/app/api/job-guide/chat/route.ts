@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseForUser, getSupabaseAdmin } from "@/lib/supabase/server";
 import {
   getNextStep,
+  getNextStepAfter,
   getStepDisplay,
   getProgressFromConfig,
   getStepById,
@@ -17,8 +18,9 @@ import {
 import { fetchUrlToPlainText, getVisaContextForCountry } from "@/lib/jobGuideGrounding";
 import { getCountrySources } from "@/lib/external/sources";
 import { fetchExternalWithCache } from "@/lib/external/fetchWithCache";
-import { callGeminiJson, extractJsonStrict, redactForbiddenPhrases } from "@/lib/ai/gemini";
+import { callGeminiJson, extractJsonStrict, redactForbiddenPhrases, applyGuardrails } from "@/lib/ai/gemini";
 import { buildGeminiSystemPrompt, buildGeminiUserPrompt, type LiveContextItem } from "@/lib/job-guide/prompts";
+import { generateFinalReport } from "@/lib/job-guide/generateReport";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -473,8 +475,9 @@ export async function POST(req: NextRequest) {
       const nextQuestionPayload = nextStep
         ? { id: askId, text: firstQuestion.text, choices: firstQuestion.choices, input: firstQuestion.input }
         : null;
+      const bootstrapMessage = "Merhaba! 👋 Yukarıdaki Hızlı Rehber'e göz at; aşağıdaki soruyla devam edelim.";
       const assistant = {
-        message_md: quickGuideText,
+        message_md: bootstrapMessage,
         quick_replies: firstQuestion.choices ?? [],
         ask: nextQuestionPayload
           ? {
@@ -492,7 +495,7 @@ export async function POST(req: NextRequest) {
         progress: { total: progressFromConfig.total, done: progressFromConfig.done, percent: progressFromConfig.pct },
       };
       return NextResponse.json({
-        assistant_message: quickGuideText,
+        assistant_message: bootstrapMessage,
         next_question: nextQuestionPayload,
         quick_guide_text: quickGuideText,
         report_json: guide?.report_json ?? {},
@@ -505,10 +508,47 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Chat: sıradaki soru sunucuda belirlenir (deterministik), Gemini sadece rehber üretir
-    const nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+    // Chat: tek otorite = config. Sıradaki soru her zaman config'ten; no-repeat: aynı soru tekrar dönmesin.
+    let nextStep = getNextStep(mergedAnswers as Record<string, unknown>, sourceKey);
+    if (nextStep && last_ask_id && nextStep.id === last_ask_id) {
+      const after = getNextStepAfter(mergedAnswers as Record<string, unknown>, sourceKey, last_ask_id);
+      if (after) nextStep = after;
+    }
     if (nextStep === null) {
-      const doneMessage = "Tüm sorular tamamlandı. Rapor ve 1 haftalık plan aşağıda.";
+      let reportJsonFinal = guide?.report_json ?? {};
+      let reportMdFinal: string | null = null;
+      let scoreFinal: number | undefined;
+      let riskLevelFinal: string | undefined;
+      try {
+        const generated = await generateFinalReport(
+          jobContent,
+          mergedAnswers as Record<string, unknown>,
+          checklistSnapshot as Record<string, unknown>
+        );
+        reportJsonFinal = generated.reportJson;
+        reportMdFinal = generated.reportMd;
+        scoreFinal = generated.score ?? undefined;
+        riskLevelFinal = generated.riskLevel ?? undefined;
+        await auth.supabase
+          .from("job_guides")
+          .update({
+            answers_json: mergedAnswers,
+            report_json: reportJsonFinal,
+            report_md: reportMdFinal,
+            updated_at: new Date().toISOString(),
+            status: "in_progress",
+            ...(scoreFinal != null ? { score: scoreFinal } : {}),
+            ...(riskLevelFinal ? { risk_level: riskLevelFinal } : {}),
+          })
+          .eq("id", jobGuideId)
+          .eq("user_id", auth.user.id);
+      } catch (e) {
+        console.error("[job-guide/chat] final report generation failed", e);
+      }
+      const doneMessage =
+        reportMdFinal && reportMdFinal.length > 50
+          ? "Tüm sorular tamamlandı. Rapor aşağıda."
+          : "Tüm sorular tamamlandı. Rapor hazırlanıyor; sayfayı yenileyebilir veya birkaç saniye sonra tekrar bakabilirsin.";
       const state_patch = {
         answers_patch: {} as Record<string, unknown>,
         checklist_patch: [] as Array<{ module_id: string; item_id: string; done: boolean }>,
@@ -518,13 +558,15 @@ export async function POST(req: NextRequest) {
         assistant_message: doneMessage,
         next_question: null,
         quick_guide_text: quickGuideText,
-        report_json: guide?.report_json ?? {},
-        report_md: null,
+        report_json: reportJsonFinal,
+        report_md: reportMdFinal,
         checklist_snapshot: checklistSnapshot,
         answers_json: mergedAnswers,
         assistant: { message_md: doneMessage, quick_replies: [], ask: undefined },
         state_patch,
         next: { should_finalize: true, reason: "all_steps_done" },
+        score: scoreFinal,
+        risk_level: riskLevelFinal,
       });
     }
     const currentStepId = nextStep.id;
@@ -722,16 +764,13 @@ export async function POST(req: NextRequest) {
       assistantMessage = (assistantMessage ? assistantMessage + "\n\n" : "") + defaultCvGuide;
     }
 
-    // CV Paketi CTA (kural tabanlı) — Gemini'ye bırakılmaz, tekrar ettirilmez
+    // CV Paketi CTA: sadece cv_status "Hazır değil" veya "Yok" iken, tek mesaj + link + CV79 (tek kod)
+    const cvMissing = mergedAnswers.cv_status === "Hazır değil" || mergedAnswers.cv_status === "Yok";
     const shouldInjectCvCta =
-      mergedAnswers.cv_status === "Hazır değil" &&
-      (last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
+      cvMissing && (last_ask_id === "cv_status" || last_ask_id === "cv_offer_if_missing");
     if (shouldInjectCvCta) {
       const link = "https://www.ilanlarcebimde.com/yurtdisi-cv-paketi";
-      const codeLine = "Sizin için indirim kodu: CV79";
-      const cta = mergedAnswers.cv_offer_if_missing === "Evet yönlendir"
-        ? `CV Paketi'ne buradan geçebilirsin:\n${link}\n\n${codeLine}`
-        : `İstersen CV Paketi ile 1 gün içinde hazırlanıp teslim edebiliriz:\n${link}\n\n${codeLine}`;
+      const cta = `CV hazır değilse buradan 24 saat içinde hazırlatabilirsin.\n${link}\nİndirim kodu: CV79`;
       assistantMessage = assistantMessage.trim() ? assistantMessage.trim() + "\n\n" + cta : cta;
     }
     if (confirmationMsg) {
@@ -793,6 +832,12 @@ export async function POST(req: NextRequest) {
       (reportJson as Record<string, unknown>).vize_izin = parts.length > 0 ? parts.join("\n") : (reportJson as Record<string, unknown>).vize_izin;
     }
     const reportMd = buildReportMd(reportJson, reportFromGemini);
+
+    // Guardrails: varsayım yok, "rapor aşağıda" yok (rapor yoksa), "kontrol edin/araştırın" yok
+    assistantMessage = applyGuardrails(assistantMessage, {
+      answers: mergedAnswers as Record<string, unknown>,
+      reportMdEmpty: !reportMd || reportMd.length < 100,
+    });
 
     const score = typeof reportFromGemini.fit_analysis?.score === "number"
       ? Math.max(0, Math.min(100, reportFromGemini.fit_analysis.score))

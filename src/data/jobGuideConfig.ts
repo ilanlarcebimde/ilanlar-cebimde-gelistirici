@@ -310,6 +310,27 @@ export function getNextStep(
   return null;
 }
 
+/** No-repeat: last_ask_id ile aynı soru dönmesin diye, ondan sonraki ilk cevaplanmamış adımı döndürür. */
+export function getNextStepAfter(
+  answers: Record<string, unknown>,
+  source: "eures" | "glassdoor" | "default",
+  afterStepId: string
+): FlowStep | null {
+  const steps = getActiveFlowSteps(source);
+  let found = false;
+  for (const step of steps) {
+    if (step.id === afterStepId) {
+      found = true;
+      continue;
+    }
+    if (!found) continue;
+    if (step.showIf && !isShowIfMatch(answers, step.showIf)) continue;
+    if (isStepAnswered(answers, step)) continue;
+    return step;
+  }
+  return null;
+}
+
 /** Adım için gösterilecek metin + choices veya input. */
 export function getStepDisplay(step: FlowStep): {
   text: string;
