@@ -15,7 +15,15 @@ const BONUS_ITEMS = [
   "Kişiselleştirilmiş iş başvuru mektubu (şansınızı artırmayı hedefler)",
 ];
 
+/** Yurtdışı CV Paketi: sadece CV + mektup, 349 TL */
+const CV_PACKAGE_ITEMS = [
+  "Türkçe CV (uluslararası standartlara uygun)",
+  "İngilizce CV (uluslararası standartlara uygun)",
+  "İş başvuru mektubu (yurtdışı başvurularına uyumlu)",
+];
+
 const PRICE = 549;
+const PRICE_CV_PACKAGE = 349;
 
 /** Ödeme sayfasına gidecek tam profil verisi; kayıt yalnızca ödeme/kupon sonrası yapılır */
 export interface PaymentPayload {
@@ -27,6 +35,8 @@ export interface PaymentPayload {
   job_branch: string;
   answers: Record<string, unknown>;
   photo_url: string | null;
+  /** Paket türü: cv_package = Yurtdışı CV Paketi 349 TL, weekly = Haftalık Premium 89 TL */
+  plan?: "weekly" | "cv_package";
 }
 
 export function CompletionSummary({
@@ -40,6 +50,7 @@ export function CompletionSummary({
   answers,
   photoUrl,
   onPaymentClick,
+  productPlan,
 }: {
   country: string;
   jobBranch: string;
@@ -51,8 +62,14 @@ export function CompletionSummary({
   answers: Record<string, unknown>;
   photoUrl: string | null;
   onPaymentClick: (payload: PaymentPayload) => void;
+  /** cv_package = Yurtdışı CV Paketi 349 TL (Türkçe CV, İngilizce CV, İş başvuru mektubu) */
+  productPlan?: "cv_package";
 }) {
   const countryName = COUNTRIES.find((c) => c.id === country)?.name ?? country;
+  const isCvPackage = productPlan === "cv_package";
+  const packageItems = isCvPackage ? CV_PACKAGE_ITEMS : PACKAGE_ITEMS;
+  const price = isCvPackage ? PRICE_CV_PACKAGE : PRICE;
+  const packageTitle = isCvPackage ? "Yurtdışı CV Paketi" : "Usta Başvuru Paketi";
 
   const handlePay = () => {
     onPaymentClick({
@@ -64,6 +81,7 @@ export function CompletionSummary({
       job_branch: jobBranch,
       answers,
       photo_url: photoUrl,
+      ...(isCvPackage && { plan: "cv_package" as const }),
     });
   };
 
@@ -88,24 +106,28 @@ export function CompletionSummary({
       </div>
 
       <div className="rounded-xl bg-slate-50 p-6 mb-6">
-        <h3 className="font-semibold text-slate-900 mb-4">Usta Başvuru Paketi — {PRICE} TL</h3>
+        <h3 className="font-semibold text-slate-900 mb-4">{packageTitle} — {price} TL</h3>
         <ul className="space-y-2 mb-4">
-          {PACKAGE_ITEMS.map((item) => (
+          {packageItems.map((item) => (
             <li key={item} className="flex items-start gap-2 text-sm text-slate-700">
               <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
               {item}
             </li>
           ))}
         </ul>
-        <p className="text-sm font-medium text-slate-600 mb-2">Pakete dahil ücretsiz bonuslar:</p>
-        <ul className="space-y-2">
-          {BONUS_ITEMS.map((item) => (
-            <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
-              <Check className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              {item}
-            </li>
-          ))}
-        </ul>
+        {!isCvPackage && (
+          <>
+            <p className="text-sm font-medium text-slate-600 mb-2">Pakete dahil ücretsiz bonuslar:</p>
+            <ul className="space-y-2">
+              {BONUS_ITEMS.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
+                  <Check className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <button

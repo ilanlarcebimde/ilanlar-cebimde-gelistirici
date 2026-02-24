@@ -9,8 +9,10 @@ import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
+const AMOUNT_CV_PACKAGE = 349;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
+const BASKET_CV_PACKAGE = "Yurtdışı CV Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
 /** Haftalık premium test kuponu (7 gün abonelik, giriş gerekli) */
 const PREMIUM_COUPON_CODE = "ADMIN89";
@@ -165,8 +167,9 @@ export default function OdemePage() {
     }
 
     const isWeekly = parsed?.plan === "weekly";
-    const amount = isWeekly ? AMOUNT_WEEKLY : AMOUNT_FULL;
-    const basketDescription = isWeekly ? BASKET_WEEKLY : BASKET_FULL;
+    const isCvPackage = parsed?.plan === "cv_package";
+    const amount = isWeekly ? AMOUNT_WEEKLY : isCvPackage ? AMOUNT_CV_PACKAGE : AMOUNT_FULL;
+    const basketDescription = isWeekly ? BASKET_WEEKLY : isCvPackage ? BASKET_CV_PACKAGE : BASKET_FULL;
 
     const user_name =
       (parsed?.user_name && String(parsed.user_name).trim()) ||
@@ -330,7 +333,9 @@ export default function OdemePage() {
               {(() => {
                 const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
                 const plan = p ? (JSON.parse(p) as { plan?: string })?.plan : null;
-                return plan === "weekly" ? "89,00 TL" : "549,00 TL";
+                if (plan === "weekly") return "89,00 TL";
+                if (plan === "cv_package") return "349,00 TL";
+                return "549,00 TL";
               })()}
             </span>
           </p>

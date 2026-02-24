@@ -22,7 +22,7 @@ export default function Home() {
   const [method, setMethod] = useState<WizardMethod | null>(null);
   const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null } | null>(null);
+  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null; plan?: "weekly" | "cv_package" } | null>(null);
 
   const handleLoginClick = useCallback(() => setAuthOpen(true), []);
 
@@ -36,7 +36,7 @@ export default function Home() {
   }, []);
 
   const handlePaymentClick = useCallback(
-    (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null }) => {
+    (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => {
       setWizardModalOpen(false);
       sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
       setPaymentPayload(null);

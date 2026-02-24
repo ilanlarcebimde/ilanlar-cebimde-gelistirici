@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { FileText } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { ChannelPushToggle } from "@/components/push/ChannelPushToggle";
+
+const CV_PACKAGE_PATH = "/yurtdisi-cv-paketi";
 
 const FLAG_CDN = "https://flagcdn.com";
 
@@ -191,6 +194,22 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
 
   return (
     <aside className="h-full w-[280px] border-r border-slate-200 bg-white overflow-y-auto">
+      {/* Yurtdışı CV Paketi — menü butonu */}
+      <div className="p-4 border-b border-slate-100">
+        <Link
+          href={CV_PACKAGE_PATH}
+          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+            <FileText className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">Yurtdışı CV Paketi</p>
+            <p className="text-xs text-slate-500">Türkçe + İngilizce CV, İş başvuru mektubu — 349 TL</p>
+          </div>
+        </Link>
+      </div>
+
       {/* Aboneliklerim */}
       <div className="p-4 border-b border-slate-100">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">

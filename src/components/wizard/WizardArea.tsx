@@ -45,10 +45,13 @@ export function WizardArea({
   selectedMethod,
   onPaymentClick,
   userId,
+  productPlan,
 }: {
   selectedMethod: WizardMethod | null;
-  onPaymentClick: (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null }) => void;
+  onPaymentClick: (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => void;
   userId?: string;
+  /** cv_package = Yurtdışı CV Paketi 349 TL */
+  productPlan?: "cv_package";
 }) {
   const [state, setState] = useState<WizardState>({ ...DEFAULT_STATE, method: selectedMethod ?? "form" });
   const [completed, setCompleted] = useState(false);
@@ -155,6 +158,7 @@ export function WizardArea({
               answers={state.answers}
               photoUrl={state.photoUrl}
               onPaymentClick={onPaymentClick}
+              productPlan={productPlan}
             />
           ) : state.method === "voice" ? (
             <VoiceWizard

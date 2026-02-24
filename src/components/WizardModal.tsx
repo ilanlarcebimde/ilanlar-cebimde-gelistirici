@@ -46,12 +46,15 @@ export function WizardModal({
   selectedMethod,
   onPaymentClick,
   userId,
+  productPlan,
 }: {
   open: boolean;
   onClose: () => void;
   selectedMethod: WizardMethod | null;
-  onPaymentClick: (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null }) => void;
+  onPaymentClick: (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => void;
   userId?: string;
+  /** cv_package = Yurtdışı CV Paketi 349 TL */
+  productPlan?: "cv_package";
 }) {
   const mobileViewport = useMobileViewport(open, selectedMethod);
 
@@ -135,6 +138,7 @@ export function WizardModal({
                 selectedMethod={selectedMethod}
                 onPaymentClick={onPaymentClick}
                 userId={userId}
+                productPlan={productPlan}
               />
             </div>
           </motion.div>
