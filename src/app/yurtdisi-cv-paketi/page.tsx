@@ -53,7 +53,7 @@ export default function YurtdisiCvPaketiPage() {
       job_branch: string;
       answers: Record<string, unknown>;
       photo_url: string | null;
-      plan?: "cv_package";
+      plan?: "weekly" | "cv_package";
     }) => {
       setWizardModalOpen(false);
       sessionStorage.setItem("paytr_pending", JSON.stringify({ ...payload, plan: "cv_package" }));
