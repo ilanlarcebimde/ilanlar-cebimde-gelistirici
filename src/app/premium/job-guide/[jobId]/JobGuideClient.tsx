@@ -416,7 +416,7 @@ export function JobGuideClient({ jobId }: { jobId: string }) {
 
   /** Gönderim: metin string veya { message, answers_patch }. Çoklu seçimde answers_patch ile ID/label dizisi gönder (metin birleştirme yok). */
   const sendMessage = useCallback(
-    async (textOrPayload: string | { message?: string; answers_patch?: Record<string, unknown> }) => {
+    async (textOrPayload: string | { message?: string; answers_patch?: Record<string, unknown>; displayText?: string }) => {
       const isPayload = typeof textOrPayload === "object" && textOrPayload !== null && "answers_patch" in textOrPayload;
       const trimmed = isPayload
         ? (String((textOrPayload as { message?: string }).message ?? "").trim() || "__answers__")
