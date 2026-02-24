@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import type { FormatterOutput } from "@/lib/job-guide/formatterSchema";
 
 const MAX_VISIBLE_BULLETS = 5;
 
+/** API'den gelen biçimlendirilmiş rehber; sadece render için (client-safe). */
+export type FormattedJobGuideData = {
+  ui?: {
+    header?: { title?: string; meta?: string[] };
+    sections?: Array<{ title?: string; bullets?: string[]; note?: string }>;
+    cta?: { label?: string; url?: string };
+  };
+};
+
 type FormattedJobGuideProps = {
-  data: FormatterOutput;
-  /** Uzun snippet için "Devamını göster" sınırı (madde sayısı). */
+  data: FormattedJobGuideData;
   collapseThreshold?: number;
 };
 

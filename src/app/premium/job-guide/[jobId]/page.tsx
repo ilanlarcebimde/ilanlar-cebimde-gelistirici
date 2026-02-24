@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
 import { JobGuidePanel } from "./JobGuidePanel";
+import { JobGuideErrorBoundary } from "./JobGuideErrorBoundary";
 
 function LoadingShell() {
   return (
@@ -72,5 +73,9 @@ export default function PremiumJobGuidePage() {
   }
 
   // Abonelik var: ilan bilgisi ile soru akışı paneli
-  return <JobGuidePanel jobId={jobId} />;
+  return (
+    <JobGuideErrorBoundary>
+      <JobGuidePanel jobId={jobId} />
+    </JobGuideErrorBoundary>
+  );
 }

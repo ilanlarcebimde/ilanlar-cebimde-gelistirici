@@ -25,8 +25,7 @@ import {
   CV_PACKAGE_ITEMS,
   CV_COUPON_TEXT,
 } from "./guideContent";
-import { FormattedJobGuide } from "@/components/job-guide/FormattedJobGuide";
-import type { FormatterOutput } from "@/lib/job-guide/formatterSchema";
+import { FormattedJobGuide, type FormattedJobGuideData } from "@/components/job-guide/FormattedJobGuide";
 
 type Job = {
   id: string;
@@ -56,7 +55,7 @@ export function JobGuidePanel({ jobId }: { jobId: string }) {
   const [saving, setSaving] = useState(false);
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
   const [formattedOpen, setFormattedOpen] = useState(false);
-  const [formattedData, setFormattedData] = useState<FormatterOutput | null>(null);
+  const [formattedData, setFormattedData] = useState<FormattedJobGuideData | null>(null);
   const [formattedSource, setFormattedSource] = useState<"gemini" | "fallback" | null>(null);
   const [formattedLoading, setFormattedLoading] = useState(false);
   const [formattedError, setFormattedError] = useState<string | null>(null);
@@ -182,7 +181,7 @@ setStepIndex(firstUnanswered >= 0 ? firstUnanswered : FLOW_STEPS.length);
       }
       const formatted = json?.formatted;
       if (formatted && typeof formatted === "object" && formatted !== null && "ui" in formatted) {
-        setFormattedData(formatted as FormatterOutput);
+        setFormattedData(formatted as FormattedJobGuideData);
         setFormattedSource(json.source ?? "fallback");
         setFormattedOpen(true);
         setFormattedError(null);
@@ -394,6 +393,7 @@ function DocumentBlock({ title, content }: { title: string; content: string }) {
 
 /** Rehber metnini paragraf ve **kalın** için render eder. */
 function GuideText({ content }: { content: string }) {
+  if (content == null || typeof content !== "string") return null;
   const paragraphs = content.split(/\n\n+/).filter(Boolean);
   return (
     <>
