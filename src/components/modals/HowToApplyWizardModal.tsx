@@ -742,10 +742,19 @@ export function HowToApplyWizardModal({
     fetch(`/api/apply/full-job?job_id=${encodeURIComponent(jobId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
-      .then((res) => res.json().catch(() => ({})))
-      .then((data: FullJob | { error?: string; detail?: string }) => {
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({})) as FullJob | { error?: string; detail?: string };
+        return { res, data };
+      })
+      .then(({ res, data }) => {
         if (cancelled) return;
         setLoading(false);
+        if (res.status === 403 && data && typeof data === "object" && (data as { error?: string }).error === "premium_required") {
+          const msg = (data as { detail?: string }).detail ?? "Haftalık premium aboneliğiniz yok veya süresi dolmuş. Erişim için yeniden abone olun.";
+          setFetchError(msg);
+          if (typeof window !== "undefined") window.dispatchEvent(new Event("premium-subscription-invalidate"));
+          return;
+        }
         if (data && typeof data === "object" && "id" in data && !("error" in data)) {
           const fullJob = data as FullJob;
           setJob(fullJob);
@@ -808,11 +817,14 @@ export function HowToApplyWizardModal({
       }
       if (!res.ok) {
         const err = parsed as { error?: string; detail?: string };
-        const msg =
-          typeof err?.detail === "string"
-            ? err.detail.slice(0, 200)
-            : "Rehber alınamadı. Lütfen tekrar deneyin.";
-        setWebhookError(msg);
+        if (res.status === 403 && err?.error === "premium_required") {
+          const msg = typeof err?.detail === "string" ? err.detail : "Haftalık premium aboneliğiniz yok veya süresi dolmuş. Erişim için yeniden abone olun.";
+          setWebhookError(msg);
+          if (typeof window !== "undefined") window.dispatchEvent(new Event("premium-subscription-invalidate"));
+        } else {
+          const msg = typeof err?.detail === "string" ? err.detail.slice(0, 200) : "Rehber alınamadı. Lütfen tekrar deneyin.";
+          setWebhookError(msg);
+        }
         setLoading(false);
         return;
       }
@@ -863,11 +875,14 @@ export function HowToApplyWizardModal({
         }
         if (!res.ok) {
           const err = parsed as { error?: string; detail?: string };
-          const msg =
-            typeof err?.detail === "string"
-              ? err.detail.slice(0, 200)
-              : "Rehber alınamadı. Lütfen tekrar deneyin.";
-          setWebhookError(msg);
+          if (res.status === 403 && err?.error === "premium_required") {
+            const msg = typeof err?.detail === "string" ? err.detail : "Haftalık premium aboneliğiniz yok veya süresi dolmuş. Erişim için yeniden abone olun.";
+            setWebhookError(msg);
+            if (typeof window !== "undefined") window.dispatchEvent(new Event("premium-subscription-invalidate"));
+          } else {
+            const msg = typeof err?.detail === "string" ? err.detail.slice(0, 200) : "Rehber alınamadı. Lütfen tekrar deneyin.";
+            setWebhookError(msg);
+          }
           setLoading(false);
           return;
         }

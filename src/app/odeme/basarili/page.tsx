@@ -17,7 +17,7 @@ export default function OdemeBasariliPage() {
     if (typeof window === "undefined") return null;
     try {
       const path = sessionStorage.getItem("premium_after_payment_redirect");
-      if (path && path.startsWith("/premium/job-guide/")) {
+      if (path && (path.startsWith("/premium/job-guide/") || path.startsWith("/ucretsiz-yurtdisi-is-ilanlari?openHowTo="))) {
         sessionStorage.removeItem("premium_after_payment_redirect");
         return path;
       }

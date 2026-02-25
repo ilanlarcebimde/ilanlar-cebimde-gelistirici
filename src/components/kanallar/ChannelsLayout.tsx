@@ -186,6 +186,23 @@ export function ChannelsLayout() {
         open={premiumOpen}
         onClose={() => { setPremiumOpen(false); setPendingJobId(null); }}
         initialJobId={pendingJobId}
+        onPremiumSuccess={async (jobId) => {
+          setPremiumOpen(false);
+          setPendingJobId(null);
+          if (!jobId) return;
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token ?? null;
+            if (token) {
+              setHowToJobId(jobId);
+              setHowToJobSourceUrl(null);
+              setHowToToken(token);
+              setHowToOpen(true);
+            }
+          } catch {
+            // ignore
+          }
+        }}
       />
 
       <HowToApplyWizardModal

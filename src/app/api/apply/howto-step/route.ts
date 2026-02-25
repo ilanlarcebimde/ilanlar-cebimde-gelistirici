@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSupabaseForUser } from "@/lib/supabase/server";
+import { isPremiumSubscriptionActive } from "@/lib/premiumSubscription";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest) {
   const auth = await getUserFromRequest(req);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const hasActivePremium = await isPremiumSubscriptionActive(auth.user.id);
+  if (!hasActivePremium) {
+    return NextResponse.json(
+      { error: "premium_required", detail: "Haftalık premium aboneliğiniz yok veya süresi dolmuş. Erişim için abonelik gereklidir." },
+      { status: 403 }
+    );
   }
 
   let body: StepBody;

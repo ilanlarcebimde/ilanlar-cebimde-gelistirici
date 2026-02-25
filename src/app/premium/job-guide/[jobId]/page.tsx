@@ -67,6 +67,7 @@ export default function PremiumJobGuidePage() {
           open={showPayModal}
           onClose={() => setShowPayModal(false)}
           initialJobId={jobId}
+          onPremiumSuccess={() => setShowPayModal(false)}
         />
       </div>
     );

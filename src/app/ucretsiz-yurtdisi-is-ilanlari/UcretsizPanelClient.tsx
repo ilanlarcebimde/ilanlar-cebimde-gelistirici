@@ -115,6 +115,25 @@ export function UcretsizPanelClient() {
     }
   }, [searchParams]);
 
+  // Ödeme sonrası openHowTo=jobId ile geldiyse ve abonelik aktifse wizard aç
+  useEffect(() => {
+    const openHowTo = searchParams.get("openHowTo");
+    if (!openHowTo || !user || subscriptionLoading) return;
+    if (subscriptionActive) {
+      (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          setHowToJobId(openHowTo);
+          setHowToJobSourceUrl(null);
+          setHowToToken(token);
+          setHowToOpen(true);
+          router.replace(BASE_PATH, { scroll: false });
+        }
+      })();
+    }
+  }, [searchParams, user, subscriptionActive, subscriptionLoading, router]);
+
   // Premium panelden geri atıldıysa: job id varsa sakla, sebebe göre giriş veya ödeme modalı aç
   useEffect(() => {
     try {
@@ -318,6 +337,23 @@ export function UcretsizPanelClient() {
           open={premiumOpen}
           onClose={() => { setPremiumOpen(false); setPendingJobId(null); }}
           initialJobId={pendingJobId}
+          onPremiumSuccess={async (jobId) => {
+            setPremiumOpen(false);
+            setPendingJobId(null);
+            if (!jobId) return;
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token ?? null;
+              if (token) {
+                setHowToJobId(jobId);
+                setHowToJobSourceUrl(null);
+                setHowToToken(token);
+                setHowToOpen(true);
+              }
+            } catch {
+              // ignore
+            }
+          }}
         />
       </AnimatePresence>
 
