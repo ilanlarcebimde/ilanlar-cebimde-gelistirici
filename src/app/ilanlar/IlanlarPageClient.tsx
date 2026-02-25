@@ -42,6 +42,13 @@ const COUNTRIES = [
       "İrlanda iş piyasası ve vize duyuruları. AB üyesi ülke fırsatları.",
   },
   {
+    id: "kibris",
+    flagCode: "cy",
+    name: "Kıbrıs",
+    description:
+      "Kıbrıs'taki güncel iş ilanları ve resmi duyurular. AB üyesi ülke fırsatları.",
+  },
+  {
     id: "alaska",
     flagCode: "us",
     name: "Alaska",

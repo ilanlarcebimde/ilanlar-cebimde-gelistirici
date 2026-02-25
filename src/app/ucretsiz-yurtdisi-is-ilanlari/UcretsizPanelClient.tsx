@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { ChannelsSidebar } from "@/components/kanallar/ChannelsSidebar";
 import { PanelFeed } from "@/components/kanallar/PanelFeed";
+import { ChannelSubscribeGate } from "@/components/kanallar/ChannelSubscribeGate";
 import { FeedHeader } from "@/components/FeedHeader";
 import { AuthModal } from "@/components/AuthModal";
 import { PremiumIntroModal } from "@/components/modals/PremiumIntroModal";
@@ -46,12 +47,94 @@ export function UcretsizPanelClient() {
   const [howToJobSourceUrl, setHowToJobSourceUrl] = useState<string | null>(null);
   const [howToToken, setHowToToken] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
+  const [subscribedChannelSlugs, setSubscribedChannelSlugs] = useState<string[]>([]);
+  const [subscribeGateSubmitting, setSubscribeGateSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
   const openedPremiumAfterLoginRef = useRef(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processedSubscribeRef = useRef<string | null>(null);
+
+  const loadSubscribedSlugs = useCallback(async () => {
+    if (!user?.id) {
+      setSubscribedChannelSlugs([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("channel_subscriptions")
+      .select("channel_id, channels(slug)")
+      .eq("user_id", user.id);
+    const slugs: string[] = [];
+    (data ?? []).forEach((row: { channels?: { slug?: string } | { slug?: string }[] }) => {
+      const ch = row.channels;
+      const slug = Array.isArray(ch) ? ch[0]?.slug : ch?.slug;
+      if (slug) slugs.push(slug);
+    });
+    setSubscribedChannelSlugs(slugs);
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadSubscribedSlugs();
+  }, [loadSubscribedSlugs]);
+
+  // Giriş sonrası ?subscribe=slug ile dönüldüyse abone yap ve URL'den kaldır (sistem abonelikleri hatırlar)
+  useEffect(() => {
+    const subscribeSlug = searchParams.get("subscribe");
+    if (!user || !subscribeSlug) return;
+    if (processedSubscribeRef.current === subscribeSlug) return;
+    processedSubscribeRef.current = subscribeSlug;
+    const run = async () => {
+      setSubscribeGateSubmitting(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          const res = await fetch("/api/subscriptions/ensure", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ channelSlug: subscribeSlug }),
+          });
+          if (res.ok) await loadSubscribedSlugs();
+        }
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("subscribe");
+        const qs = params.toString();
+        router.replace(qs ? `${BASE_PATH}?${qs}` : BASE_PATH, { scroll: false });
+        processedSubscribeRef.current = null;
+      } finally {
+        setSubscribeGateSubmitting(false);
+      }
+    };
+    run();
+  }, [user, searchParams, loadSubscribedSlugs, router]);
+
+  const handleSubscribeToChannel = useCallback(
+    async (channelSlug: string) => {
+      if (!user) {
+        const next = `${BASE_PATH}?c=${channelSlug}&subscribe=${channelSlug}`;
+        router.push(`/giris?next=${encodeURIComponent(next)}&subscribe=${encodeURIComponent(channelSlug)}`);
+        return;
+      }
+      setSubscribeGateSubmitting(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          const res = await fetch("/api/subscriptions/ensure", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ channelSlug }),
+          });
+          if (res.ok) await loadSubscribedSlugs();
+        }
+      } finally {
+        setSubscribeGateSubmitting(false);
+      }
+    },
+    [user, router, loadSubscribedSlugs]
+  );
 
   const handleHowToApplyClick = useCallback(
     async (post: FeedPost) => {
@@ -321,13 +404,23 @@ export function UcretsizPanelClient() {
             </p>
           </div>
 
-          <PanelFeed
-            channels={allChannels}
-            selectedChip={chip === "all" ? null : chip}
-            searchQuery={searchQuery}
-            subscribedOnlyEmpty={false}
-            onHowToApplyClick={handleHowToApplyClick}
-          />
+          {chip !== "all" && (!user || !subscribedChannelSlugs.includes(chip)) ? (
+            <ChannelSubscribeGate
+              channelName={allChannels.find((c) => c.slug === chip)?.name ?? chip}
+              channelSlug={chip}
+              isLoggedIn={!!user}
+              onSubscribe={() => handleSubscribeToChannel(chip)}
+              subscribing={subscribeGateSubmitting}
+            />
+          ) : (
+            <PanelFeed
+              channels={allChannels}
+              selectedChip={chip === "all" ? null : chip}
+              searchQuery={searchQuery}
+              subscribedOnlyEmpty={false}
+              onHowToApplyClick={handleHowToApplyClick}
+            />
+          )}
         </div>
       </div>
 
