@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { isGuideResponse, type GuideBlock, type GuideResponse } from "@/components/GuideRenderer";
 
@@ -663,6 +664,11 @@ export function HowToApplyWizardModal({
   const [nextStepLoading, setNextStepLoading] = useState(false);
   /** Form data for current step (steps 3–7). Merged into answers on submit. */
   const [stepFormData, setStepFormData] = useState<Record<string, unknown>>({});
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch full job when modal opens with jobId
   useEffect(() => {
@@ -836,20 +842,23 @@ export function HowToApplyWizardModal({
     if (currentStep < 7) setCurrentStep((s) => s + 1);
   }, [currentStep]);
 
-  if (!open) return null;
-
   const displayStep = stepResult && isGuideResponse(stepResult) ? stepResult.step : currentStep;
   const progressPercent = Math.round((displayStep / 7) * 100);
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+  const modalContent = !open ? null : (
+    <div className="fixed inset-0 z-[9999]" role="presentation">
       <div
-        className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl"
-        role="dialog"
-        aria-modal
-        aria-labelledby="wizard-title"
-      >
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        aria-hidden
+        onClick={onClose}
+      />
+      <div className="relative z-[10000] flex h-full items-center justify-center p-4">
+        <div
+          className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl"
+          role="dialog"
+          aria-modal
+          aria-labelledby="wizard-title"
+        >
         <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur">
           <div className="flex items-start justify-between px-6 py-4">
             <div className="space-y-1">
@@ -1139,7 +1148,11 @@ export function HowToApplyWizardModal({
             <p className="text-sm text-gray-500">Daha sonra tekrar inceleyebilirsiniz.</p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
+
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(modalContent, document.body);
 }
