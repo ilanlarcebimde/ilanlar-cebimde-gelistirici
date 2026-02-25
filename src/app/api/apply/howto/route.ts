@@ -4,10 +4,8 @@ import { getSupabaseForUser } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-/** Production'da N8N_HOWTO_WEBHOOK_URL ile override edin. */
-const HOWTO_WEBHOOK_URL =
-  process.env.N8N_HOWTO_WEBHOOK_URL ||
-  "https://s02c0alq.rcld.app/webhook-test/1de6a1cf-a74c-4373-98f7-85acde812deb";
+/** Production webhook URL — .env.local (local) ve production env'de N8N_HOWTO_WEBHOOK_URL zorunlu. */
+const HOWTO_WEBHOOK_URL = process.env.N8N_HOWTO_WEBHOOK_URL?.trim() || "";
 
 async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -50,6 +48,14 @@ export async function POST(req: NextRequest) {
   const jobId = typeof body?.job_id === "string" ? body.job_id.trim() : "";
   if (!jobId) {
     return NextResponse.json({ error: "Missing job_id" }, { status: 400 });
+  }
+
+  if (!HOWTO_WEBHOOK_URL) {
+    console.error("[apply/howto] N8N_HOWTO_WEBHOOK_URL not set");
+    return NextResponse.json(
+      { error: "webhook_not_configured", detail: "N8N_HOWTO_WEBHOOK_URL is not set" },
+      { status: 503 }
+    );
   }
 
   try {

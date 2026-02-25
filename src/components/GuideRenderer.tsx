@@ -114,9 +114,12 @@ export function GuideRenderer({ data, onNextStep, nextStepLoading = false }: Gui
     typeof data.ui.next_step === "number" &&
     onNextStep != null;
 
+  const nextStepNumber = data.ui?.next_step ?? (typeof data.step === "number" ? data.step + 1 : null);
+  const canShowContinue = onNextStep != null && typeof nextStepNumber === "number" && nextStepNumber >= 1 && nextStepNumber <= 7;
+
   const handleNextStep = () => {
-    if (!showNextStep || !onNextStep || data.ui?.next_step == null) return;
-    onNextStep(data.session_id, data.ui.next_step);
+    if (!onNextStep || nextStepNumber == null) return;
+    onNextStep(data.session_id, nextStepNumber);
   };
 
   return (
@@ -168,6 +171,23 @@ export function GuideRenderer({ data, onNextStep, nextStepLoading = false }: Gui
                 </>
               ) : (
                 data.ui?.continue_label ?? "Sonraki Adım"
+              )}
+            </button>
+          ) : null}
+          {!showNextStep && canShowContinue ? (
+            <button
+              type="button"
+              onClick={handleNextStep}
+              disabled={nextStepLoading}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {nextStepLoading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+                  Yükleniyor…
+                </>
+              ) : (
+                "Devam"
               )}
             </button>
           ) : null}

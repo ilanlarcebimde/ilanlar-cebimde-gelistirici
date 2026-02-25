@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { GuideRendererSafe, isGuideResponse } from "@/components/GuideRenderer";
+import { isGuideResponse, type GuideBlock, type GuideResponse } from "@/components/GuideRenderer";
 
 /** Full job record from DB (job_posts row). */
 export type FullJob = Record<string, unknown> & {
@@ -46,9 +46,10 @@ const COUNTRY_TO_CODE: Record<string, string> = {
 function deriveSourceKey(sourceName: string | null | undefined): string {
   const s = (sourceName ?? "").toLowerCase().trim();
   if (s.includes("eures")) return "EURES";
+  if (s.includes("glassdoor")) return "GLASSDOOR";
   if (s.includes("linkedin")) return "LINKEDIN";
   if (s.includes("indeed")) return "INDEED";
-  if (s.includes("glassdoor")) return "GLASSDOOR";
+  if (s.includes("jooble")) return "JOOBLE";
   if (s.includes("kariyer") || s.includes("career") || s.includes("company")) return "COMPANY_CAREER";
   return "OTHER";
 }
@@ -68,37 +69,35 @@ function deriveCountryAndCode(job: FullJob): { country: string | null; country_c
   return { country: part, country_code: code };
 }
 
-function getStep1Question(sourceKey: string, sourceName: string | null | undefined): string {
-  const name = (sourceName ?? "").trim() || "Bu kaynak";
+function getStep1Question(sourceKey: string): string {
   switch (sourceKey) {
     case "EURES":
-      return "EURES üzerinden bu ilana nasıl başvurulur? Sizin için EURES başvuru kılavuzu hazırlamamı ister misiniz?";
+      return "EURES üzerinden başvuruyu sizin için resmi adımlarla hazırlayalım mı?";
+    case "GLASSDOOR":
+      return "Bu ilan için platform üzerinden başvuru adımlarını sizin için çıkaralım mı?";
     case "LINKEDIN":
-      return "LinkedIn üzerinden bu ilana nasıl başvurulur? Adım adım kılavuz hazırlamamı ister misiniz?";
     case "INDEED":
-      return "Indeed üzerinden bu ilana nasıl başvurulur? Adım adım kılavuz hazırlamamı ister misiniz?";
-    case "COMPANY_CAREER":
-      return "Şirketin kariyer sayfası üzerinden başvuru nasıl yapılır? Kılavuz hazırlamamı ister misiniz?";
+    case "JOOBLE":
+      return "Bu ilan için platform başvurusu + şirket başvuru linki kontrolü yapalım mı?";
     default:
-      return `${name} kaynağında başvuru nasıl yapılır? Kılavuz hazırlamamı ister misiniz?`;
+      return "Bu ilan için platform başvurusu + şirket başvuru linki kontrolü yapalım mı?";
   }
 }
 
-function getStepQuestion(step: number, country: string | null): string {
-  const c = country ?? "ilgili ülke";
+function getStepQuestion(step: number, _country: string | null): string {
   switch (step) {
     case 2:
-      return `Bu ilan ${c} için yayınlanmış görünüyor. ${c} için gerekli resmi belgeler ve başvurulacak kurumları hazırlamamı onaylıyor musunuz?`;
+      return "Bu ülke için gerekli belgeler ve başvurulacak kurumları sizin için derleyelim mi?";
     case 3:
-      return `${c} için vize ve oturum süreçlerini adım adım açıklamamı ister misiniz?`;
+      return "Vize/oturum sürecini adım adım çıkarmam için uygunluk durumunuzu netleştirelim mi?";
     case 4:
-      return `${c} için 2026 güncel net maaş varsayımlarını ve olası net kazancı hesaplamamı ister misiniz?`;
+      return "Net maaşı gerçekçi hesaplamam için bazı bilgileri paylaşır mısınız?";
     case 5:
-      return `${c} için yaşam gideri ve net birikim hesabı çıkarmamı ister misiniz?`;
+      return "Yaşam giderinizi şehir ve yaşam tarzınıza göre hesaplayalım mı?";
     case 6:
-      return `${c} vize başvurusu için kritik Niyet Mektubu (Dilekçe) taslağı hazırlamamı ister misiniz?`;
+      return "Vize için kritik olan niyet mektubunu sizin bilgilerinizle taslaklayalım mı?";
     case 7:
-      return `${c} için 30 günlük başvuru planı hazırlamamı ister misiniz?`;
+      return "Son olarak size 30 günlük plan + risk kontrolü çıkaralım mı?";
     default:
       return "";
   }
@@ -111,6 +110,530 @@ function randomUUID(): string {
     const v = ch === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+function SectionCardBlock({ block }: { block: GuideBlock }) {
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      {block.heading ? (
+        <h3 className="text-base font-semibold text-gray-900">{block.heading}</h3>
+      ) : null}
+      {block.type === "bullets" && (block.items ?? []).length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {(block.items ?? []).map((item, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-xs text-blue-700">
+                ✓
+              </span>
+              <span className="text-sm leading-6 text-gray-700">{item}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {block.type === "text" && (block.text ?? "") ? (
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">{block.text ?? ""}</p>
+      ) : null}
+      {block.type === "table" && block.rows && block.rows.length > 0 ? (
+        <div className="mt-3 overflow-hidden rounded-lg border border-gray-100">
+          <table className="min-w-full text-sm">
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i} className="border-b border-gray-100 last:border-0">
+                  <td className="bg-gray-50 px-4 py-2 font-medium text-gray-700 align-top w-[40%]">{row.k}</td>
+                  <td className="px-4 py-2 text-gray-600">{row.v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {block.type === "template" && (block.text ?? "") ? (
+        <pre className="mt-3 overflow-x-auto rounded-lg bg-gray-50 p-4 font-mono text-sm leading-6 text-gray-700 whitespace-pre-wrap">
+          {block.text ?? ""}
+        </pre>
+      ) : null}
+    </section>
+  );
+}
+
+function ConsultancySummaryPanel({
+  job,
+  derived,
+  ctaUrl,
+}: {
+  job: FullJob | null;
+  derived: Derived | null;
+  ctaUrl: string | null;
+}) {
+  const title = (job?.title as string) ?? "İlan";
+  const source = (job?.source_name as string) ?? "—";
+  const location = (derived?.country as string) ?? (job?.location_text as string) ?? "—";
+
+  return (
+    <aside className="space-y-4">
+      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div className="mb-1 text-xs text-gray-500">İlan Özeti</div>
+        <p className="text-sm font-medium text-gray-900">{title}</p>
+        <p className="mt-1 text-xs text-gray-600">{source}</p>
+        <p className="mt-1 text-xs text-gray-600">{location}</p>
+      </div>
+      {ctaUrl ? (
+        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <div className="mb-1 text-xs text-gray-500">Resmi İlan Bağlantısı</div>
+          <a
+            className="break-words text-sm font-medium text-gray-900 hover:underline"
+            href={ctaUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {ctaUrl}
+          </a>
+          <p className="mt-3 text-xs text-gray-500">Bağlantıyı açmadan önce alan adını kontrol edin.</p>
+        </div>
+      ) : null}
+      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div className="mb-1 text-xs text-gray-500">Güvenlik Kontrolü</div>
+        <p className="text-xs text-gray-600">
+          İçerik resmi kaynaklardan derlenir. Başvuru öncesi ilan sayfasını mutlaka kontrol edin.
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+const CHECKLIST_ITEMS = ["Belgeler", "Vize/Oturum", "Maaş", "Gider", "30 Gün Plan"];
+
+function StepFormFields({
+  step,
+  stepFormData,
+  setStepFormData,
+  onSubmit,
+  loading,
+}: {
+  step: number;
+  stepFormData: Record<string, unknown>;
+  setStepFormData: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+  onSubmit: () => void;
+  loading: boolean;
+}) {
+  const set = (key: string, value: unknown) =>
+    setStepFormData((prev) => ({ ...prev, [key]: value }));
+
+  if (step === 3) {
+    return (
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Vatandaşlık bölgesi</label>
+          <div className="flex gap-2">
+            {(["AB/AEA", "AB dışı"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("citizenship_region", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.citizenship_region === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={stepFormData.has_valid_passport === true}
+              onChange={(e) => set("has_valid_passport", e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Geçerli pasaportum var
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={stepFormData.family_in_country === true}
+              onChange={(e) => set("family_in_country", e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Ülkede aile/bağ var
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={loading}
+          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {loading ? "Gönderiliyor…" : "Devam"}
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 4) {
+    const known = stepFormData.gross_salary_known === true;
+    return (
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Brüt maaş biliniyor mu?</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setStepFormData((p) => ({ ...p, gross_salary_known: true }))}
+              className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.gross_salary_known === true ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+            >
+              Evet
+            </button>
+            <button
+              type="button"
+              onClick={() => setStepFormData((p) => ({ ...p, gross_salary_known: false }))}
+              className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.gross_salary_known === false ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+            >
+              Hayır
+            </button>
+          </div>
+        </div>
+        {known ? (
+          <>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Brüt tutar</label>
+              <input
+                type="number"
+                value={(stepFormData.gross_salary_amount as number) ?? ""}
+                onChange={(e) => set("gross_salary_amount", e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Örn. 3500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Ödeme periyodu</label>
+              <div className="flex gap-2">
+                {(["aylık", "saatlik"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => set("pay_period", opt)}
+                    className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.pay_period === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Deneyim seviyesi</label>
+              <select
+                value={(stepFormData.experience_level as string) ?? ""}
+                onChange={(e) => set("experience_level", e.target.value || undefined)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">Seçin</option>
+                <option value="0-1 yıl">0-1 yıl</option>
+                <option value="1-3">1-3</option>
+                <option value="3-5">3-5</option>
+                <option value="5+">5+</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Medeni durum</label>
+              <div className="flex gap-2">
+                {(["bekar", "evli"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => set("marital_status", opt)}
+                    className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.marital_status === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Çocuk sayısı</label>
+              <input
+                type="number"
+                min={0}
+                value={(stepFormData.children_count as number) ?? ""}
+                onChange={(e) => set("children_count", e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={loading}
+          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {loading ? "Gönderiliyor…" : "Devam"}
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 5) {
+    return (
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Konaklama</label>
+          <div className="flex flex-wrap gap-2">
+            {(["oda", "stüdyo", "1+1"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("housing", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.housing === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Yaşam tarzı</label>
+          <div className="flex flex-wrap gap-2">
+            {(["ekonomik", "standart", "rahat"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("lifestyle", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.lifestyle === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Şehir (opsiyonel)</label>
+          <input
+            type="text"
+            value={(stepFormData.city_override as string) ?? ""}
+            onChange={(e) => set("city_override", e.target.value || null)}
+            className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="İlan lokasyonu dışında şehir"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Ulaşım</label>
+          <div className="flex gap-2">
+            {(["toplu taşıma", "araba"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("transport", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.transport === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Bakmakla yükümlü olduğunuz kişi sayısı</label>
+          <input
+            type="number"
+            min={0}
+            value={(stepFormData.dependents as number) ?? ""}
+            onChange={(e) => set("dependents", e.target.value ? Number(e.target.value) : undefined)}
+            className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={loading}
+          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {loading ? "Gönderiliyor…" : "Devam"}
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 6) {
+    const returnTies = (stepFormData.return_ties as string[]) ?? [];
+    const toggleTie = (v: string) =>
+      setStepFormData((p) => ({
+        ...p,
+        return_ties: returnTies.includes(v) ? returnTies.filter((t) => t !== v) : [...returnTies, v],
+      }));
+    return (
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Ad Soyad</label>
+          <input
+            type="text"
+            value={(stepFormData.full_name as string) ?? ""}
+            onChange={(e) => set("full_name", e.target.value)}
+            className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Şu anki ülke</label>
+          <input
+            type="text"
+            value={(stepFormData.current_country as string) ?? ""}
+            onChange={(e) => set("current_country", e.target.value)}
+            className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Meslek</label>
+          <input
+            type="text"
+            value={(stepFormData.profession as string) ?? ""}
+            onChange={(e) => set("profession", e.target.value)}
+            className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Deneyim (yıl)</label>
+          <input
+            type="number"
+            min={0}
+            value={(stepFormData.years_experience as number) ?? ""}
+            onChange={(e) => set("years_experience", e.target.value ? Number(e.target.value) : undefined)}
+            className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Neden bu ülke? (1-2 cümle)</label>
+          <textarea
+            value={(stepFormData.why_country as string) ?? ""}
+            onChange={(e) => set("why_country", e.target.value)}
+            className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            rows={2}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Türkiye bağları (çoklu seçim)</label>
+          <div className="flex flex-wrap gap-2">
+            {(["aile", "mülk", "iş", "eğitim", "diğer"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => toggleTie(opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${returnTies.includes(opt) ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Hedef başlangıç (ay-yıl)</label>
+          <input
+            type="text"
+            value={(stepFormData.start_date_target as string) ?? ""}
+            onChange={(e) => set("start_date_target", e.target.value)}
+            className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="Örn. 06-2026"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={loading}
+          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {loading ? "Gönderiliyor…" : "Devam"}
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 7) {
+    return (
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Zaman aciliyeti</label>
+          <div className="flex flex-wrap gap-2">
+            {(["hemen", "1 ay içinde", "3 ay"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("timeline_urgency", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.timeline_urgency === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Risk toleransı</label>
+          <div className="flex flex-wrap gap-2">
+            {(["düşük", "orta", "yüksek"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("risk_tolerance", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.risk_tolerance === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Belge hazırlığı</label>
+          <div className="flex flex-wrap gap-2">
+            {(["hazır", "kısmen", "hazır değil"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("document_readiness", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.document_readiness === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={stepFormData.cv_ready === true}
+              onChange={(e) => set("cv_ready", e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            CV hazır
+          </label>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Dil seviyesi</label>
+          <div className="flex flex-wrap gap-2">
+            {(["başlangıç", "orta", "iyi"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => set("language_level", opt)}
+                className={`rounded-lg border px-3 py-2 text-sm ${stepFormData.language_level === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={loading}
+          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {loading ? "Gönderiliyor…" : "Devam"}
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export function HowToApplyWizardModal({
@@ -130,6 +653,7 @@ export function HowToApplyWizardModal({
   const [currentStep, setCurrentStep] = useState(1);
   const [job, setJob] = useState<FullJob | null>(null);
   const [derived, setDerived] = useState<Derived | null>(null);
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [stepResult, setStepResult] = useState<Record<string, unknown> | null>(null);
   const [approved, setApproved] = useState<"yes" | "no" | null>(null);
@@ -137,6 +661,8 @@ export function HowToApplyWizardModal({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [webhookError, setWebhookError] = useState<string | null>(null);
   const [nextStepLoading, setNextStepLoading] = useState(false);
+  /** Form data for current step (steps 3–7). Merged into answers on submit. */
+  const [stepFormData, setStepFormData] = useState<Record<string, unknown>>({});
 
   // Fetch full job when modal opens with jobId
   useEffect(() => {
@@ -144,6 +670,8 @@ export function HowToApplyWizardModal({
     setFetchError(null);
     setJob(null);
     setDerived(null);
+    setAnswers({});
+    setStepFormData({});
     setCurrentStep(1);
     setStepResult(null);
     setApproved(null);
@@ -183,7 +711,7 @@ export function HowToApplyWizardModal({
 
   const questionText =
     currentStep === 1 && derived
-      ? getStep1Question(derived.source_key, job?.source_name as string)
+      ? getStep1Question(derived.source_key)
       : getStepQuestion(currentStep, derived?.country ?? null);
 
   const handleEvet = useCallback(async () => {
@@ -200,13 +728,14 @@ export function HowToApplyWizardModal({
         body: JSON.stringify({
           job_id: jobId,
           session_id: sessionId,
-          step: currentStep,
+          step: 1,
           approved: true,
           derived: {
             source_key: derived.source_key,
             country: derived.country,
             country_code: derived.country_code,
           },
+          answers: {},
         }),
       });
       let parsed: Record<string, unknown>;
@@ -231,48 +760,67 @@ export function HowToApplyWizardModal({
     } finally {
       setLoading(false);
     }
-  }, [job, derived, accessToken, jobId, sessionId, currentStep]);
+  }, [job, derived, accessToken, jobId, sessionId]);
 
-  const handleNextStep = useCallback((sessionIdParam: string, nextStep: number) => {
-    if (!job || !derived || !accessToken) return;
-    setWebhookError(null);
-    setNextStepLoading(true);
-    fetch("/api/apply/howto-step", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({
-        job_id: jobId,
-        session_id: sessionIdParam,
-        step: nextStep,
-        approved: true,
-        derived: {
-          source_key: derived.source_key,
-          country: derived.country,
-          country_code: derived.country_code,
-        },
-      }),
-    })
-      .then(async (res) => {
-        const parsed = await res.json().catch(() => null);
-        if (!res.ok) {
-          setNextStepLoading(false);
-          const err = parsed && typeof parsed === "object" && "detail" in parsed ? String(parsed.detail).slice(0, 150) : "Sonraki adım alınamadı.";
-          setWebhookError(err);
+  /** Merge formData into answers and call webhook for the given step. Used for steps 2–7. */
+  const handleStepSubmit = useCallback(
+    async (step: number, formData: Record<string, unknown>) => {
+      if (!job || !derived || !accessToken) return;
+      setWebhookError(null);
+      setStepResult(null);
+      setLoading(true);
+      const merged = { ...answers, ...formData };
+      setAnswers(merged);
+      try {
+        const res = await fetch("/api/apply/howto-step", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({
+            job_id: jobId,
+            session_id: sessionId,
+            step,
+            approved: true,
+            derived: {
+              source_key: derived.source_key,
+              country: derived.country,
+              country_code: derived.country_code,
+            },
+            answers: merged,
+          }),
+        });
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = await res.json();
+        } catch {
+          setWebhookError("Cevap işlenemedi.");
+          setLoading(false);
           return;
         }
-        if (parsed && typeof parsed === "object") {
-          setStepResult(parsed as Record<string, unknown>);
-          if (typeof (parsed as { step?: number }).step === "number") setCurrentStep((parsed as { step: number }).step);
-        } else {
-          setWebhookError("İçerik yüklenemedi.");
+        if (!res.ok) {
+          const err = parsed as { error?: string; detail?: string };
+          setWebhookError(err?.detail ? String(err.detail).slice(0, 150) : "Rehber alınamadı. Tekrar deneyin.");
+          setLoading(false);
+          return;
         }
-        setNextStepLoading(false);
-      })
-      .catch(() => {
-        setNextStepLoading(false);
+        setStepResult(parsed);
+        if (typeof parsed?.step === "number") setCurrentStep(parsed.step);
+        setCanContinue(true);
+      } catch {
         setWebhookError("Bağlantı hatası. Tekrar deneyin.");
-      });
-  }, [job, derived, accessToken, jobId]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [job, derived, accessToken, jobId, sessionId, answers]
+  );
+
+  /** Advance to next step UI only (no webhook). User will submit step form to trigger webhook. */
+  const handleNextStep = useCallback((_sessionIdParam: string, nextStep: number) => {
+    setStepResult(null);
+    setWebhookError(null);
+    setStepFormData({});
+    setCurrentStep(nextStep);
+  }, []);
 
   const handleHayir = useCallback(() => {
     setApproved("no");
@@ -290,125 +838,295 @@ export function HowToApplyWizardModal({
 
   if (!open) return null;
 
+  const displayStep = stepResult && isGuideResponse(stepResult) ? stepResult.step : currentStep;
+  const progressPercent = Math.round((displayStep / 7) * 100);
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
       <div
-        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-xl"
+        className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl"
         role="dialog"
         aria-modal
         aria-labelledby="wizard-title"
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
-          <h2 id="wizard-title" className="text-lg font-bold text-slate-900">
-            Nasıl Başvururum? — Adım {currentStep}/7
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Kapat"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+        <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur">
+          <div className="flex items-start justify-between px-6 py-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h2 id="wizard-title" className="text-lg font-semibold text-gray-900">
+                  Kişisel Başvuru Danışmanı
+                </h2>
+                <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-1 text-xs text-indigo-700">
+                  Premium Oturum
+                </span>
+              </div>
+              <p className="text-sm text-gray-600">
+                Bu ilan için resmi süreçler derleniyor ve sizin için yapılandırılıyor.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
+              aria-label="Oturumu kapat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="px-6 pb-4">
+            <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
+              <span>Başvuru Stratejisi</span>
+              <span>%{progressPercent}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+          {job && (
+            <div className="px-6 pb-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {CHECKLIST_ITEMS.map((x) => (
+                  <div
+                    key={x}
+                    className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-center text-xs text-gray-700"
+                  >
+                    {x}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {loading && !job && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+            <div className="flex flex-col items-center justify-center px-6 py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
               <p className="mt-3 text-sm text-slate-600">İlan yükleniyor…</p>
             </div>
           )}
 
           {fetchError && !job && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              {fetchError}
+            <div className="px-6 py-4">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                {fetchError}
+              </div>
             </div>
           )}
 
           {job && derived && !fetchError && (
             <>
               {approved === "no" && (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                  Akış durduruldu. İstediğiniz zaman tekrar başlayabilirsiniz.
-                </p>
+                <div className="px-6 py-4">
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                    Akış durduruldu. İstediğiniz zaman tekrar başlayabilirsiniz.
+                  </p>
+                </div>
               )}
 
               {approved !== "no" && (
                 <>
                   {!stepResult ? (
-                    <>
-                      <p className="text-base text-slate-700">{questionText}</p>
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={handleEvet}
-                          disabled={loading}
-                          className="min-h-[44px] rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-                        >
-                          {loading ? "Gönderiliyor…" : "Evet"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleHayir}
-                          disabled={loading}
-                          className="min-h-[44px] rounded-xl border-2 border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          Hayır
-                        </button>
-                      </div>
-                      {webhookError && (
-                        <p className="mt-3 text-sm text-red-600">
-                          {webhookError}
+                    <div className="px-6 py-6">
+                      <p className="text-base leading-relaxed text-slate-700">{questionText}</p>
+
+                      {currentStep === 1 ? (
+                        <div className="mt-8 flex flex-wrap gap-4">
                           <button
                             type="button"
                             onClick={handleEvet}
-                            className="ml-2 font-medium underline"
+                            disabled={loading}
+                            className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 font-medium text-white shadow-md transition hover:shadow-lg disabled:opacity-50 disabled:hover:shadow-md"
                           >
-                            Tekrar dene
+                            {loading ? (
+                              <span className="flex items-center gap-3 font-medium text-blue-100">
+                                <span className="h-4 w-4 shrink-0 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                                <span className="text-left">
+                                  <span className="block">Başvuru süreci analiz ediliyor…</span>
+                                  <span className="block text-xs opacity-90">Resmi kaynaklar kontrol ediliyor…</span>
+                                </span>
+                              </span>
+                            ) : (
+                              "Stratejimi Oluştur"
+                            )}
                           </button>
+                          <button
+                            type="button"
+                            onClick={handleHayir}
+                            disabled={loading}
+                            className="rounded-xl border border-gray-300 px-6 py-3 font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            Şimdilik Gerek Yok
+                          </button>
+                        </div>
+                      ) : currentStep === 2 ? (
+                        <div className="mt-6 space-y-4">
+                          {derived?.source_key === "EURES" ? (
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleStepSubmit(2, { intended_stay: "kısa" })}
+                                disabled={loading}
+                                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Kısa süreli
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleStepSubmit(2, { intended_stay: "uzun" })}
+                                disabled={loading}
+                                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Uzun süreli
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleStepSubmit(2, { has_passport: true })}
+                                disabled={loading}
+                                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Pasaportum var
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleStepSubmit(2, { has_passport: false })}
+                                disabled={loading}
+                                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Yok
+                              </button>
+                            </div>
+                          )}
+                          {loading && (
+                            <p className="flex items-center gap-2 text-sm text-gray-500">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                              Derleniyor…
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <StepFormFields
+                          step={currentStep}
+                          stepFormData={stepFormData}
+                          setStepFormData={setStepFormData}
+                          onSubmit={() => handleStepSubmit(currentStep, stepFormData)}
+                          loading={loading}
+                        />
+                      )}
+
+                      {webhookError && (
+                        <p className="mt-3 text-sm text-red-600">
+                          {webhookError}
+                          {currentStep === 1 && (
+                            <button type="button" onClick={handleEvet} className="ml-2 font-medium underline">
+                              Tekrar dene
+                            </button>
+                          )}
                         </p>
                       )}
-                    </>
-                  ) : (
+                    </div>
+                  ) : isGuideResponse(stepResult) ? (
                     <>
-                      {isGuideResponse(stepResult) ? (
-                        <GuideRendererSafe
-                          data={stepResult}
-                          onNextStep={handleNextStep}
-                          nextStepLoading={nextStepLoading}
+                      <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-3">
+                        <main className="space-y-4 overflow-auto pr-1 lg:col-span-2">
+                          {(stepResult as GuideResponse).content_blocks?.map((block, idx) => (
+                            <SectionCardBlock key={idx} block={block} />
+                          ))}
+                          {(stepResult as GuideResponse).disclaimer_blocks &&
+                            (stepResult as GuideResponse).disclaimer_blocks!.length > 0 && (
+                              <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-amber-800">
+                                {(stepResult as GuideResponse).disclaimer_blocks!.map((d, i) => (
+                                  <p key={i} className="mt-1 first:mt-0">
+                                    {d.text}
+                                  </p>
+                                ))}
+                              </section>
+                            )}
+                        </main>
+                        <ConsultancySummaryPanel
+                          job={job}
+                          derived={derived}
+                          ctaUrl={(stepResult as GuideResponse).cta?.url ?? jobSourceUrl ?? null}
                         />
-                      ) : (
-                        <>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
-                            İçerik yüklenemedi.
-                          </div>
-                          {webhookError && (
-                            <p className="mt-2 text-sm text-red-600">{webhookError}</p>
-                          )}
-                          <div className="mt-6 flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              onClick={handleDevam}
-                              className="min-h-[44px] rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
-                            >
-                              Devam
-                            </button>
-                            {jobSourceUrl && (
+                      </div>
+                      <footer className="sticky bottom-0 border-t border-gray-100 bg-white px-6 py-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex gap-3">
+                            {((stepResult as GuideResponse).cta?.url ?? jobSourceUrl) && (
                               <a
-                                href={jobSourceUrl}
+                                href={(stepResult as GuideResponse).cta?.url ?? jobSourceUrl ?? "#"}
                                 target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex min-h-[44px] items-center rounded-xl border-2 border-brand-600 px-6 py-2.5 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+                                rel="noreferrer"
+                                className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md transition hover:shadow-lg"
                               >
-                                İlana Git
+                                İlanı Aç
                               </a>
                             )}
+                            {((stepResult as GuideResponse).ui?.next_step_ready &&
+                              (stepResult as GuideResponse).ui?.next_step != null) ||
+                            (typeof (stepResult as GuideResponse).step === "number" &&
+                              (stepResult as GuideResponse).step < 7) ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleNextStep(
+                                    (stepResult as GuideResponse).session_id,
+                                    (stepResult as GuideResponse).ui?.next_step ??
+                                      (stepResult as GuideResponse).step + 1
+                                  )
+                                }
+                                disabled={nextStepLoading}
+                                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium hover:bg-gray-50 disabled:opacity-60"
+                              >
+                                {nextStepLoading
+                                  ? "Yükleniyor…"
+                                  : (stepResult as GuideResponse).ui?.continue_label ?? "Sonraki Adım"}
+                              </button>
+                            ) : null}
                           </div>
-                        </>
-                      )}
+                          <button
+                            type="button"
+                            onClick={onClose}
+                            className="text-sm text-gray-500 hover:text-gray-700"
+                          >
+                            Oturumu kapat
+                          </button>
+                        </div>
+                      </footer>
                     </>
+                  ) : (
+                    <div className="px-6 py-6">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+                        İçerik yüklenemedi.
+                      </div>
+                      {webhookError && <p className="mt-2 text-sm text-red-600">{webhookError}</p>}
+                      <div className="mt-6 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={handleDevam}
+                          className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+                        >
+                          Devam
+                        </button>
+                        {jobSourceUrl && (
+                          <a
+                            href={jobSourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center rounded-xl border-2 border-brand-600 px-6 py-2.5 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+                          >
+                            İlana Git
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -416,15 +1134,11 @@ export function HowToApplyWizardModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 px-4 py-3 sm:px-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Kapat
-          </button>
-        </div>
+        {(!stepResult || !isGuideResponse(stepResult)) && (
+          <div className="shrink-0 border-t border-gray-100 px-6 py-4 text-center">
+            <p className="text-sm text-gray-500">Daha sonra tekrar inceleyebilirsiniz.</p>
+          </div>
+        )}
       </div>
     </div>
   );

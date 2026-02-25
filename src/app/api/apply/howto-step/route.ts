@@ -4,10 +4,8 @@ import { getSupabaseForUser } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-/** Production'da N8N_HOWTO_WEBHOOK_URL ile override edin. */
-const HOWTO_WEBHOOK_URL =
-  process.env.N8N_HOWTO_WEBHOOK_URL ||
-  "https://s02c0alq.rcld.app/webhook-test/1de6a1cf-a74c-4373-98f7-85acde812deb";
+/** Production webhook URL — .env.local (local) ve production env'de N8N_HOWTO_WEBHOOK_URL zorunlu. */
+const HOWTO_WEBHOOK_URL = process.env.N8N_HOWTO_WEBHOOK_URL?.trim() || "";
 
 async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -26,6 +24,7 @@ type StepBody = {
   step: number;
   approved: boolean;
   derived: { source_key: string; country: string | null; country_code: string | null };
+  answers?: Record<string, unknown>;
 };
 
 /**
@@ -73,6 +72,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (!HOWTO_WEBHOOK_URL) {
+    console.error("[apply/howto-step] N8N_HOWTO_WEBHOOK_URL not set");
+    return NextResponse.json(
+      { error: "webhook_not_configured", detail: "N8N_HOWTO_WEBHOOK_URL is not set" },
+      { status: 503 }
+    );
+  }
+
   try {
     const supabase = getSupabaseAdmin();
     const { data: job, error: jobErr } = await supabase
@@ -100,6 +107,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const answers = body.answers && typeof body.answers === "object" ? body.answers : {};
     const payload = {
       session_id: sessionId,
       step,
@@ -107,6 +115,7 @@ export async function POST(req: NextRequest) {
       job: job as Record<string, unknown>,
       derived,
       locale: "tr-TR",
+      answers,
     };
 
     const webhookRes = await fetch(HOWTO_WEBHOOK_URL, {
