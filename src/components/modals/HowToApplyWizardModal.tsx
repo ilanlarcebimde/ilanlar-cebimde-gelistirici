@@ -228,7 +228,7 @@ function ConsultancySummaryPanel({
   );
 }
 
-const CHECKLIST_ITEMS = ["Belgeler", "Vize/Oturum", "Maaş", "Gider", "30 Gün Plan"];
+const TAB_CHIPS = ["Strateji", "Belgeler", "Vize/Oturum", "Maaş", "Gider", "30 Gün"];
 
 function StepFormFields({
   step,
@@ -924,81 +924,86 @@ export function HowToApplyWizardModal({
   const progressPercent = Math.round((displayStep / 7) * 100);
 
   const modalContent = !open ? null : (
-    <div className="fixed inset-0 z-[9999]" role="presentation">
+    <div className="fixed inset-0 z-[9999] supports-[min-height:100dvh]:min-h-[100dvh]" role="presentation">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         aria-hidden
         onClick={onClose}
       />
-      <div className="relative z-[10000] flex h-full items-center justify-center p-4">
+      <div className="relative z-[10000] flex min-h-full items-center justify-center p-3 md:p-4">
         <div
-          className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl"
+          className="flex h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl md:max-w-4xl md:h-[85vh]"
           role="dialog"
           aria-modal
           aria-labelledby="wizard-title"
         >
-        <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur">
-          <div className="flex items-start justify-between px-6 py-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h2 id="wizard-title" className="text-lg font-semibold text-gray-900">
-                  Kişisel Başvuru Danışmanı
-                </h2>
-                <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-1 text-xs text-indigo-700">
-                  Premium Oturum
-                </span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Bu ilan için resmi süreçler derleniyor ve sizin için yapılandırılıyor.
+        {/* Fixed compact header */}
+        <header className="shrink-0 border-b border-gray-100 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+          <div className="flex items-center justify-between gap-2 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <h2 id="wizard-title" className="truncate text-base font-semibold text-gray-900 md:text-lg">
+                Premium Başvuru Oturumu
+              </h2>
+              <p className="mt-0.5 line-clamp-2 text-xs text-gray-600 md:text-sm">
+                Bu ilana özel süreçler hazırlanıyor.
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
               aria-label="Oturumu kapat"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="px-6 pb-4">
-            <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-              <span>Başvuru Stratejisi</span>
-              <span>%{progressPercent}</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
+          <div className="px-4 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="shrink-0 text-xs text-gray-500">hazırlanıyor</span>
             </div>
           </div>
-          {job && (
-            <div className="px-6 pb-4">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {CHECKLIST_ITEMS.map((x) => (
-                  <div
-                    key={x}
-                    className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-center text-xs text-gray-700"
-                  >
-                    {x}
-                  </div>
-                ))}
+          {/* Sekmeler: sadece stepResult varken göster, tek satır yatay kaydırmalı */}
+          {job && stepResult && (
+            <div className="-mx-4 overflow-x-auto px-4 pb-2">
+              <div className="flex w-max gap-2 pb-1">
+                {TAB_CHIPS.map((label, idx) => {
+                  const activeChipIndex = Math.min(displayStep - 1, TAB_CHIPS.length - 1);
+                  const isActive = idx === activeChipIndex;
+                  return (
+                    <span
+                      key={label}
+                      className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium ${
+                        isActive
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-gray-200 bg-gray-50 text-gray-700"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Tek scroll alanı — içerik */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {loading && !job && (
-            <div className="flex flex-col items-center justify-center px-6 py-12">
+            <div className="flex flex-col items-center justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
               <p className="mt-3 text-sm text-slate-600">İlan yükleniyor…</p>
             </div>
           )}
 
           {fetchError && !job && (
-            <div className="px-6 py-4">
+            <div className="py-4">
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                 {fetchError}
               </div>
@@ -1008,7 +1013,7 @@ export function HowToApplyWizardModal({
           {job && derived && !fetchError && (
             <>
               {approved === "no" && (
-                <div className="px-6 py-4">
+                <div className="py-4">
                   <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
                     Akış durduruldu. İstediğiniz zaman tekrar başlayabilirsiniz.
                   </p>
@@ -1018,7 +1023,7 @@ export function HowToApplyWizardModal({
               {approved !== "no" && (
                 <>
                   {!stepResult ? (
-                    <div className="px-6 py-6">
+                    <div className="py-4">
                       <p className="text-base leading-relaxed text-slate-700">{questionText}</p>
 
                       {currentStep === 1 ? (
@@ -1130,76 +1135,30 @@ export function HowToApplyWizardModal({
                       )}
                     </div>
                   ) : isGuideResponse(stepResult) ? (
-                    <>
-                      <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-3">
-                        <main className="space-y-4 overflow-auto pr-1 lg:col-span-2">
-                          {(stepResult as GuideResponse).content_blocks?.map((block, idx) => (
-                            <SectionCardBlock key={idx} block={block} />
-                          ))}
-                          {(stepResult as GuideResponse).disclaimer_blocks &&
-                            (stepResult as GuideResponse).disclaimer_blocks!.length > 0 && (
-                              <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-amber-800">
-                                {(stepResult as GuideResponse).disclaimer_blocks!.map((d, i) => (
-                                  <p key={i} className="mt-1 first:mt-0">
-                                    {d.text}
-                                  </p>
-                                ))}
-                              </section>
-                            )}
-                        </main>
-                        <ConsultancySummaryPanel
-                          job={job}
-                          derived={derived}
-                          ctaUrl={(stepResult as GuideResponse).cta?.url ?? jobSourceUrl ?? null}
-                        />
-                      </div>
-                      <footer className="sticky bottom-0 border-t border-gray-100 bg-white px-6 py-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex gap-3">
-                            {((stepResult as GuideResponse).cta?.url ?? jobSourceUrl) && (
-                              <a
-                                href={(stepResult as GuideResponse).cta?.url ?? jobSourceUrl ?? "#"}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md transition hover:shadow-lg"
-                              >
-                                İlanı Aç
-                              </a>
-                            )}
-                            {((stepResult as GuideResponse).ui?.next_step_ready &&
-                              (stepResult as GuideResponse).ui?.next_step != null) ||
-                            (typeof (stepResult as GuideResponse).step === "number" &&
-                              (stepResult as GuideResponse).step < 7) ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleNextStep(
-                                    (stepResult as GuideResponse).session_id,
-                                    (stepResult as GuideResponse).ui?.next_step ??
-                                      (stepResult as GuideResponse).step + 1
-                                  )
-                                }
-                                disabled={nextStepLoading}
-                                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium hover:bg-gray-50 disabled:opacity-60"
-                              >
-                                {nextStepLoading
-                                  ? "Yükleniyor…"
-                                  : (stepResult as GuideResponse).ui?.continue_label ?? "Sonraki Adım"}
-                              </button>
-                            ) : null}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={onClose}
-                            className="text-sm text-gray-500 hover:text-gray-700"
-                          >
-                            Oturumu kapat
-                          </button>
-                        </div>
-                      </footer>
-                    </>
+                    <div className="grid grid-cols-1 gap-4 py-2 md:gap-6 lg:grid-cols-3 lg:py-4">
+                      <main className="space-y-4 lg:col-span-2">
+                        {(stepResult as GuideResponse).content_blocks?.map((block, idx) => (
+                          <SectionCardBlock key={idx} block={block} />
+                        ))}
+                        {(stepResult as GuideResponse).disclaimer_blocks &&
+                          (stepResult as GuideResponse).disclaimer_blocks!.length > 0 && (
+                            <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-amber-800">
+                              {(stepResult as GuideResponse).disclaimer_blocks!.map((d, i) => (
+                                <p key={i} className="mt-1 first:mt-0">
+                                  {d.text}
+                                </p>
+                              ))}
+                            </section>
+                          )}
+                      </main>
+                      <ConsultancySummaryPanel
+                        job={job}
+                        derived={derived}
+                        ctaUrl={(stepResult as GuideResponse).cta?.url ?? jobSourceUrl ?? null}
+                      />
+                    </div>
                   ) : (
-                    <div className="px-6 py-6">
+                    <div className="py-6">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
                         İçerik yüklenemedi.
                       </div>
@@ -1231,11 +1190,55 @@ export function HowToApplyWizardModal({
           )}
         </div>
 
-        {(!stepResult || !isGuideResponse(stepResult)) && (
-          <div className="shrink-0 border-t border-gray-100 px-6 py-4 text-center">
-            <p className="text-sm text-gray-500">Daha sonra tekrar inceleyebilirsiniz.</p>
-          </div>
-        )}
+        {/* Sabit footer: aksiyon bar veya pasif metin (safe-area uyumlu) */}
+        <footer className="shrink-0 border-t border-gray-100 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {stepResult && isGuideResponse(stepResult) ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {((stepResult as GuideResponse).cta?.url ?? jobSourceUrl) && (
+                  <a
+                    href={(stepResult as GuideResponse).cta?.url ?? jobSourceUrl ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-11 shrink-0 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 font-medium text-white shadow-md transition hover:shadow-lg"
+                  >
+                    İlanı Aç
+                  </a>
+                )}
+                {((stepResult as GuideResponse).ui?.next_step_ready &&
+                  (stepResult as GuideResponse).ui?.next_step != null) ||
+                (typeof (stepResult as GuideResponse).step === "number" &&
+                  (stepResult as GuideResponse).step < 7) ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleNextStep(
+                        (stepResult as GuideResponse).session_id,
+                        (stepResult as GuideResponse).ui?.next_step ??
+                          (stepResult as GuideResponse).step + 1
+                      )
+                    }
+                    disabled={nextStepLoading}
+                    className="h-11 shrink-0 rounded-xl border border-gray-300 bg-white px-4 font-medium hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    {nextStepLoading
+                      ? "Yükleniyor…"
+                      : (stepResult as GuideResponse).ui?.continue_label ?? "Sonraki Adım"}
+                  </button>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Oturumu kapat
+              </button>
+            </div>
+          ) : (
+            <p className="text-center text-xs text-gray-500">Daha sonra tekrar inceleyebilirsiniz.</p>
+          )}
+        </footer>
         </div>
       </div>
     </div>
