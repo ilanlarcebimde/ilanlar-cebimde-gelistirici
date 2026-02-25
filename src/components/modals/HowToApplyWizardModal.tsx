@@ -744,9 +744,10 @@ export function HowToApplyWizardModal({
           answers: {},
         }),
       });
+      const text = await res.text();
       let parsed: Record<string, unknown>;
       try {
-        parsed = await res.json();
+        parsed = text ? (JSON.parse(text) as Record<string, unknown>) : {};
       } catch {
         setWebhookError("Cevap işlenemedi.");
         setLoading(false);
@@ -798,9 +799,10 @@ export function HowToApplyWizardModal({
             answers: merged,
           }),
         });
+        const text = await res.text();
         let parsed: Record<string, unknown>;
         try {
-          parsed = await res.json();
+          parsed = text ? (JSON.parse(text) as Record<string, unknown>) : {};
         } catch {
           setWebhookError("Cevap işlenemedi.");
           setLoading(false);

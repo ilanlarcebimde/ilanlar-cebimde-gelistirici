@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
 
   let body: StepBody;
   try {
-    body = await req.json();
+    // Read body once as text to avoid "Body has already been read" (e.g. if middleware/framework touched it)
+    const raw = await req.text();
+    body = raw ? (JSON.parse(raw) as StepBody) : ({} as StepBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
