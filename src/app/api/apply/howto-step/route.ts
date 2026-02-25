@@ -143,6 +143,11 @@ export async function POST(req: NextRequest) {
       const detailObj = webhookData && typeof webhookData === "object" && webhookData !== null
         ? (webhookData as Record<string, unknown>)
         : null;
+      const status = webhookRes.status;
+      const fallback5xx =
+        status >= 500
+          ? "Rehber servisi geçici olarak yanıt vermiyor. Lütfen birkaç dakika sonra «Tekrar dene» ile yeniden deneyin."
+          : `Rehber servisi hata döndü (${status}).`;
       const detailMessage =
         typeof detailObj?.message === "string"
           ? detailObj.message
@@ -150,9 +155,7 @@ export async function POST(req: NextRequest) {
             ? detailObj.error
             : typeof detailObj?.detail === "string"
               ? detailObj.detail
-              : webhookRes.status === 502
-                ? "Rehber servisi şu an yanıt vermiyor. Lütfen birkaç dakika sonra tekrar deneyin."
-                : `Rehber servisi hata döndü (${webhookRes.status}).`;
+              : fallback5xx;
       return NextResponse.json(
         {
           error: "webhook_error",

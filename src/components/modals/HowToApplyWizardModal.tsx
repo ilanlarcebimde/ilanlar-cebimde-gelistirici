@@ -113,6 +113,34 @@ function randomUUID(): string {
   });
 }
 
+function TemplateBlockWithCopy({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => {}
+    );
+  }, [text]);
+  return (
+    <div className="mt-3">
+      <pre className="overflow-x-auto rounded-lg bg-gray-50 p-4 font-mono text-sm leading-6 text-gray-700 whitespace-pre-wrap">
+        {text}
+      </pre>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="mt-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        {copied ? "Kopyalandı!" : "Kopyala"}
+      </button>
+    </div>
+  );
+}
+
 function SectionCardBlock({ block }: { block: GuideBlock }) {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -149,9 +177,7 @@ function SectionCardBlock({ block }: { block: GuideBlock }) {
         </div>
       ) : null}
       {block.type === "template" && (block.text ?? "") ? (
-        <pre className="mt-3 overflow-x-auto rounded-lg bg-gray-50 p-4 font-mono text-sm leading-6 text-gray-700 whitespace-pre-wrap">
-          {block.text ?? ""}
-        </pre>
+        <TemplateBlockWithCopy text={block.text ?? ""} />
       ) : null}
     </section>
   );
@@ -533,17 +559,44 @@ function StepFormFields({
             value={(stepFormData.start_date_target as string) ?? ""}
             onChange={(e) => set("start_date_target", e.target.value)}
             className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            placeholder="Örn. 06-2026"
+            placeholder="Örn. 08.2026"
           />
         </div>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={loading}
-          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50"
-        >
-          {loading ? "Gönderiliyor…" : "Devam"}
-        </button>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Pasaport no (opsiyonel)</label>
+          <input
+            type="text"
+            value={(stepFormData.passport_no as string) ?? ""}
+            onChange={(e) => set("passport_no", e.target.value.trim() || undefined)}
+            className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="Varsa girin"
+          />
+        </div>
+        {(() => {
+          const fn = (stepFormData.full_name as string)?.trim() ?? "";
+          const cc = (stepFormData.current_country as string)?.trim() ?? "";
+          const pr = (stepFormData.profession as string)?.trim() ?? "";
+          const ye = stepFormData.years_experience;
+          const yc = (stepFormData.why_country as string)?.trim() ?? "";
+          const sd = (stepFormData.start_date_target as string)?.trim() ?? "";
+          const step6Valid =
+            fn.length > 0 &&
+            cc.length > 0 &&
+            pr.length > 0 &&
+            (typeof ye === "number" || (ye !== undefined && ye !== "")) &&
+            yc.length > 0 &&
+            sd.length > 0;
+          return (
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={loading || !step6Valid}
+              className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-medium text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Gönderiliyor…" : "Devam"}
+            </button>
+          );
+        })()}
       </div>
     );
   }
@@ -1041,8 +1094,12 @@ export function HowToApplyWizardModal({
                       )}
 
                       {webhookError && (
-                        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                          <p>{webhookError}</p>
+                        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                          <p>
+                            {currentStep === 6
+                              ? "Rehber servisi yoğun. Lütfen «Tekrar Dene» ile aynı bilgilerle yeniden deneyin; form verileriniz korunur."
+                              : webhookError}
+                          </p>
                           <button
                             type="button"
                             onClick={() =>
@@ -1050,9 +1107,9 @@ export function HowToApplyWizardModal({
                                 ? handleEvet()
                                 : handleStepSubmit(currentStep, stepFormData)
                             }
-                            className="mt-2 font-medium text-red-700 underline hover:no-underline"
+                            className="mt-2 font-medium text-amber-800 underline hover:no-underline"
                           >
-                            Tekrar dene
+                            Tekrar Dene
                           </button>
                         </div>
                       )}
