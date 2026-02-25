@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -42,6 +42,7 @@ export function KanalFeedClient({ slug }: { slug: string }) {
   const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
+  const openedPremiumAfterLoginRef = useRef(false);
   const [applyToast, setApplyToast] = useState<string | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
   const [howToJobId, setHowToJobId] = useState<string | null>(null);
@@ -95,6 +96,23 @@ export function KanalFeedClient({ slug }: { slug: string }) {
     },
     [user, subscriptionActive, subscriptionLoading, router]
   );
+
+  // Giriş sonrası dönüşte sessionStorage’daki bekleyen ilanı alıp abone değilse premium popup aç
+  useEffect(() => {
+    if (!user || pendingJobId !== null) return;
+    try {
+      const id = sessionStorage.getItem("premium_pending_job_id");
+      if (id) setPendingJobId(id);
+    } catch {
+      // ignore
+    }
+  }, [user, pendingJobId]);
+
+  useEffect(() => {
+    if (!user || !pendingJobId || subscriptionLoading || subscriptionActive || openedPremiumAfterLoginRef.current) return;
+    openedPremiumAfterLoginRef.current = true;
+    setPremiumOpen(true);
+  }, [user, pendingJobId, subscriptionLoading, subscriptionActive]);
 
   const fetchChannel = useCallback(async () => {
     const { data } = await supabase

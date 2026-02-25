@@ -48,6 +48,7 @@ export function UcretsizPanelClient() {
   const [allChannels, setAllChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
+  const openedPremiumAfterLoginRef = useRef(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,6 +115,13 @@ export function UcretsizPanelClient() {
       setSearchQuery(q);
     }
   }, [searchParams]);
+
+  // Giriş yaptıktan sonra abone değilse: “Nasıl Başvururum” için açılan oturumda premium popup bir kez aç
+  useEffect(() => {
+    if (!user || subscriptionLoading || subscriptionActive || !pendingJobId || openedPremiumAfterLoginRef.current) return;
+    openedPremiumAfterLoginRef.current = true;
+    setPremiumOpen(true);
+  }, [user, subscriptionLoading, subscriptionActive, pendingJobId]);
 
   // Ödeme sonrası openHowTo=jobId ile geldiyse ve abonelik aktifse wizard aç
   useEffect(() => {

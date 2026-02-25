@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +29,7 @@ export function ChannelsLayout() {
   const [howToJobId, setHowToJobId] = useState<string | null>(null);
   const [howToJobSourceUrl, setHowToJobSourceUrl] = useState<string | null>(null);
   const [howToToken, setHowToToken] = useState<string | null>(null);
+  const openedPremiumAfterLoginRef = useRef(false);
 
   const handleHowToApplyClick = useCallback(
     async (post: FeedPost) => {
@@ -118,6 +119,13 @@ export function ChannelsLayout() {
       setInitialized(true);
     }
   }, [searchParams, user, initialized, router]);
+
+  // Giriş yaptıktan sonra abone değilse premium popup bir kez aç (Nasıl Başvururum için bekleyen ilan varsa)
+  useEffect(() => {
+    if (!user || subscriptionLoading || subscriptionActive || !pendingJobId || openedPremiumAfterLoginRef.current) return;
+    openedPremiumAfterLoginRef.current = true;
+    setPremiumOpen(true);
+  }, [user, subscriptionLoading, subscriptionActive, pendingJobId]);
 
   const handleChannelSelect = useCallback(
     (slug: string) => {

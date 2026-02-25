@@ -23,6 +23,7 @@ export function YurtdisiPanelClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
+  const openedPremiumAfterLoginRef = useRef(false);
   const [applyToast, setApplyToast] = useState<string | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
   const [howToJobId, setHowToJobId] = useState<string | null>(null);
@@ -86,6 +87,23 @@ export function YurtdisiPanelClient() {
     },
     [user, subscriptionActive, subscriptionLoading, router]
   );
+
+  // Giriş sonrası dönüşte sessionStorage’daki bekleyen ilanı alıp abone değilse premium popup aç
+  useEffect(() => {
+    if (!user || pendingJobId !== null) return;
+    try {
+      const id = sessionStorage.getItem("premium_pending_job_id");
+      if (id) setPendingJobId(id);
+    } catch {
+      // ignore
+    }
+  }, [user, pendingJobId]);
+
+  useEffect(() => {
+    if (!user || !pendingJobId || subscriptionLoading || subscriptionActive || openedPremiumAfterLoginRef.current) return;
+    openedPremiumAfterLoginRef.current = true;
+    setPremiumOpen(true);
+  }, [user, pendingJobId, subscriptionLoading, subscriptionActive]);
 
   // URL'den c ve q oku
   useEffect(() => {

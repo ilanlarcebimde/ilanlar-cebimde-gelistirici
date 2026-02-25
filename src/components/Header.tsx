@@ -213,21 +213,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                           Çıkış Yap
                         </button>
                       </>
-                    ) : (
-                      <>
-                        <div className="my-1 border-t border-slate-100" />
-                        <button
-                          type="button"
-                          className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            onLoginClick();
-                          }}
-                        >
-                          Giriş Yap
-                        </button>
-                      </>
-                    )}
+                    ) : null}
                   </div>
                 </>
               )}
