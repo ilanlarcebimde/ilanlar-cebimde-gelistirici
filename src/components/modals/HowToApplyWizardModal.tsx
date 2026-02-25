@@ -754,7 +754,11 @@ export function HowToApplyWizardModal({
       }
       if (!res.ok) {
         const err = parsed as { error?: string; detail?: string };
-        setWebhookError(err?.detail ? String(err.detail).slice(0, 150) : "Rehber alınamadı. Tekrar deneyin.");
+        const msg =
+          typeof err?.detail === "string"
+            ? err.detail.slice(0, 200)
+            : "Rehber alınamadı. Lütfen tekrar deneyin.";
+        setWebhookError(msg);
         setLoading(false);
         return;
       }
@@ -804,7 +808,11 @@ export function HowToApplyWizardModal({
         }
         if (!res.ok) {
           const err = parsed as { error?: string; detail?: string };
-          setWebhookError(err?.detail ? String(err.detail).slice(0, 150) : "Rehber alınamadı. Tekrar deneyin.");
+          const msg =
+            typeof err?.detail === "string"
+              ? err.detail.slice(0, 200)
+              : "Rehber alınamadı. Lütfen tekrar deneyin.";
+          setWebhookError(msg);
           setLoading(false);
           return;
         }
@@ -1031,14 +1039,20 @@ export function HowToApplyWizardModal({
                       )}
 
                       {webhookError && (
-                        <p className="mt-3 text-sm text-red-600">
-                          {webhookError}
-                          {currentStep === 1 && (
-                            <button type="button" onClick={handleEvet} className="ml-2 font-medium underline">
-                              Tekrar dene
-                            </button>
-                          )}
-                        </p>
+                        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                          <p>{webhookError}</p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              currentStep === 1
+                                ? handleEvet()
+                                : handleStepSubmit(currentStep, stepFormData)
+                            }
+                            className="mt-2 font-medium text-red-700 underline hover:no-underline"
+                          >
+                            Tekrar dene
+                          </button>
+                        </div>
                       )}
                     </div>
                   ) : isGuideResponse(stepResult) ? (

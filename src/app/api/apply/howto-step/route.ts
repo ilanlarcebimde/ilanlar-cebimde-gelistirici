@@ -138,11 +138,24 @@ export async function POST(req: NextRequest) {
 
     if (!webhookRes.ok) {
       console.warn("[apply/howto-step] webhook non-OK", jobId, step, webhookRes.status);
+      const detailObj = webhookData && typeof webhookData === "object" && webhookData !== null
+        ? (webhookData as Record<string, unknown>)
+        : null;
+      const detailMessage =
+        typeof detailObj?.message === "string"
+          ? detailObj.message
+          : typeof detailObj?.error === "string"
+            ? detailObj.error
+            : typeof detailObj?.detail === "string"
+              ? detailObj.detail
+              : webhookRes.status === 502
+                ? "Rehber servisi şu an yanıt vermiyor. Lütfen birkaç dakika sonra tekrar deneyin."
+                : `Rehber servisi hata döndü (${webhookRes.status}).`;
       return NextResponse.json(
         {
           error: "webhook_error",
           status: webhookRes.status,
-          detail: webhookData,
+          detail: detailMessage,
         },
         { status: 502 }
       );
