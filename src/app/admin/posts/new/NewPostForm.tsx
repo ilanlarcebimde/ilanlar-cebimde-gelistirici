@@ -1,58 +1,102 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Status = "draft" | "published" | "scheduled";
 
-export function NewPostForm() {
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
+type NewPostFormProps = {
+  initial?: {
+    title?: string | null;
+    slug?: string | null;
+    cover_image_url?: string | null;
+    content_html_raw?: string | null;
+    country_slug?: string | null;
+    city?: string | null;
+    sector_slug?: string | null;
+    is_paid?: boolean | null;
+    show_contact_when_free?: boolean | null;
+    status?: string | null;
+    scheduled_at?: string | null;
+    tags?: string[];
+    contact_email?: string;
+    contact_phone?: string;
+    apply_url?: string;
+  };
+  postId?: string;
+};
+
+export function NewPostForm({ initial, postId }: NewPostFormProps) {
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugStatus, setSlugStatus] = useState<string | null>(null);
-  const [coverUrl, setCoverUrl] = useState("");
-  const [contentHtml, setContentHtml] = useState("");
-  const [country, setCountry] = useState("");
-  const [city, setCity] = useState("");
-  const [sector, setSector] = useState("");
-  const [tags, setTags] = useState("");
-  const [isPaid, setIsPaid] = useState(true);
-  const [showContactWhenFree, setShowContactWhenFree] = useState(false);
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [applyUrl, setApplyUrl] = useState("");
-  const [status, setStatus] = useState<Status>("draft");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [coverUrl, setCoverUrl] = useState(initial?.cover_image_url ?? "");
+  const [contentHtml, setContentHtml] = useState(initial?.content_html_raw ?? "");
+  const [country, setCountry] = useState(initial?.country_slug ?? "");
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [sector, setSector] = useState(initial?.sector_slug ?? "");
+  const [tags, setTags] = useState((initial?.tags ?? []).join(", "));
+  const [isPaid, setIsPaid] = useState(initial?.is_paid ?? true);
+  const [showContactWhenFree, setShowContactWhenFree] = useState(initial?.show_contact_when_free ?? false);
+  const [contactEmail, setContactEmail] = useState(initial?.contact_email ?? "");
+  const [contactPhone, setContactPhone] = useState(initial?.contact_phone ?? "");
+  const [applyUrl, setApplyUrl] = useState(initial?.apply_url ?? "");
+  const [status, setStatus] = useState<Status>((initial?.status as Status) || "draft");
+  const [scheduledAt, setScheduledAt] = useState(initial?.scheduled_at ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
+
+  const [slugTouched, setSlugTouched] = useState(false);
 
   const tagsArray = tags
     .split(",")
     .map((t) => t.trim().toLowerCase())
     .filter(Boolean);
 
-  const handleSlugBlur = async () => {
-    const s = (slug || title)
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\-]+/gi, "-")
-      .replace(/^-+|-+$/g, "");
-    if (!s) return;
-    setSlug(s);
-    try {
-      const res = await fetch(`/api/admin/posts/slug-check?slug=${encodeURIComponent(s)}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        setSlugStatus(data.reason || "Slug kullanılamaz");
-      } else {
-        setSlugStatus("Uygun");
-      }
-    } catch {
-      setSlugStatus("Kontrol edilemedi");
+  useEffect(() => {
+    if (!slugTouched) {
+      const auto = title
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\-]+/gi, "-")
+        .replace(/^-+|-+$/g, "");
+      if (auto) setSlug(auto);
     }
+  }, [title, slugTouched]);
+
+  const handleSlugBlur = () => {
+    setSlugTouched(true);
   };
+
+  useEffect(() => {
+    const s = slug.trim().toLowerCase();
+    if (!s) {
+      setSlugStatus(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/posts/slug-check?slug=${encodeURIComponent(s)}`, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setSlugStatus(data.reason || "Slug kontrolü başarısız");
+          return;
+        }
+        setSlugStatus(data.ok ? "Uygun" : data.reason || "Kullanılamaz");
+      } catch {
+        setSlugStatus("Kontrol edilemedi");
+      }
+    }, 400);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [slug]);
 
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,6 +122,10 @@ export function NewPostForm() {
   };
 
   const handleSubmit = async (targetStatus: Status) => {
+    if (targetStatus === "scheduled" && !scheduledAt.trim()) {
+      setError("Zamanlama için tarih gerekli");
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccessId(null);
@@ -99,8 +147,10 @@ export function NewPostForm() {
         status: targetStatus,
         scheduled_at: targetStatus === "scheduled" ? scheduledAt || null : null,
       };
-      const res = await fetch("/api/admin/posts", {
-        method: "POST",
+      const url = postId ? `/api/admin/posts/${postId}` : "/api/admin/posts";
+      const method = postId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         credentials: "include",
@@ -110,7 +160,7 @@ export function NewPostForm() {
         setError(data.error || "Kaydetme başarısız");
         return;
       }
-      setSuccessId(data.id || null);
+      setSuccessId((data.id as string) || postId || null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kaydetme başarısız");
     } finally {
