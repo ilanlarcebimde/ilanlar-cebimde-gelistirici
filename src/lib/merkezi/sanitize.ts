@@ -29,6 +29,7 @@ export function sanitizeContent(html: string): string {
       "img",
       "figure",
       "figcaption",
+      "small",
       "span",
       "div",
     ],

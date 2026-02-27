@@ -92,7 +92,7 @@ export function RehberlerSection({ posts, tagsByPostId }: RehberlerSectionProps)
       ) : (
         <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((post) => (
-            <li key={post.id}>
+            <li key={post.id} className="flex min-h-0">
               <MerkezLandingPostCard post={post} tags={tagsByPostId[post.id] ?? []} />
             </li>
           ))}

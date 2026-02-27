@@ -25,45 +25,41 @@ export default async function YurtdisiIsBasvuruMerkeziPage() {
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <Link
-            href="/ucretsiz-yurtdisi-is-ilanlari"
-            className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-1 hover:ring-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-          >
+          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-xl text-sky-600" aria-hidden>
               📋
             </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-slate-900 group-hover:text-sky-700">
-                Ücretsiz İlanları Gör
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Ücretsiz ilan akışını görüntüle ve ülke kanallarına abone ol.
-              </p>
-              <span className="mt-2 inline-flex items-center text-sm font-medium text-sky-600 group-hover:text-sky-700" aria-hidden>
-                Görüntüle →
-              </span>
+            <h2 className="mt-3 font-semibold text-slate-900">Ücretsiz İlanları Gör</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Ücretsiz ilan akışını görüntüle ve ülke kanallarına abone ol.
+            </p>
+            <div className="mt-auto border-t border-slate-200 pt-3">
+              <Link
+                href="/ucretsiz-yurtdisi-is-ilanlari"
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-700 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+              >
+                Görüntüle <span aria-hidden>→</span>
+              </Link>
             </div>
-          </Link>
+          </div>
 
-          <Link
-            href="/yurtdisi-is-ilanlari"
-            className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-1 hover:ring-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-          >
+          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl text-slate-600" aria-hidden>
               📚
             </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-slate-900 group-hover:text-sky-700">
-                Tüm Rehberler
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Sektör ve ülke bazlı tüm rehber listesine git.
-              </p>
-              <span className="mt-2 inline-flex items-center text-sm font-medium text-sky-600 group-hover:text-sky-700" aria-hidden>
-                Listele →
-              </span>
+            <h2 className="mt-3 font-semibold text-slate-900">Tüm Rehberler</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Sektör ve ülke bazlı tüm rehber listesine git.
+            </p>
+            <div className="mt-auto border-t border-slate-200 pt-3">
+              <Link
+                href="/yurtdisi-is-ilanlari"
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-700 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+              >
+                Listele <span aria-hidden>→</span>
+              </Link>
             </div>
-          </Link>
+          </div>
         </div>
 
         <RehberlerSection posts={posts} tagsByPostId={tagsByPostId} />

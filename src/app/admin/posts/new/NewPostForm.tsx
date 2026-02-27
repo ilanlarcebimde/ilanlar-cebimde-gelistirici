@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { RichHtmlEditor } from "@/components/admin/RichHtmlEditor";
 
 type Status = "draft" | "published" | "scheduled";
 
@@ -372,7 +373,7 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">İçerik (HTML)</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">İçerik</h2>
             <input
               ref={contentImageInputRef}
               type="file"
@@ -393,15 +394,13 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
                 Yüklenen resim içeriğin sonuna figure/img olarak eklenir.
               </span>
             </div>
-            <textarea
+            <RichHtmlEditor
               value={contentHtml}
-              onChange={(e) => setContentHtml(e.target.value)}
-              rows={10}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-              placeholder="<p>İçerik...</p>"
+              onChange={setContentHtml}
+              placeholder="İçerik yazın… (H2/H3, kalın, italik, liste, link kullanabilirsiniz)"
             />
             <p className="mt-1 text-xs text-slate-500">
-              Editör çıktısını buraya HTML olarak yapıştırabilirsin. Yayınlarken sanitize edilecek.
+              Yayınlarken içerik güvenli hale getirilir (sanitize). H1 kullanılmaz.
             </p>
           </section>
         </div>
