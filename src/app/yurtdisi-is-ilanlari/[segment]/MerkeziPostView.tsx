@@ -165,6 +165,10 @@ export function MerkeziPostView({
         postId={post.id}
         open={showLetterModal}
         onClose={() => setShowLetterModal(false)}
+        onPremiumRequired={() => {
+          setShowLetterModal(false);
+          setShowPremiumModal(true);
+        }}
       />
     </article>
   );

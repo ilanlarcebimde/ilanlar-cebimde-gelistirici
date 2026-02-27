@@ -2,7 +2,8 @@ import sanitizeHtml from "sanitize-html";
 
 /**
  * Admin editörden gelen HTML içeriği public için güvenli hale getirir.
- * H1 yasak; img/figure/figcaption desteklenir. Sadece https/http img src; style/event yok.
+ * H1 yasak; img/figure/figcaption desteklenir. allowedSchemes: http, https, mailto, tel.
+ * img src sadece http/https (transform); javascript:/data: elenir. img'de loading="lazy" varsayılan.
  */
 export function sanitizeContent(html: string): string {
   return sanitizeHtml(html, {
@@ -56,7 +57,7 @@ export function sanitizeContent(html: string): string {
         if (attribs.title) out.title = attribs.title;
         if (attribs.width) out.width = attribs.width;
         if (attribs.height) out.height = attribs.height;
-        if (attribs.loading === "lazy") out.loading = "lazy";
+        out.loading = attribs.loading === "eager" ? "eager" : "lazy";
         return { tagName, attribs: out };
       },
     },

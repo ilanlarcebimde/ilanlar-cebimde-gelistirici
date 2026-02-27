@@ -6,11 +6,13 @@ interface LetterGeneratorModalProps {
   postId: string;
   open: boolean;
   onClose: () => void;
+  /** 401/403 (premium gerekli) dönerse çağrılır; parent upsell modal açabilir */
+  onPremiumRequired?: () => void;
 }
 
 type Tab = "tr" | "en";
 
-export function LetterGeneratorModal({ postId, open, onClose }: LetterGeneratorModalProps) {
+export function LetterGeneratorModal({ postId, open, onClose, onPremiumRequired }: LetterGeneratorModalProps) {
   const [fullName, setFullName] = useState("");
   const [experienceYears, setExperienceYears] = useState("");
   const [role, setRole] = useState("");
@@ -48,6 +50,11 @@ export function LetterGeneratorModal({ postId, open, onClose }: LetterGeneratorM
       });
       const data = await res.json();
       if (!res.ok) {
+        if ((res.status === 401 || res.status === 403) && onPremiumRequired) {
+          onPremiumRequired();
+          onClose();
+          return;
+        }
         setError(data.error || "Mektup oluşturulamadı");
         return;
       }

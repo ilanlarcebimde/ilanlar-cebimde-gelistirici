@@ -161,6 +161,25 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
     setTitle(suggested);
   };
 
+  const parseUploadResponse = async (
+    res: Response
+  ): Promise<{ url?: string; error?: string }> => {
+    const ct = res.headers.get("content-type") ?? "";
+    const text = await res.text();
+    if (!ct.includes("application/json")) {
+      if (res.status === 413 || text.toLowerCase().includes("request entity") || text.toLowerCase().includes("too large")) {
+        return { error: "Dosya çok büyük. En fazla 6MB yükleyebilirsiniz." };
+      }
+      return { error: "Sunucu beklenmeyen yanıt verdi. Dosya 6MB'dan küçük olmalı." };
+    }
+    try {
+      const data = JSON.parse(text) as { url?: string; error?: string };
+      return data;
+    } catch {
+      return { error: "Yanıt işlenemedi. Lütfen tekrar deneyin." };
+    }
+  };
+
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -173,12 +192,13 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
         body: formData,
         credentials: "include",
       });
-      const data = await res.json();
+      const data = await parseUploadResponse(res);
       if (!res.ok) {
         setError(data.error || "Kapak yüklenemedi");
         return;
       }
-      setCoverUrl(data.url);
+      if (data.url) setCoverUrl(data.url);
+      else setError(data.error || "Kapak yüklenemedi");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kapak yüklenemedi");
     }
@@ -199,18 +219,30 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
         body: formData,
         credentials: "include",
       });
-      const data = await res.json();
+      const data = await parseUploadResponse(res);
       if (!res.ok) {
         setError(data.error || "Resim yüklenemedi");
         return;
       }
-      const alt = window.prompt("Resim için alt metni (SEO):") ?? "";
-      const caption = window.prompt("İsteğe bağlı figcaption:") ?? "";
-      const imgTag = `<img src="${data.url}" alt="${alt.replace(/"/g, "&quot;")}" loading="lazy" />`;
-      const figureHtml = caption
+      if (!data.url) {
+        setError(data.error || "Resim yüklenemedi");
+        return;
+      }
+      let alt: string | null = null;
+      do {
+        alt = window.prompt("Resim için alt metni (zorunlu, erişilebilirlik + SEO):");
+        if (alt === null) {
+          setContentImageUploading(false);
+          return;
+        }
+      } while (!alt.trim());
+      const caption = window.prompt("İsteğe bağlı figcaption (boş bırakabilirsiniz):") ?? "";
+      const safeAlt = alt.trim().replace(/"/g, "&quot;");
+      const imgTag = `<img src="${data.url}" alt="${safeAlt}" loading="lazy" />`;
+      const figureHtml = caption.trim()
         ? `<figure>${imgTag}<figcaption>${caption.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</figcaption></figure>`
         : `<figure>${imgTag}</figure>`;
-      setContentHtml((prev) => (prev ? prev + "\n" + figureHtml : figureHtml));
+      setContentHtml((prev) => (prev ? prev + "\n" + figureHtml + "\n" : figureHtml + "\n"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Resim yüklenemedi");
     } finally {

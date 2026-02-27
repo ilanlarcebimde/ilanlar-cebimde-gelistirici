@@ -13,6 +13,8 @@ Bu klasördeki dosyalar sırayla uygulanır. Şema özeti:
 | 009_profiles_is_cv_sent.sql | `profiles.is_cv_sent` kolonu |
 | 010_storage_cv_photos_policies.sql | Storage: cv-photos select + insert (authenticated) |
 | **011_channels_subscriptions_job_posts.sql** | Yurtdışı İş İlanları: `channels`, `channel_subscriptions`, `job_posts`, RLS, 4 ülke seed |
+| … | … |
+| **037_merkezi_countries_sectors.sql** | Merkez: `merkezi_countries`, `merkezi_sectors` (ülke/sektör dropdown), RLS |
 
 **Profiles/events/uploads şeması** birebir `001_initial_schema.sql` içindedir; sonraki migration’lar sadece constraint ve kolon ekler.
 

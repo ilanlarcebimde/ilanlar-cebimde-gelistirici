@@ -30,9 +30,13 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
     );
   }
 
-  if (!contact || (!contact.contact_email && !contact.contact_phone && !contact.apply_url)) {
-    return null;
-  }
+  const hasSafeApplyUrl =
+    contact?.apply_url &&
+    (contact.apply_url.startsWith("http://") || contact.apply_url.startsWith("https://"));
+  const hasAnyContact =
+    contact &&
+    (contact.contact_email || contact.contact_phone || hasSafeApplyUrl);
+  if (!hasAnyContact) return null;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -58,7 +62,7 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
             </a>
           </li>
         )}
-        {contact.apply_url && (
+        {hasSafeApplyUrl && contact.apply_url && (
           <li>
             <a
               href={contact.apply_url}
@@ -75,3 +79,4 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
     </div>
   );
 }
+

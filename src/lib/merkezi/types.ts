@@ -27,6 +27,20 @@ export interface MerkeziPost {
   company_short_description: string | null;
 }
 
+/** Landing sayfası kartı için minimal alanlar (contact/content yok). */
+export interface MerkeziPostLandingItem {
+  id: string;
+  title: string;
+  slug: string;
+  cover_image_url: string | null;
+  country_slug: string | null;
+  city: string | null;
+  sector_slug: string;
+  is_paid: boolean;
+  published_at?: string | null;
+  created_at?: string;
+}
+
 export interface MerkeziPostContact {
   contact_email: string | null;
   contact_phone: string | null;

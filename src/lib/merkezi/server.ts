@@ -6,6 +6,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import type {
   MerkeziPost,
+  MerkeziPostLandingItem,
   MerkeziTag,
   MerkeziSeoPage,
   SegmentPost,
@@ -171,6 +172,26 @@ export async function getTagsByPostIds(
     }
   }
   return map;
+}
+
+/** Merkez landing için yayındaki yazılar (minimal alanlar, contact yok). published_at desc, limit 24. */
+export async function getPublishedPostsForMerkeziLanding(limit = 24): Promise<{
+  posts: MerkeziPostLandingItem[];
+  tagsByPostId: Record<string, MerkeziTag[]>;
+}> {
+  const supabase = getSupabaseAdmin();
+  const { data: posts } = await supabase
+    .from("merkezi_posts")
+    .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at")
+    .eq("status", "published")
+    .or(`published_at.is.null,published_at.lte.${NOW}`)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const list = (posts ?? []) as MerkeziPostLandingItem[];
+  const tagsByPostId = await getTagsByPostIds(list.map((p) => p.id));
+  return { posts: list, tagsByPostId };
 }
 
 /** Segment çözümleme: önce post, sonra sektör, sonra ülke-sektör. */

@@ -7,7 +7,17 @@ export const runtime = "nodejs";
 const BUCKET = "merkezi-covers";
 const MAX_SIZE_MB = 6;
 
-/** Admin: içerik editörüne eklenecek resim upload. Path: content/{postId|temp}/{timestamp}.{ext} */
+/** MIME type'dan güvenli uzantı (client dosya adı kullanılmaz). */
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+/** Admin: içerik editörüne eklenecek resim upload. Path: content/{postId|temp}/{timestamp}.{ext}
+ * Not: content/temp/ altındaki dosyalar için haftalık cleanup (n8n/cron) önerilir. */
 export async function POST(req: NextRequest) {
   const supabaseUser = await getSupabaseServerClient();
   const { data: { user } } = await supabaseUser.auth.getUser();
@@ -33,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Dosya boyutu ${MAX_SIZE_MB}MB'dan küçük olmalı` }, { status: 400 });
   }
 
-  const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase() || "jpg";
+  const ext = MIME_TO_EXT[file.type] ?? "jpg";
   const path = `content/${postId}/${Date.now()}.${ext}`;
 
   const supabase = getSupabaseAdmin();
