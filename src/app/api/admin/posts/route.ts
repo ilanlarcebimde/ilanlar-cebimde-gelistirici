@@ -89,6 +89,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Zamanlama için tarih gerekli" }, { status: 400 });
   }
 
+  const isPaid = body.is_paid ?? true;
+  if (isPaid) {
+    const ce = (body.contact_email || "").trim();
+    const cp = (body.contact_phone || "").trim();
+    const au = (body.apply_url || "").trim();
+    if (!ce && !cp && !au) {
+      return NextResponse.json(
+        { error: "Ücretli içerik için en az bir iletişim alanı (e-posta / telefon / apply url) zorunlu" },
+        { status: 400 }
+      );
+    }
+  }
+
   const contentRaw = body.content_html_raw?.trim() || "";
   const contentSanitized = contentRaw ? sanitizeContent(contentRaw) : "";
 
@@ -104,7 +117,7 @@ export async function POST(req: NextRequest) {
       country_slug: body.country_slug ?? null,
       city: body.city ?? null,
       sector_slug: body.sector_slug,
-      is_paid: body.is_paid ?? true,
+      is_paid: isPaid,
       show_contact_when_free: body.show_contact_when_free ?? false,
       status,
       published_at: publishedAt,

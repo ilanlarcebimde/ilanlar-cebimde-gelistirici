@@ -20,7 +20,6 @@ export function sanitizeContent(html: string): string {
       "li",
       "blockquote",
       "hr",
-      "h1",
       "h2",
       "h3",
       "h4",

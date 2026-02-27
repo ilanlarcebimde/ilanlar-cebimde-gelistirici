@@ -65,6 +65,20 @@ export async function PATCH(
   const contentRaw = body.content_html_raw?.trim();
   const contentSanitized = contentRaw ? sanitizeContent(contentRaw) : undefined;
 
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: existingPost } = await supabaseAdmin
+    .from("merkezi_posts")
+    .select("is_paid")
+    .eq("id", id)
+    .maybeSingle();
+
+  const { data: existingContact } = await supabaseAdmin
+    .from("merkezi_post_contact")
+    .select("contact_email, contact_phone, apply_url")
+    .eq("post_id", id)
+    .maybeSingle();
+
   const patch: Record<string, unknown> = {};
   if (body.title != null) patch.title = body.title;
   if (body.slug != null) patch.slug = body.slug;
@@ -83,13 +97,31 @@ export async function PATCH(
   if (publishedAt !== undefined) patch.published_at = publishedAt;
   if (scheduledAt !== undefined) patch.scheduled_at = scheduledAt;
 
+  const newIsPaid = body.is_paid ?? existingPost?.is_paid ?? false;
+  const newContactEmail =
+    body.contact_email !== undefined ? body.contact_email : existingContact?.contact_email ?? null;
+  const newContactPhone =
+    body.contact_phone !== undefined ? body.contact_phone : existingContact?.contact_phone ?? null;
+  const newApplyUrl =
+    body.apply_url !== undefined ? body.apply_url : existingContact?.apply_url ?? null;
+
+  if (newIsPaid) {
+    const ce = (newContactEmail || "").trim();
+    const cp = (newContactPhone || "").trim();
+    const au = (newApplyUrl || "").trim();
+    if (!ce && !cp && !au) {
+      return NextResponse.json(
+        { error: "Ücretli içerik için en az bir iletişim alanı (e-posta / telefon / apply url) zorunlu" },
+        { status: 400 }
+      );
+    }
+  }
+
   const { error } = await auth.supabase
     .from("merkezi_posts")
     .update(patch)
     .eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const supabaseAdmin = getSupabaseAdmin();
 
   if (Array.isArray(body.tags)) {
     const tagSlugs = body.tags.map((t) => String(t).trim().toLowerCase());

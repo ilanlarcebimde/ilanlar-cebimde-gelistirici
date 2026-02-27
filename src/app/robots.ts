@@ -13,7 +13,7 @@ export default function robots(): MetadataRoute.Robots {
   const base = getBaseUrl();
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: ["/api/", "/auth/", "/panel", "/aboneliklerim", "/odeme"] },
+      { userAgent: "*", allow: "/", disallow: ["/api/", "/auth/", "/panel", "/aboneliklerim", "/odeme", "/admin"] },
     ],
     sitemap: `${base}/sitemap.xml`,
   };

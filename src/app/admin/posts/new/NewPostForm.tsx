@@ -49,6 +49,9 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
 
   const [slugTouched, setSlugTouched] = useState(false);
 
+  const [countries, setCountries] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; name: string; slug: string }[]>([]);
+
   const tagsArray = tags
     .split(",")
     .map((t) => t.trim().toLowerCase())
@@ -97,6 +100,64 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
       clearTimeout(timer);
     };
   }, [slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/taxonomy", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setCountries(data.countries || []);
+          setSectors(data.sectors || []);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAddTaxonomy = async (type: "country" | "sector") => {
+    const name = window.prompt(type === "country" ? "Yeni ülke adı" : "Yeni sektör adı");
+    if (!name) return;
+    try {
+      const res = await fetch("/api/admin/taxonomy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ type, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Kayıt eklenemedi");
+        return;
+      }
+      if (type === "country") {
+        setCountries((prev) => [...prev, data]);
+        setCountry(data.slug);
+      } else {
+        setSectors((prev) => [...prev, data]);
+        setSector(data.slug);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kayıt eklenemedi");
+    }
+  };
+
+  const handleSuggestTitle = () => {
+    const pos = title.trim();
+    if (!pos) return;
+    const locParts = [country, city].map((v) => v.trim()).filter(Boolean);
+    const loc = locParts.join(" / ");
+    const year = new Date().getFullYear();
+    const sectorPart = sector.trim();
+    const suggested = `${pos}${loc ? ` – ${loc}` : ""}${sectorPart ? ` | ${sectorPart} İş İlanı ${year}` : ""}`;
+    setTitle(suggested);
+  };
 
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -204,6 +265,13 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
                   onBlur={!slug ? handleSlugBlur : undefined}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 />
+                <button
+                  type="button"
+                  onClick={handleSuggestTitle}
+                  className="mt-1 text-xs text-sky-600 hover:underline"
+                >
+                  Başlığı Önerilen Formatta Doldur
+                </button>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Slug</label>
@@ -255,13 +323,28 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Konum &amp; Sınıflandırma</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600">Ülke (slug)</label>
-                <input
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="almanya, katar..."
-                />
+                <label className="block text-xs font-medium text-slate-600">Ülke</label>
+                <div className="mt-1 flex gap-2">
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Seçiniz</option>
+                    {countries.map((c) => (
+                      <option key={c.id} value={c.slug}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleAddTaxonomy("country")}
+                    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                  >
+                    + Ekle
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Şehir</label>
@@ -272,13 +355,28 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600">Sektör (slug)</label>
-                <input
-                  value={sector}
-                  onChange={(e) => setSector(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="insaat, otelcilik..."
-                />
+                <label className="block text-xs font-medium text-slate-600">Sektör</label>
+                <div className="mt-1 flex gap-2">
+                  <select
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Seçiniz</option>
+                    {sectors.map((s) => (
+                      <option key={s.id} value={s.slug}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleAddTaxonomy("sector")}
+                    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                  >
+                    + Ekle
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Etiketler (virgülle)</label>
@@ -295,14 +393,31 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Fiyatlama &amp; İletişim</h2>
             <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={isPaid}
-                  onChange={(e) => setIsPaid(e.target.checked)}
-                />
-                Ücretli (Premium)
-              </label>
+              <div className="flex flex-col gap-2 text-sm text-slate-700">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="pricing"
+                    value="free"
+                    checked={!isPaid}
+                    onChange={() => setIsPaid(false)}
+                  />
+                  Ücretsiz içerik
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="pricing"
+                    value="paid"
+                    checked={isPaid}
+                    onChange={() => {
+                      setIsPaid(true);
+                      setShowContactWhenFree(false);
+                    }}
+                  />
+                  Ücretli (Premium)
+                </label>
+              </div>
               {!isPaid && (
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
