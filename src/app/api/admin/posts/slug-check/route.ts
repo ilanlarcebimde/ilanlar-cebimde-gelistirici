@@ -32,6 +32,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: "Bu slug başka bir içerik tarafından kullanılıyor" });
   }
 
+  const { data: seoPages } = await supabase
+    .from("merkezi_seo_pages")
+    .select("type, sector_slug, country_slug");
+  const dynamicReserved = new Set<string>();
+  for (const row of seoPages ?? []) {
+    const sectorSlug = (row.sector_slug as string | null)?.toLowerCase().trim();
+    const countrySlug = (row.country_slug as string | null)?.toLowerCase().trim();
+    if (sectorSlug) dynamicReserved.add(sectorSlug);
+    if (row.type === "country_sector" && sectorSlug && countrySlug) {
+      dynamicReserved.add(`${countrySlug}-${sectorSlug}`);
+    }
+  }
+  if (dynamicReserved.has(slug)) {
+    return NextResponse.json({ ok: false, reason: "Bu slug sektör veya ülke+sektör sayfası için kullanılıyor" });
+  }
+
   return NextResponse.json({ ok: true });
 }
 

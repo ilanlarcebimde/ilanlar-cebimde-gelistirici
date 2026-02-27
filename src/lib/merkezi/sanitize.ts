@@ -33,7 +33,6 @@ export function sanitizeContent(html: string): string {
     allowedAttributes: {
       a: ["href", "title", "target", "rel"],
       img: ["src", "alt", "title"],
-      "*": ["style"],
     },
     allowedSchemes: ["http", "https", "mailto", "tel"],
     transformTags: {
@@ -42,7 +41,8 @@ export function sanitizeContent(html: string): string {
           tagName,
           attribs: {
             ...attribs,
-            rel: attribs.rel ?? "noreferrer",
+            rel: attribs.rel ?? "noopener noreferrer",
+            target: attribs.target ?? "_blank",
           },
         };
       },

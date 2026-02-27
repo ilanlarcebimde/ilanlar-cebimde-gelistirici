@@ -95,6 +95,12 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               Yurtdışı CV Paketi
             </Link>
             <Link
+              href="/yurtdisi-is-basvuru-merkezi"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              Yurtdışı İş Başvuru Merkezi
+            </Link>
+            <Link
               href={FEED_PATH}
               className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
@@ -189,6 +195,13 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                       Yurtdışı CV Paketi
                     </Link>
                     <Link
+                  href="/yurtdisi-is-basvuru-merkezi"
+                  className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Yurtdışı İş Başvuru Merkezi
+                </Link>
+                <Link
                       href={FEED_PATH}
                       className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
                       onClick={() => setMenuOpen(false)}
