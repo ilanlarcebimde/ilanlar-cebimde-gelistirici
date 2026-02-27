@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { RichContent } from "@/components/merkezi/RichContent";
 import { CompanyCard } from "@/components/merkezi/CompanyCard";
 import { ContactCard } from "@/components/merkezi/ContactCard";
@@ -11,6 +10,8 @@ import { LikeButton } from "@/components/merkezi/LikeButton";
 import { ViewsCounter } from "@/components/merkezi/ViewsCounter";
 import { PremiumUpsellModal } from "@/components/merkezi/PremiumUpsellModal";
 import { ViewTracker } from "@/components/merkezi/ViewTracker";
+import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
+import { LetterGeneratorModal } from "@/components/merkezi/LetterGeneratorModal";
 import type { MerkeziPost, MerkeziTag } from "@/lib/merkezi/types";
 import type { MerkeziPostContact } from "@/lib/merkezi/types";
 
@@ -25,12 +26,6 @@ interface MerkeziPostViewProps {
   contact: MerkeziPostContact | null;
 }
 
-const UCRETSIZ_LINKS = [
-  { href: "/usta-basvuru-paketi", label: "Usta Başvuru Paketi" },
-  { href: "/yurtdisi-cv-paketi", label: "Yurtdışı CV Paketi" },
-  { href: "/ucretsiz-yurtdisi-is-ilanlari", label: "Ücretsiz Yurtdışı İş İlanları" },
-];
-
 export function MerkeziPostView({
   post,
   tags,
@@ -44,10 +39,11 @@ export function MerkeziPostView({
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [contactUnlocked, setContactUnlocked] = useState(!!contact && isPremium);
   const [contactData, setContactData] = useState<MerkeziPostContact | null>(contact);
+  const [showLetterModal, setShowLetterModal] = useState(false);
 
   const showContactCard = post.is_paid
     ? contactUnlocked && contactData
-    : post.show_contact_when_free || contactUnlocked;
+    : post.show_contact_when_free && contactData;
 
   const handleContactUnlock = async () => {
     if (isPremium) {
@@ -62,6 +58,11 @@ export function MerkeziPostView({
         }
       } else setContactUnlocked(true);
     } else setShowPremiumModal(true);
+  };
+
+  const handleLetterCta = () => {
+    if (isPremium) setShowLetterModal(true);
+    else setShowPremiumModal(true);
   };
 
   const handlePremiumCta = () => {
@@ -121,9 +122,22 @@ export function MerkeziPostView({
                 isPaid={true}
               />
             </section>
-            <p className="text-sm text-slate-600">
-              İlana özel başvuru mektubu oluşturmak için Premium ile &quot;Mektup Oluştur&quot; butonunu kullanabilirsiniz.
-            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleContactUnlock}
+                className="rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-white hover:bg-slate-700"
+              >
+                Hızlı Başvur: Firma İletişim Bilgisi
+              </button>
+              <button
+                type="button"
+                onClick={handleLetterCta}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Alınma İhtimalini Arttır: İş Başvuru Mektubu Oluştur
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -137,21 +151,7 @@ export function MerkeziPostView({
                 />
               </section>
             )}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="mb-3 text-sm font-medium text-slate-700">Faydalı linkler</p>
-              <ul className="flex flex-wrap gap-3">
-                {UCRETSIZ_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-sky-600 hover:underline"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <FaydaliLinkler />
           </>
         )}
       </aside>
@@ -160,6 +160,11 @@ export function MerkeziPostView({
         open={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
         onCta={handlePremiumCta}
+      />
+      <LetterGeneratorModal
+        postId={post.id}
+        open={showLetterModal}
+        onClose={() => setShowLetterModal(false)}
       />
     </article>
   );

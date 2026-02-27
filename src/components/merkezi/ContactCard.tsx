@@ -63,7 +63,7 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
             <a
               href={contact.apply_url}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sky-600 hover:underline"
             >
               Başvuru linki

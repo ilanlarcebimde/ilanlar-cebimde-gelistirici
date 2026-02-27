@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 type Status = "draft" | "published" | "scheduled";
@@ -48,6 +48,8 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
   const [successId, setSuccessId] = useState<string | null>(null);
 
   const [slugTouched, setSlugTouched] = useState(false);
+  const contentImageInputRef = useRef<HTMLInputElement>(null);
+  const [contentImageUploading, setContentImageUploading] = useState(false);
 
   const [countries, setCountries] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [sectors, setSectors] = useState<{ id: string; name: string; slug: string }[]>([]);
@@ -182,6 +184,40 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
     }
   };
 
+  const handleUploadContentImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setContentImageUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (postId) formData.append("postId", postId);
+      const res = await fetch("/api/admin/uploads/content-image", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Resim yüklenemedi");
+        return;
+      }
+      const alt = window.prompt("Resim için alt metni (SEO):") ?? "";
+      const caption = window.prompt("İsteğe bağlı figcaption:") ?? "";
+      const imgTag = `<img src="${data.url}" alt="${alt.replace(/"/g, "&quot;")}" loading="lazy" />`;
+      const figureHtml = caption
+        ? `<figure>${imgTag}<figcaption>${caption.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</figcaption></figure>`
+        : `<figure>${imgTag}</figure>`;
+      setContentHtml((prev) => (prev ? prev + "\n" + figureHtml : figureHtml));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Resim yüklenemedi");
+    } finally {
+      setContentImageUploading(false);
+    }
+  };
+
   const handleSubmit = async (targetStatus: Status) => {
     if (targetStatus === "scheduled" && !scheduledAt.trim()) {
       setError("Zamanlama için tarih gerekli");
@@ -305,6 +341,26 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">İçerik (HTML)</h2>
+            <input
+              ref={contentImageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUploadContentImage}
+            />
+            <div className="mb-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => contentImageInputRef.current?.click()}
+                disabled={contentImageUploading}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              >
+                {contentImageUploading ? "Yükleniyor…" : "Resim Yükle"}
+              </button>
+              <span className="text-xs text-slate-500">
+                Yüklenen resim içeriğin sonuna figure/img olarak eklenir.
+              </span>
+            </div>
             <textarea
               value={contentHtml}
               onChange={(e) => setContentHtml(e.target.value)}
