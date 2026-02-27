@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { AuthHashHandler } from "@/components/AuthHashHandler";
+
+const GA_ID = "G-NVM52S3EHT";
 
 export const metadata: Metadata = {
   title: "İlanlar Cebimde — Usta Başvuru Paketi | 549 TL",
@@ -26,6 +29,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
+      <head>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_ID}');
+          `}
+        </Script>
+      </head>
       <body className="antialiased font-sans bg-[var(--background)] text-[var(--foreground)] overflow-x-hidden">
         <AuthHashHandler />
         {children}
