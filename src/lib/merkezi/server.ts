@@ -174,6 +174,11 @@ export async function getTagsByPostIds(
   return map;
 }
 
+/** Merkez landing sayfasında gösterilmeyecek başlık eşleşmeleri (kısmi metin). */
+const EXCLUDED_FROM_LANDING_TITLES = [
+  "Isı Pompası Teknisyeni – İsveç / Svedala",
+];
+
 /** Merkez landing için yayındaki yazılar (minimal alanlar, contact yok). published_at desc, limit 24. */
 export async function getPublishedPostsForMerkeziLanding(limit = 24): Promise<{
   posts: MerkeziPostLandingItem[];
@@ -187,9 +192,12 @@ export async function getPublishedPostsForMerkeziLanding(limit = 24): Promise<{
     .or(`published_at.is.null,published_at.lte.${NOW}`)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit + EXCLUDED_FROM_LANDING_TITLES.length * 2);
 
-  const list = (posts ?? []) as MerkeziPostLandingItem[];
+  const raw = (posts ?? []) as MerkeziPostLandingItem[];
+  const list = raw.filter(
+    (p) => !EXCLUDED_FROM_LANDING_TITLES.some((t) => (p.title || "").includes(t))
+  ).slice(0, limit);
   const tagsByPostId = await getTagsByPostIds(list.map((p) => p.id));
   return { posts: list, tagsByPostId };
 }

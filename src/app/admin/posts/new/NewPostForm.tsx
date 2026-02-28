@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { RichHtmlEditor } from "@/components/admin/RichHtmlEditor";
 
 type Status = "draft" | "published" | "scheduled";
@@ -54,6 +55,8 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
 
   const [countries, setCountries] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [sectors, setSectors] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
 
   const tagsArray = tags
     .split(",")
@@ -295,6 +298,29 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
       setError(e instanceof Error ? e.message : "Kaydetme başarısız");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!postId) return;
+    if (!window.confirm("Bu yazıyı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/posts/${postId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data.error as string) || "Silme başarısız");
+        return;
+      }
+      router.push("/admin/posts");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Silme başarısız");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -601,6 +627,16 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
               >
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
+              {postId && (
+                <button
+                  type="button"
+                  disabled={saving || deleting}
+                  onClick={handleDelete}
+                  className="mt-3 w-full rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {deleting ? "Siliniyor…" : "Yazıyı Sil"}
+                </button>
+              )}
             </div>
           </section>
         </div>

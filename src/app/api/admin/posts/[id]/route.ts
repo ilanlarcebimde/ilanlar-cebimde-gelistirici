@@ -172,3 +172,19 @@ export async function PATCH(
   return NextResponse.json({ id });
 }
 
+/** DELETE: İçerik sil (admin). İlişkili kayıtlar (contact, tags, views, likes, letters) cascade ile silinir. */
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await getAuth();
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error } = await supabaseAdmin.from("merkezi_posts").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
