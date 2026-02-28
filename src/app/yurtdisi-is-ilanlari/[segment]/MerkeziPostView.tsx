@@ -90,19 +90,23 @@ export function MerkeziPostView({
         </div>
       </header>
 
-      {post.cover_image_url && (
-        <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-xl bg-slate-100">
+      <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-xl bg-slate-100">
+        {post.cover_image_url ? (
           <Image
             src={post.cover_image_url}
-            alt=""
+            alt={post.title}
             fill
             className="object-cover"
             priority
             sizes="(max-width: 768px) 100vw, 896px"
             unoptimized={post.cover_image_url.includes("supabase")}
           />
-        </div>
-      )}
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200" aria-hidden>
+            <span className="text-4xl text-slate-400">📄</span>
+          </div>
+        )}
+      </div>
 
       <RichContent html={post.content_html_sanitized ?? post.content} />
 

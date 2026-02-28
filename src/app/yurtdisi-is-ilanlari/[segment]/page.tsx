@@ -11,6 +11,10 @@ import { getSupabaseAdmin } from "@/lib/supabase/server";
 const BASE = "/yurtdisi-is-ilanlari";
 const BASE_URL = "https://www.ilanlarcebimde.com";
 
+/** Yazı detayı her istekte güncel (kapak, özet vb.) olsun. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function absoluteUrl(url: string): string {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return url.startsWith("/") ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`;
@@ -33,18 +37,24 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     const post = resolved.post;
     const title = `${post.title} | İlanlar Cebimde`;
     const description = post.summary?.trim() || post.title;
+    const canonicalUrl = `${BASE_URL}${BASE}/${post.slug}`;
     const coverUrl = post.cover_image_url ? absoluteUrl(post.cover_image_url) : undefined;
+    const ogImages = coverUrl
+      ? [{ url: coverUrl, width: 1200, height: 630, alt: post.title }]
+      : [];
     return {
       title,
       description,
-      alternates: { canonical: `${BASE_URL}${BASE}/${post.slug}` },
+      alternates: { canonical: canonicalUrl },
       robots,
       openGraph: {
         title,
         description,
         type: "article",
-        url: `${BASE_URL}${BASE}/${post.slug}`,
-        images: coverUrl ? [{ url: coverUrl, width: 1200, height: 630 }] : [],
+        url: canonicalUrl,
+        siteName: "İlanlar Cebimde",
+        images: ogImages,
+        locale: "tr_TR",
       },
       twitter: {
         card: "summary_large_image",
