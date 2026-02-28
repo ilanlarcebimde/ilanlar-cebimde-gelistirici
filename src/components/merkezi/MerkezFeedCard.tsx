@@ -16,16 +16,16 @@ interface MerkezFeedCardProps {
   tags: MerkeziTag[];
 }
 
-/** İlan = country_slug ve sector_slug ikisi de dolu. Değilse bilgilendirme yazısı. */
-function isJobPost(post: MerkeziPostLandingItem): boolean {
-  return !!(post.country_slug?.trim() && post.sector_slug?.trim());
+/** İlan kartı: content_type === 'job'. Blog kartı: content_type === 'blog'. */
+function isJobCard(post: MerkeziPostLandingItem): boolean {
+  return (post.content_type ?? "job") === "job";
 }
 
 export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showLetterModal, setShowLetterModal] = useState(false);
 
-  const isJob = isJobPost(post);
+  const isJob = isJobCard(post);
   const location = [post.country_slug, post.city].filter(Boolean).join(", ");
   const displayTags = tags.slice(0, MAX_TAGS);
   const extraTags = tags.length > MAX_TAGS ? tags.length - MAX_TAGS : 0;

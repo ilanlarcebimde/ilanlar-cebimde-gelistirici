@@ -1,6 +1,5 @@
-import { NewPostForm } from "./NewPostForm";
+import { NewContentChooser } from "./NewContentChooser";
 
 export default function AdminNewPostPage() {
-  return <NewPostForm />;
+  return <NewContentChooser />;
 }
-

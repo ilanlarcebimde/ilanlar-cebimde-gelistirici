@@ -50,10 +50,12 @@ export async function POST(req: NextRequest) {
     slug?: string;
     cover_image_url?: string | null;
     content_html_raw?: string;
+    content_type?: "job" | "blog";
     country_slug?: string | null;
     city?: string | null;
-    sector_slug?: string;
+    sector_slug?: string | null;
     tags?: string[];
+    summary?: string | null;
     is_paid?: boolean;
     show_contact_when_free?: boolean;
     contact_email?: string | null;
@@ -70,13 +72,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const contentType = body.content_type === "blog" ? "blog" : "job";
   const title = (body.title || "").trim();
   const slug = (body.slug || "").trim().toLowerCase();
   if (!title || !slug) {
     return NextResponse.json({ error: "Başlık ve slug zorunlu" }, { status: 400 });
   }
-  if (!body.sector_slug) {
-    return NextResponse.json({ error: "Sektör zorunlu" }, { status: 400 });
+
+  if (contentType === "blog") {
+    const summaryTrim = (body.summary ?? "").trim();
+    if (!summaryTrim) {
+      return NextResponse.json({ error: "Blog için yazı özeti zorunludur (160–240 karakter)." }, { status: 400 });
+    }
+    if (summaryTrim.length < 160 || summaryTrim.length > 240) {
+      return NextResponse.json({ error: "Özet 160–240 karakter arasında olmalıdır." }, { status: 400 });
+    }
+  } else {
+    if (!body.sector_slug?.trim()) {
+      return NextResponse.json({ error: "Sektör zorunlu" }, { status: 400 });
+    }
   }
 
   const nowIso = new Date().toISOString();
@@ -91,8 +105,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Zamanlama için tarih gerekli" }, { status: 400 });
   }
 
-  const isPaid = body.is_paid ?? true;
-  if (isPaid) {
+  const isPaid = contentType === "blog" ? false : (body.is_paid ?? true);
+  const showContactWhenFree = contentType === "blog" ? false : (body.show_contact_when_free ?? false);
+  if (contentType === "job" && isPaid) {
     const ce = (body.contact_email || "").trim();
     const cp = (body.contact_phone || "").trim();
     const au = (body.apply_url || "").trim();
@@ -108,29 +123,35 @@ export async function POST(req: NextRequest) {
   const contentSanitized = contentRaw ? sanitizeContent(contentRaw) : "";
   const deadlineDate = body.application_deadline_date?.trim();
   const deadlineText = (body.application_deadline_text?.trim() ?? "").slice(0, 120) || null;
+  const summaryVal =
+    contentType === "blog"
+      ? (body.summary ?? "").trim().slice(0, 500)
+      : (body.summary ?? "").trim().slice(0, 500) || null;
 
   const { data: created, error } = await auth.supabase
     .from("merkezi_posts")
     .insert({
       title,
       slug,
+      content_type: contentType,
       cover_image_url: body.cover_image_url ?? null,
       content: contentSanitized,
       content_html_raw: contentRaw || null,
       content_html_sanitized: contentSanitized || null,
-      country_slug: body.country_slug ?? null,
-      city: body.city ?? null,
-      sector_slug: body.sector_slug,
+      country_slug: contentType === "blog" ? null : (body.country_slug ?? null),
+      city: contentType === "blog" ? null : (body.city ?? null),
+      sector_slug: contentType === "blog" ? null : (body.sector_slug ?? null),
       is_paid: isPaid,
-      show_contact_when_free: body.show_contact_when_free ?? false,
+      show_contact_when_free: showContactWhenFree,
       status,
       published_at: publishedAt,
       scheduled_at: scheduledAt,
       company_name: null,
       company_logo_url: null,
       company_short_description: null,
-      application_deadline_date: deadlineDate || null,
-      application_deadline_text: deadlineText,
+      application_deadline_date: contentType === "blog" ? null : (deadlineDate || null),
+      application_deadline_text: contentType === "blog" ? null : deadlineText,
+      summary: summaryVal || null,
     })
     .select("id")
     .single();
@@ -172,7 +193,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (body.contact_email || body.contact_phone || body.apply_url) {
+  if (contentType === "job" && (body.contact_email || body.contact_phone || body.apply_url)) {
     const supabaseAdmin = getSupabaseAdmin();
     await supabaseAdmin
       .from("merkezi_post_contact")

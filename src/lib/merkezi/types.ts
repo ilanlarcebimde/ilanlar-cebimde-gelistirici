@@ -27,6 +27,8 @@ export interface MerkeziPost {
   company_short_description: string | null;
   application_deadline_date?: string | null;
   application_deadline_text?: string | null;
+  content_type?: "job" | "blog";
+  summary?: string | null;
 }
 
 /** Landing sayfası kartı için minimal alanlar (contact/content yok). */
@@ -37,7 +39,7 @@ export interface MerkeziPostLandingItem {
   cover_image_url: string | null;
   country_slug: string | null;
   city: string | null;
-  sector_slug: string;
+  sector_slug: string | null;
   is_paid: boolean;
   published_at?: string | null;
   created_at?: string;
@@ -47,6 +49,8 @@ export interface MerkeziPostLandingItem {
   application_deadline_date?: string | null;
   /** Serbest metin notu (örn. "Başvurular dolana kadar"). Tarih yoksa kullanılır. */
   application_deadline_text?: string | null;
+  /** job = ilan kartı, blog = bilgilendirme kartı. */
+  content_type?: "job" | "blog";
 }
 
 export interface MerkeziPostContact {

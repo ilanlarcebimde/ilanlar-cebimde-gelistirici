@@ -193,21 +193,31 @@ export async function getPublishedPostsForMerkeziLanding(limit = 30): Promise<{
   const supabase = getSupabaseAdmin();
   const { data: rows } = await supabase
     .from("merkezi_posts")
-    .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at, content_html_sanitized, application_deadline_date, application_deadline_text")
+    .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at, content_html_sanitized, application_deadline_date, application_deadline_text, content_type, summary")
     .eq("status", "published")
     .or(`published_at.is.null,published_at.lte.${NOW}`)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(limit + EXCLUDED_FROM_LANDING_TITLES.length * 2);
 
-  const raw = (rows ?? []) as (MerkeziPostLandingItem & { content_html_sanitized?: string | null })[];
+  const raw = (rows ?? []) as (MerkeziPostLandingItem & {
+    content_html_sanitized?: string | null;
+    content_type?: "job" | "blog" | null;
+    summary?: string | null;
+  })[];
   const filtered = raw.filter(
     (p) => !EXCLUDED_FROM_LANDING_TITLES.some((t) => (p.title || "").includes(t))
   ).slice(0, limit);
 
   const list: MerkeziPostLandingItem[] = filtered.map((p) => {
-    const { content_html_sanitized, ...rest } = p;
-    return { ...rest, summary: stripHtmlToPlain(content_html_sanitized, 200) };
+    const { content_html_sanitized, content_type, summary: dbSummary, ...rest } = p;
+    const summary =
+      (dbSummary && dbSummary.trim()) || stripHtmlToPlain(content_html_sanitized, 200);
+    return {
+      ...rest,
+      content_type: content_type ?? "job",
+      summary,
+    };
   });
   const tagsByPostId = await getTagsByPostIds(list.map((p) => p.id));
   return { posts: list, tagsByPostId };
