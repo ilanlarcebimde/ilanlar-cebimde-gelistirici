@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
     apply_url?: string | null;
     status?: string;
     scheduled_at?: string | null;
+    application_deadline_date?: string | null;
+    application_deadline_text?: string | null;
   };
   try {
     body = await req.json();
@@ -104,6 +106,8 @@ export async function POST(req: NextRequest) {
 
   const contentRaw = body.content_html_raw?.trim() || "";
   const contentSanitized = contentRaw ? sanitizeContent(contentRaw) : "";
+  const deadlineDate = body.application_deadline_date?.trim();
+  const deadlineText = (body.application_deadline_text?.trim() ?? "").slice(0, 120) || null;
 
   const { data: created, error } = await auth.supabase
     .from("merkezi_posts")
@@ -125,6 +129,8 @@ export async function POST(req: NextRequest) {
       company_name: null,
       company_logo_url: null,
       company_short_description: null,
+      application_deadline_date: deadlineDate || null,
+      application_deadline_text: deadlineText,
     })
     .select("id")
     .single();

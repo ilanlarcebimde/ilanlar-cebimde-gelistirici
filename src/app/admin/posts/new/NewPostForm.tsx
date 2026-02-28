@@ -24,6 +24,8 @@ type NewPostFormProps = {
     contact_email?: string;
     contact_phone?: string;
     apply_url?: string;
+    application_deadline_date?: string | null;
+    application_deadline_text?: string | null;
   };
   postId?: string;
 };
@@ -45,6 +47,12 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
   const [applyUrl, setApplyUrl] = useState(initial?.apply_url ?? "");
   const [status, setStatus] = useState<Status>((initial?.status as Status) || "draft");
   const [scheduledAt, setScheduledAt] = useState(initial?.scheduled_at ?? "");
+  const [applicationDeadlineDate, setApplicationDeadlineDate] = useState(
+    initial?.application_deadline_date ?? ""
+  );
+  const [applicationDeadlineText, setApplicationDeadlineText] = useState(
+    (initial?.application_deadline_text ?? "").slice(0, 120)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
@@ -279,6 +287,8 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
         apply_url: applyUrl || null,
         status: targetStatus,
         scheduled_at: targetStatus === "scheduled" ? scheduledAt || null : null,
+        application_deadline_date: applicationDeadlineDate?.trim() || null,
+        application_deadline_text: applicationDeadlineText?.trim().slice(0, 120) || null,
       };
       const url = postId ? `/api/admin/posts/${postId}` : "/api/admin/posts";
       const method = postId ? "PATCH" : "POST";
@@ -499,6 +509,34 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   placeholder="aşçı, katar, otel..."
                 />
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Başvuru ve Son Tarih</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600">Son Başvuru Tarihi</label>
+                <input
+                  type="date"
+                  value={applicationDeadlineDate}
+                  onChange={(e) => setApplicationDeadlineDate(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="YYYY-MM-DD"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600">Son Tarih Notu (opsiyonel)</label>
+                <input
+                  type="text"
+                  value={applicationDeadlineText}
+                  onChange={(e) => setApplicationDeadlineText(e.target.value.slice(0, 120))}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Örn: Başvurular dolana kadar, Acil alım"
+                  maxLength={120}
+                />
+                <p className="mt-0.5 text-xs text-slate-500">En fazla 120 karakter.</p>
               </div>
             </div>
           </section>

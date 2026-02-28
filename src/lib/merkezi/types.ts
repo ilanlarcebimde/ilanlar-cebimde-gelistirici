@@ -25,6 +25,8 @@ export interface MerkeziPost {
   company_logo_url: string | null;
   company_name: string | null;
   company_short_description: string | null;
+  application_deadline_date?: string | null;
+  application_deadline_text?: string | null;
 }
 
 /** Landing sayfası kartı için minimal alanlar (contact/content yok). */
@@ -39,6 +41,12 @@ export interface MerkeziPostLandingItem {
   is_paid: boolean;
   published_at?: string | null;
   created_at?: string;
+  /** Server-side: content_html_sanitized'dan türetilen kısa özet (≈200 karakter). */
+  summary?: string;
+  /** Son başvuru tarihi (YYYY-MM-DD). Öncelik: varsa bu gösterilir. */
+  application_deadline_date?: string | null;
+  /** Serbest metin notu (örn. "Başvurular dolana kadar"). Tarih yoksa kullanılır. */
+  application_deadline_text?: string | null;
 }
 
 export interface MerkeziPostContact {

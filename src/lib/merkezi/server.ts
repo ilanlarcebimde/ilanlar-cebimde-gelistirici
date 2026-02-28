@@ -17,6 +17,12 @@ import type {
 
 const NOW = new Date().toISOString();
 
+function stripHtmlToPlain(html: string | null | undefined, maxLen = 200): string {
+  if (!html?.trim()) return "";
+  const plain = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return plain.length > maxLen ? plain.slice(0, maxLen) + "…" : plain;
+}
+
 /** Yayındaki tek post (slug ile); tags ile birlikte. */
 export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost | null> {
   const supabase = getSupabaseAdmin();
@@ -179,25 +185,30 @@ const EXCLUDED_FROM_LANDING_TITLES = [
   "Isı Pompası Teknisyeni – İsveç / Svedala",
 ];
 
-/** Merkez landing için yayındaki yazılar (minimal alanlar, contact yok). published_at desc, limit 24. */
-export async function getPublishedPostsForMerkeziLanding(limit = 24): Promise<{
+/** Merkez feed için yayındaki yazılar. summary server-side türetilir (content_html_sanitized'dan). limit 30. */
+export async function getPublishedPostsForMerkeziLanding(limit = 30): Promise<{
   posts: MerkeziPostLandingItem[];
   tagsByPostId: Record<string, MerkeziTag[]>;
 }> {
   const supabase = getSupabaseAdmin();
-  const { data: posts } = await supabase
+  const { data: rows } = await supabase
     .from("merkezi_posts")
-    .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at")
+    .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at, content_html_sanitized, application_deadline_date, application_deadline_text")
     .eq("status", "published")
     .or(`published_at.is.null,published_at.lte.${NOW}`)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(limit + EXCLUDED_FROM_LANDING_TITLES.length * 2);
 
-  const raw = (posts ?? []) as MerkeziPostLandingItem[];
-  const list = raw.filter(
+  const raw = (rows ?? []) as (MerkeziPostLandingItem & { content_html_sanitized?: string | null })[];
+  const filtered = raw.filter(
     (p) => !EXCLUDED_FROM_LANDING_TITLES.some((t) => (p.title || "").includes(t))
   ).slice(0, limit);
+
+  const list: MerkeziPostLandingItem[] = filtered.map((p) => {
+    const { content_html_sanitized, ...rest } = p;
+    return { ...rest, summary: stripHtmlToPlain(content_html_sanitized, 200) };
+  });
   const tagsByPostId = await getTagsByPostIds(list.map((p) => p.id));
   return { posts: list, tagsByPostId };
 }

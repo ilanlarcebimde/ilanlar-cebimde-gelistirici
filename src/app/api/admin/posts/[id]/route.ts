@@ -43,6 +43,8 @@ export async function PATCH(
     apply_url?: string | null;
     status?: string;
     scheduled_at?: string | null;
+    application_deadline_date?: string | null;
+    application_deadline_text?: string | null;
   };
   try {
     body = await req.json();
@@ -96,6 +98,12 @@ export async function PATCH(
   if (status) patch.status = status;
   if (publishedAt !== undefined) patch.published_at = publishedAt;
   if (scheduledAt !== undefined) patch.scheduled_at = scheduledAt;
+  if (body.application_deadline_date !== undefined) {
+    patch.application_deadline_date = body.application_deadline_date?.trim() || null;
+  }
+  if (body.application_deadline_text !== undefined) {
+    patch.application_deadline_text = (body.application_deadline_text?.trim() ?? "").slice(0, 120) || null;
+  }
 
   const newIsPaid = body.is_paid ?? existingPost?.is_paid ?? false;
   const newContactEmail =
