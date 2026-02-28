@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/ssr";
+import { slugifyTR } from "@/lib/slugify";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,10 @@ const RESERVED_SEGMENTS = [
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const slug = (searchParams.get("slug") || "").trim().toLowerCase();
+  const rawSlug = (searchParams.get("slug") || "").trim();
+  const slug = slugifyTR(rawSlug);
   const excludeId = searchParams.get("excludeId") || null;
-  if (!slug) return NextResponse.json({ ok: false, reason: "Slug boş" }, { status: 400 });
+  if (!slug || slug === "icerik") return NextResponse.json({ ok: false, reason: "Slug boş" }, { status: 400 });
 
   if (RESERVED_SEGMENTS.includes(slug)) {
     return NextResponse.json({ ok: false, reason: "Bu slug rezerve edilmiş" }, { status: 200 });

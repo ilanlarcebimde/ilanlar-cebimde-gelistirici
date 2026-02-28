@@ -18,8 +18,10 @@ export interface MerkeziPost {
   content_html_raw?: string | null;
   content_html_sanitized?: string | null;
   country_slug: string | null;
+  country_name?: string | null;
   city: string | null;
   sector_slug: string;
+  sector_name?: string | null;
   is_paid: boolean;
   show_contact_when_free: boolean;
   company_logo_url: string | null;
@@ -38,8 +40,10 @@ export interface MerkeziPostLandingItem {
   slug: string;
   cover_image_url: string | null;
   country_slug: string | null;
+  country_name?: string | null;
   city: string | null;
   sector_slug: string | null;
+  sector_name?: string | null;
   is_paid: boolean;
   published_at?: string | null;
   created_at?: string;

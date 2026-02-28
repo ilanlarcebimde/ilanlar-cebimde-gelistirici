@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RichHtmlEditor } from "@/components/admin/RichHtmlEditor";
 import { supabase } from "@/lib/supabase";
+import { slugifyTR } from "@/lib/slugify";
 
 const COVER_BUCKET = "merkezi-covers";
 
@@ -80,33 +81,29 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
     .filter(Boolean);
 
   useEffect(() => {
-    if (!slugTouched) {
-      const auto = title
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9\-]+/gi, "-")
-        .replace(/^-+|-+$/g, "");
-      if (auto) setSlug(auto);
+    if (!slugTouched && title.trim()) {
+      setSlug(slugifyTR(title));
     }
   }, [title, slugTouched]);
 
   const handleSlugBlur = () => {
     setSlugTouched(true);
+    setSlug((prev) => slugifyTR(prev || title));
   };
 
+  const slugForCheck = slugifyTR(slug || title);
   useEffect(() => {
-    const s = slug.trim().toLowerCase();
-    if (!s) {
+    if (!slugForCheck || slugForCheck === "icerik") {
       setSlugStatus(null);
       return;
     }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/admin/posts/slug-check?slug=${encodeURIComponent(s)}`, {
-          credentials: "include",
-          signal: controller.signal,
-        });
+        const url = new URL("/api/admin/posts/slug-check", window.location.origin);
+        url.searchParams.set("slug", slugForCheck);
+        if (postId) url.searchParams.set("excludeId", postId);
+        const res = await fetch(url.toString(), { credentials: "include", signal: controller.signal });
         const data = await res.json();
         if (!res.ok) {
           setSlugStatus(data.reason || "Slug kontrolü başarısız");
@@ -121,7 +118,7 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [slug]);
+  }, [slugForCheck, postId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,7 +296,7 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
     try {
       const body = {
         title,
-        slug: slug || title,
+        slug: slugForCheck || slug || title,
         cover_image_url: coverUrl || null,
         content_html_raw: contentHtml,
         country_slug: country || null,
@@ -378,7 +375,7 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
       {successId && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           Kaydedildi.{" "}
-          <Link href={`/yurtdisi-is-ilanlari/${slug || successId}`} className="underline">
+          <Link href={`/yurtdisi-is-ilanlari/${slugForCheck || slug || successId}`} className="underline">
             İlanı görüntüle
           </Link>
         </div>

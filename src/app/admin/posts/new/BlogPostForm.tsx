@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RichHtmlEditor } from "@/components/admin/RichHtmlEditor";
 import { supabase } from "@/lib/supabase";
+import { slugifyTR } from "@/lib/slugify";
 
 const COVER_BUCKET = "merkezi-covers";
 
@@ -49,26 +50,26 @@ export function BlogPostForm() {
     .filter(Boolean);
 
   useEffect(() => {
-    if (!slugTouched) {
-      const auto = title
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9\-]+/gi, "-")
-        .replace(/^-+|-+$/g, "");
-      if (auto) setSlug(auto);
+    if (!slugTouched && title.trim()) {
+      setSlug(slugifyTR(title));
     }
   }, [title, slugTouched]);
 
+  const handleSlugBlur = () => {
+    setSlugTouched(true);
+    setSlug((prev) => slugifyTR(prev || title));
+  };
+
+  const slugForCheck = slugifyTR(slug || title);
   useEffect(() => {
-    const s = slug.trim().toLowerCase();
-    if (!s) {
+    if (!slugForCheck || slugForCheck === "icerik") {
       setSlugStatus(null);
       return;
     }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/admin/posts/slug-check?slug=${encodeURIComponent(s)}`, {
+        const res = await fetch(`/api/admin/posts/slug-check?slug=${encodeURIComponent(slugForCheck)}`, {
           credentials: "include",
           signal: controller.signal,
         });
@@ -83,7 +84,7 @@ export function BlogPostForm() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [slug]);
+  }, [slugForCheck]);
 
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -180,7 +181,7 @@ export function BlogPostForm() {
       const body = {
         content_type: "blog" as const,
         title: title.trim(),
-        slug: (slug || title).trim().toLowerCase(),
+        slug: slugForCheck || slug || title,
         summary: summaryTrim.slice(0, SUMMARY_MAX),
         cover_image_url: coverUrl || null,
         content_html_raw: contentHtml,
@@ -224,7 +225,7 @@ export function BlogPostForm() {
       {successId && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           Kaydedildi.{" "}
-          <Link href={`/yurtdisi-is-ilanlari/${slug || successId}`} className="underline">
+          <Link href={`/yurtdisi-is-ilanlari/${slugForCheck || slug || successId}`} className="underline">
             Görüntüle
           </Link>
           {" · "}
@@ -250,7 +251,7 @@ export function BlogPostForm() {
               <input
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                onBlur={() => setSlugTouched(true)}
+                onBlur={handleSlugBlur}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
                 placeholder="url-slug"
               />

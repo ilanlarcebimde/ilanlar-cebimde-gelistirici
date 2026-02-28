@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/ssr";
 import { sanitizeContent } from "@/lib/merkezi/sanitize";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { slugifyTR } from "@/lib/slugify";
 
 export const runtime = "nodejs";
 
@@ -94,7 +95,7 @@ export async function PATCH(
 
   const patch: Record<string, unknown> = {};
   if (body.title != null) patch.title = body.title;
-  if (body.slug != null) patch.slug = body.slug;
+  if (body.slug != null && String(body.slug).trim()) patch.slug = slugifyTR(String(body.slug).trim());
   if (body.cover_image_url !== undefined) patch.cover_image_url = body.cover_image_url;
   if (contentRaw !== undefined) {
     patch.content_html_raw = contentRaw || null;

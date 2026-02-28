@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { RichContent } from "@/components/merkezi/RichContent";
+import { PostCover } from "@/components/merkezi/PostCover";
 import { CompanyCard } from "@/components/merkezi/CompanyCard";
 import { ContactCard } from "@/components/merkezi/ContactCard";
 import { TagChips } from "@/components/merkezi/TagChips";
@@ -12,6 +12,7 @@ import { PremiumUpsellModal } from "@/components/merkezi/PremiumUpsellModal";
 import { ViewTracker } from "@/components/merkezi/ViewTracker";
 import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
 import { LetterGeneratorModal } from "@/components/merkezi/LetterGeneratorModal";
+import { humanizeSlug } from "@/lib/slugify";
 import type { MerkeziPost, MerkeziTag } from "@/lib/merkezi/types";
 import type { MerkeziPostContact } from "@/lib/merkezi/types";
 
@@ -70,17 +71,21 @@ export function MerkeziPostView({
     window.location.href = "/odeme?next=" + encodeURIComponent(window.location.pathname);
   };
 
+  const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
+  const sectorLabel = post.sector_name ?? (post.sector_slug ? humanizeSlug(post.sector_slug) : null);
+  const metaParts = [countryLabel, post.city, sectorLabel].filter(Boolean);
+
   return (
     <article className="mx-auto max-w-3xl">
       <ViewTracker postId={post.id} />
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">{post.title}</h1>
-        {(post.country_slug || post.sector_slug) && (
-          <p className="mt-2 text-sm text-slate-500">
-            {[post.country_slug, post.sector_slug].filter(Boolean).join(" · ")}
+        <h1 className="text-2xl font-bold leading-tight text-slate-900 md:text-3xl">{post.title}</h1>
+        {metaParts.length > 0 && (
+          <p className="mt-2 text-sm text-slate-600">
+            {metaParts.join(" · ")}
           </p>
         )}
-        <div className="mt-4 flex flex-wrap items-center gap-4">
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
           <LikeButton
             postId={post.id}
             initialCount={likeCount}
@@ -90,25 +95,17 @@ export function MerkeziPostView({
         </div>
       </header>
 
-      <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-xl bg-slate-100">
-        {post.cover_image_url ? (
-          <Image
-            src={post.cover_image_url}
-            alt={post.title}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 768px) 100vw, 896px"
-            unoptimized={post.cover_image_url.includes("supabase")}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200" aria-hidden>
-            <span className="text-4xl text-slate-400">📄</span>
-          </div>
-        )}
+      <div className="mb-6">
+        <PostCover
+          src={post.cover_image_url}
+          alt={post.title}
+          badge={post.is_paid ? "Premium" : null}
+        />
       </div>
 
-      <RichContent html={post.content_html_sanitized ?? post.content} />
+      <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-p:text-slate-700">
+        <RichContent html={post.content_html_sanitized ?? post.content} />
+      </div>
 
       <TagChips tags={tags} currentEtiket={etiket ?? null} baseSegment={post.slug} />
 
@@ -126,20 +123,20 @@ export function MerkeziPostView({
                 isPaid={true}
               />
             </section>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={handleContactUnlock}
-                className="rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-white hover:bg-slate-700"
+                className="h-10 w-full rounded-xl bg-slate-800 px-4 text-sm font-medium text-white hover:bg-slate-700 sm:w-auto"
               >
                 Hızlı Başvur: Firma İletişim Bilgisi
               </button>
               <button
                 type="button"
                 onClick={handleLetterCta}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="h-10 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto"
               >
-                Alınma İhtimalini Arttır: İş Başvuru Mektubu Oluştur
+                İş Başvuru Mektubu Oluştur
               </button>
             </div>
           </>

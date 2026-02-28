@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/ssr";
 import { sanitizeContent } from "@/lib/merkezi/sanitize";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { slugifyTR } from "@/lib/slugify";
 
 export const runtime = "nodejs";
 
@@ -74,9 +75,12 @@ export async function POST(req: NextRequest) {
 
   const contentType = body.content_type === "blog" ? "blog" : "job";
   const title = (body.title || "").trim();
-  const slug = (body.slug || "").trim().toLowerCase();
-  if (!title || !slug) {
-    return NextResponse.json({ error: "Başlık ve slug zorunlu" }, { status: 400 });
+  if (!title) {
+    return NextResponse.json({ error: "Başlık zorunlu" }, { status: 400 });
+  }
+  const normalizedSlug = slugifyTR(body.slug?.trim() || title);
+  if (!normalizedSlug || normalizedSlug === "icerik") {
+    return NextResponse.json({ error: "Geçerli bir slug türetilemedi" }, { status: 400 });
   }
 
   if (contentType === "blog") {
@@ -139,7 +143,7 @@ export async function POST(req: NextRequest) {
     .from("merkezi_posts")
     .insert({
       title,
-      slug,
+      slug: normalizedSlug,
       content_type: contentType,
       cover_image_url: body.cover_image_url ?? null,
       content: contentSanitized,

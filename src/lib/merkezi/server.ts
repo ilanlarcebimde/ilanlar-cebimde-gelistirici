@@ -23,7 +23,43 @@ function stripHtmlToPlain(html: string | null | undefined, maxLen = 200): string
   return plain.length > maxLen ? plain.slice(0, maxLen) + "…" : plain;
 }
 
-/** Yayındaki tek post (slug ile); tags ile birlikte. */
+/** Ülke ve sektör slug → name map (UI'da slug yerine label göstermek için). */
+async function getTaxonomyMaps(): Promise<{
+  countryNameBySlug: Map<string, string>;
+  sectorNameBySlug: Map<string, string>;
+}> {
+  const supabase = getSupabaseAdmin();
+  const [{ data: countries }, { data: sectors }] = await Promise.all([
+    supabase.from("merkezi_countries").select("slug, name").eq("is_active", true),
+    supabase.from("merkezi_sectors").select("slug, name").eq("is_active", true),
+  ]);
+  const countryNameBySlug = new Map<string, string>();
+  const sectorNameBySlug = new Map<string, string>();
+  for (const c of countries ?? []) {
+    const s = (c as { slug: string }).slug?.trim().toLowerCase();
+    if (s) countryNameBySlug.set(s, (c as { name: string }).name ?? s);
+  }
+  for (const s of sectors ?? []) {
+    const slug = (s as { slug: string }).slug?.trim().toLowerCase();
+    if (slug) sectorNameBySlug.set(slug, (s as { name: string }).name ?? slug);
+  }
+  return { countryNameBySlug, sectorNameBySlug };
+}
+
+function enrichPostWithTaxonomyNames<T extends { country_slug?: string | null; sector_slug?: string | null }>(
+  post: T,
+  maps: { countryNameBySlug: Map<string, string>; sectorNameBySlug: Map<string, string> }
+): T & { country_name?: string | null; sector_name?: string | null } {
+  const countrySlug = post.country_slug?.trim().toLowerCase();
+  const sectorSlug = post.sector_slug?.trim().toLowerCase();
+  return {
+    ...post,
+    country_name: countrySlug ? maps.countryNameBySlug.get(countrySlug) ?? null : null,
+    sector_name: sectorSlug ? maps.sectorNameBySlug.get(sectorSlug) ?? null : null,
+  };
+}
+
+/** Yayındaki tek post (slug ile); tags ile birlikte. country_name, sector_name eklenir. */
 export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost | null> {
   const supabase = getSupabaseAdmin();
   const { data: post, error } = await supabase
@@ -36,11 +72,13 @@ export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost 
 
   if (error || !post) return null;
 
-  const { data: ptRows } = await supabase
-    .from("merkezi_post_tags")
-    .select("tag_id")
-    .eq("post_id", post.id);
-  const tagIds = (ptRows ?? []).map((r: { tag_id: string }) => r.tag_id);
+  const [taxonomyMaps, ptRows] = await Promise.all([
+    getTaxonomyMaps(),
+    supabase.from("merkezi_post_tags").select("tag_id").eq("post_id", post.id),
+  ]);
+  const enrichedPost = enrichPostWithTaxonomyNames(post as MerkeziPost, taxonomyMaps);
+
+  const tagIds = (ptRows?.data ?? []).map((r: { tag_id: string }) => r.tag_id);
   let tags: MerkeziTag[] = [];
   if (tagIds.length > 0) {
     const { data: tagList } = await supabase
@@ -50,7 +88,7 @@ export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost 
     tags = (tagList ?? []) as MerkeziTag[];
   }
 
-  return { kind: "post", post: post as MerkeziPost, tags };
+  return { kind: "post", post: enrichedPost as MerkeziPost, tags };
 }
 
 /** Sektör landing: seo_page + o sektördeki yayındaki postlar. */
@@ -209,14 +247,12 @@ export async function getPublishedPostsForMerkeziLanding(limit = 30): Promise<{
     (p) => !EXCLUDED_FROM_LANDING_TITLES.some((t) => (p.title || "").includes(t))
   ).slice(0, limit);
 
+  const taxonomyMaps = await getTaxonomyMaps();
   const list: MerkeziPostLandingItem[] = filtered.map((p) => {
     const { content_html_sanitized, content_type, summary: dbSummary, ...rest } = p;
     const summary = (dbSummary && dbSummary.trim()) || "";
-    return {
-      ...rest,
-      content_type: content_type ?? "job",
-      summary,
-    };
+    const base = { ...rest, content_type: content_type ?? "job", summary };
+    return enrichPostWithTaxonomyNames(base, taxonomyMaps) as MerkeziPostLandingItem;
   });
   const tagsByPostId = await getTagsByPostIds(list.map((p) => p.id));
   return { posts: list, tagsByPostId };

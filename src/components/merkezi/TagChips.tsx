@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { MerkeziTag } from "@/lib/merkezi/types";
 
 const BASE = "/yurtdisi-is-ilanlari";
+const MAX_VISIBLE = 6;
 
 export function TagChips({
   tags,
@@ -15,9 +16,11 @@ export function TagChips({
   baseSegment: string;
 }) {
   if (!tags.length) return null;
+  const visible = tags.slice(0, MAX_VISIBLE);
+  const extra = tags.length - MAX_VISIBLE;
   return (
     <div className="flex flex-wrap gap-2">
-      {tags.map((t) => {
+      {visible.map((t) => {
         const isActive = currentEtiket === t.slug;
         const href = isActive
           ? `${BASE}/${baseSegment}`
@@ -36,6 +39,11 @@ export function TagChips({
           </Link>
         );
       })}
+      {extra > 0 && (
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-500">
+          +{extra}
+        </span>
+      )}
     </div>
   );
 }
