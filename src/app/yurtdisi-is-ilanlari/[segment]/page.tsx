@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 const BASE = "/yurtdisi-is-ilanlari";
 const BASE_URL = "https://www.ilanlarcebimde.com";
+const BACK_HREF = "/yurtdisi-is-basvuru-merkezi";
 
 /** Yazı detayı her istekte güncel (kapak, özet vb.) olsun. */
 export const dynamic = "force-dynamic";
@@ -131,10 +132,10 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
         <div className="mx-auto max-w-4xl px-4">
           <nav className="mb-6">
             <Link
-              href={BASE}
+              href={BACK_HREF}
               className="text-sm text-slate-600 hover:text-slate-900"
             >
-              ← Yurtdışı İş İlanları
+              ← Geri
             </Link>
           </nav>
           <MerkeziPostView
@@ -161,10 +162,10 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
         <div className="mx-auto max-w-4xl px-4">
           <nav className="mb-6">
             <Link
-              href={BASE}
+              href={BACK_HREF}
               className="text-sm text-slate-600 hover:text-slate-900"
             >
-              ← Yurtdışı İş İlanları
+              ← Geri
             </Link>
           </nav>
           <MerkeziListView
@@ -187,10 +188,10 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
       <div className="mx-auto max-w-4xl px-4">
         <nav className="mb-6">
           <Link
-            href={BASE}
+            href={BACK_HREF}
             className="text-sm text-slate-600 hover:text-slate-900"
           >
-            ← Yurtdışı İş İlanları
+            ← Geri
           </Link>
         </nav>
         <MerkeziListView
