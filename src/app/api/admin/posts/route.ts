@@ -82,14 +82,21 @@ export async function POST(req: NextRequest) {
   if (contentType === "blog") {
     const summaryTrim = (body.summary ?? "").trim();
     if (!summaryTrim) {
-      return NextResponse.json({ error: "Blog için yazı özeti zorunludur (160–240 karakter)." }, { status: 400 });
+      return NextResponse.json({ error: "Blog için yazı özeti (SEO meta açıklama) zorunludur." }, { status: 400 });
     }
-    if (summaryTrim.length < 160 || summaryTrim.length > 240) {
-      return NextResponse.json({ error: "Özet 160–240 karakter arasında olmalıdır." }, { status: 400 });
+    if (summaryTrim.length < 140 || summaryTrim.length > 160) {
+      return NextResponse.json({ error: "Özet 140–160 karakter arasında olmalıdır." }, { status: 400 });
     }
   } else {
     if (!body.sector_slug?.trim()) {
       return NextResponse.json({ error: "Sektör zorunlu" }, { status: 400 });
+    }
+    const summaryTrim = (body.summary ?? "").trim();
+    if (!summaryTrim) {
+      return NextResponse.json({ error: "İlan özeti (SEO meta açıklama) zorunludur." }, { status: 400 });
+    }
+    if (summaryTrim.length < 140 || summaryTrim.length > 160) {
+      return NextResponse.json({ error: "Özet 140–160 karakter arasında olmalıdır." }, { status: 400 });
     }
   }
 
@@ -125,8 +132,8 @@ export async function POST(req: NextRequest) {
   const deadlineText = (body.application_deadline_text?.trim() ?? "").slice(0, 120) || null;
   const summaryVal =
     contentType === "blog"
-      ? (body.summary ?? "").trim().slice(0, 500)
-      : (body.summary ?? "").trim().slice(0, 500) || null;
+      ? (body.summary ?? "").trim().slice(0, 160)
+      : (body.summary ?? "").trim().slice(0, 160);
 
   const { data: created, error } = await auth.supabase
     .from("merkezi_posts")

@@ -26,9 +26,13 @@ type NewPostFormProps = {
     apply_url?: string;
     application_deadline_date?: string | null;
     application_deadline_text?: string | null;
+    summary?: string | null;
   };
   postId?: string;
 };
+
+const SUMMARY_MIN = 140;
+const SUMMARY_MAX = 160;
 
 export function NewPostForm({ initial, postId }: NewPostFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -53,6 +57,7 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
   const [applicationDeadlineText, setApplicationDeadlineText] = useState(
     (initial?.application_deadline_text ?? "").slice(0, 120)
   );
+  const [summary, setSummary] = useState((initial?.summary ?? "").slice(0, SUMMARY_MAX));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
@@ -263,6 +268,15 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
   };
 
   const handleSubmit = async (targetStatus: Status) => {
+    const summaryTrim = summary.trim();
+    if (!summaryTrim) {
+      setError("İlan özeti (SEO meta açıklama) zorunludur.");
+      return;
+    }
+    if (summaryTrim.length < SUMMARY_MIN || summaryTrim.length > SUMMARY_MAX) {
+      setError(`Özet ${SUMMARY_MIN}–${SUMMARY_MAX} karakter arasında olmalıdır.`);
+      return;
+    }
     if (targetStatus === "scheduled" && !scheduledAt.trim()) {
       setError("Zamanlama için tarih gerekli");
       return;
@@ -289,6 +303,7 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
         scheduled_at: targetStatus === "scheduled" ? scheduledAt || null : null,
         application_deadline_date: applicationDeadlineDate?.trim() || null,
         application_deadline_text: applicationDeadlineText?.trim().slice(0, 120) || null,
+        summary: summaryTrim.slice(0, SUMMARY_MAX),
       };
       const url = postId ? `/api/admin/posts/${postId}` : "/api/admin/posts";
       const method = postId ? "PATCH" : "POST";
@@ -510,6 +525,47 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
                   placeholder="aşçı, katar, otel..."
                 />
               </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">İlan Özeti (SEO Meta Açıklama)</h2>
+            <p className="mb-2 text-xs text-slate-500">
+              Bu alan Google arama sonuçlarında meta açıklama olarak kullanılacaktır.
+            </p>
+            <textarea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value.slice(0, SUMMARY_MAX))}
+              rows={3}
+              maxLength={SUMMARY_MAX}
+              className={`w-full rounded-lg border px-3 py-2 text-sm ${
+                summary.length > SUMMARY_MAX
+                  ? "border-red-300 bg-red-50/50"
+                  : summary.length > 0 && summary.length < SUMMARY_MIN
+                    ? "border-amber-300 bg-amber-50/30"
+                    : "border-slate-200"
+              }`}
+              placeholder="140–160 karakter arası özet"
+            />
+            <div className="mt-1 flex items-center justify-between">
+              <p className={`text-xs ${
+                summary.length > SUMMARY_MAX
+                  ? "text-red-600 font-medium"
+                  : summary.length > 0 && summary.length < SUMMARY_MIN
+                    ? "text-amber-600"
+                    : "text-slate-500"
+              }`}>
+                {summary.length > SUMMARY_MAX
+                  ? `${SUMMARY_MAX} karakteri aşmayın.`
+                  : summary.length > 0 && summary.length < SUMMARY_MIN
+                    ? `En az ${SUMMARY_MIN} karakter girin.`
+                    : null}
+              </p>
+              <span className={`text-xs tabular-nums ${
+                summary.length > SUMMARY_MAX ? "text-red-600 font-semibold" : "text-slate-500"
+              }`}>
+                {summary.length} / {SUMMARY_MAX}
+              </span>
             </div>
           </section>
 

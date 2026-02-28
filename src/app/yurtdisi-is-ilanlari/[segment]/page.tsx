@@ -11,6 +11,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/server";
 const BASE = "/yurtdisi-is-ilanlari";
 const BASE_URL = "https://www.ilanlarcebimde.com";
 
+function absoluteUrl(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return url.startsWith("/") ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`;
+}
+
 interface PageProps {
   params: Promise<{ segment: string }>;
   searchParams: Promise<{ etiket?: string }>;
@@ -27,8 +32,8 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (resolved.kind === "post") {
     const post = resolved.post;
     const title = `${post.title} | İlanlar Cebimde`;
-    const description =
-      post.company_short_description?.slice(0, 160) ?? post.title;
+    const description = post.summary?.trim() || post.title;
+    const coverUrl = post.cover_image_url ? absoluteUrl(post.cover_image_url) : undefined;
     return {
       title,
       description,
@@ -39,13 +44,13 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
         description,
         type: "article",
         url: `${BASE_URL}${BASE}/${post.slug}`,
-        images: post.cover_image_url ? [{ url: post.cover_image_url, width: 1200, height: 630 }] : [],
+        images: coverUrl ? [{ url: coverUrl, width: 1200, height: 630 }] : [],
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-        images: post.cover_image_url ? [post.cover_image_url] : [],
+        images: coverUrl ? [coverUrl] : [],
       },
     };
   }

@@ -7,8 +7,8 @@ import { RichHtmlEditor } from "@/components/admin/RichHtmlEditor";
 
 type Status = "draft" | "published" | "scheduled";
 
-const SUMMARY_MIN = 160;
-const SUMMARY_MAX = 240;
+const SUMMARY_MIN = 140;
+const SUMMARY_MAX = 160;
 
 function parseUploadResponse(res: Response): Promise<{ url?: string; error?: string }> {
   return res.text().then((text) => {
@@ -146,11 +146,11 @@ export function BlogPostForm() {
   const handleSubmit = async (targetStatus: Status) => {
     const summaryTrim = summary.trim();
     if (!summaryTrim) {
-      setError("Yazı özeti zorunludur (160–240 karakter önerilir).");
+      setError("Yazı özeti (SEO meta açıklama) zorunludur.");
       return;
     }
     if (summaryTrim.length < SUMMARY_MIN || summaryTrim.length > SUMMARY_MAX) {
-      setError(`Özet ${SUMMARY_MIN}–${SUMMARY_MAX} karakter arasında olmalıdır.`);
+      setError(`Özet ${SUMMARY_MIN}–${SUMMARY_MAX} karakter arasında olmalıdır (meta açıklama).`);
       return;
     }
     if (targetStatus === "scheduled" && !scheduledAt.trim()) {
@@ -165,7 +165,7 @@ export function BlogPostForm() {
         content_type: "blog" as const,
         title: title.trim(),
         slug: (slug || title).trim().toLowerCase(),
-        summary: summaryTrim.slice(0, 500),
+        summary: summaryTrim.slice(0, SUMMARY_MAX),
         cover_image_url: coverUrl || null,
         content_html_raw: contentHtml,
         tags: tagsArray,
@@ -248,18 +248,44 @@ export function BlogPostForm() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Yazı Özeti</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Yazı Özeti (SEO Meta Açıklama)</h2>
+          <p className="mb-2 text-xs text-slate-500">
+            Bu alan Google arama sonuçlarında meta açıklama olarak kullanılacaktır (140–160 karakter önerilir).
+          </p>
           <textarea
             value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            rows={4}
-            maxLength={500}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            placeholder="160–240 karakter arası özet (feed’de görünür)"
+            onChange={(e) => setSummary(e.target.value.slice(0, SUMMARY_MAX))}
+            rows={3}
+            maxLength={SUMMARY_MAX}
+            className={`w-full rounded-lg border px-3 py-2 text-sm ${
+              summary.length > SUMMARY_MAX
+                ? "border-red-300 bg-red-50/50"
+                : summary.length > 0 && summary.length < SUMMARY_MIN
+                  ? "border-amber-300 bg-amber-50/30"
+                  : "border-slate-200"
+            }`}
+            placeholder="140–160 karakter arası özet"
           />
-          <p className="mt-0.5 text-xs text-slate-500">
-            {summary.length} karakter. Önerilen: 160–240.
-          </p>
+          <div className="mt-1 flex items-center justify-between">
+            <p className={`text-xs ${
+              summary.length > SUMMARY_MAX
+                ? "text-red-600 font-medium"
+                : summary.length > 0 && summary.length < SUMMARY_MIN
+                  ? "text-amber-600"
+                  : "text-slate-500"
+            }`}>
+              {summary.length > SUMMARY_MAX
+                ? `${SUMMARY_MAX} karakteri aşmayın.`
+                : summary.length > 0 && summary.length < SUMMARY_MIN
+                  ? `En az ${SUMMARY_MIN} karakter girin.`
+                  : null}
+            </p>
+            <span className={`text-xs tabular-nums ${
+              summary.length > SUMMARY_MAX ? "text-red-600 font-semibold" : "text-slate-500"
+            }`}>
+              {summary.length} / {SUMMARY_MAX}
+            </span>
+          </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

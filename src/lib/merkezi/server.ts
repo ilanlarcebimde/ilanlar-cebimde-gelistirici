@@ -28,7 +28,7 @@ export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost 
   const supabase = getSupabaseAdmin();
   const { data: post, error } = await supabase
     .from("merkezi_posts")
-    .select("id, created_at, updated_at, published_at, status, title, slug, cover_image_url, content, content_html_raw, content_html_sanitized, country_slug, city, sector_slug, is_paid, show_contact_when_free, company_logo_url, company_name, company_short_description")
+    .select("id, created_at, updated_at, published_at, status, title, slug, cover_image_url, content, content_html_raw, content_html_sanitized, country_slug, city, sector_slug, is_paid, show_contact_when_free, company_logo_url, company_name, company_short_description, content_type, summary")
     .eq("slug", slug)
     .eq("status", "published")
     .or(`published_at.is.null,published_at.lte.${NOW}`)
@@ -211,8 +211,7 @@ export async function getPublishedPostsForMerkeziLanding(limit = 30): Promise<{
 
   const list: MerkeziPostLandingItem[] = filtered.map((p) => {
     const { content_html_sanitized, content_type, summary: dbSummary, ...rest } = p;
-    const summary =
-      (dbSummary && dbSummary.trim()) || stripHtmlToPlain(content_html_sanitized, 200);
+    const summary = (dbSummary && dbSummary.trim()) || "";
     return {
       ...rest,
       content_type: content_type ?? "job",

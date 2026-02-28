@@ -13,7 +13,7 @@ export default async function AdminPostEditPage({
   const { data: post, error } = await supabase
     .from("merkezi_posts")
     .select(
-      "id, title, slug, cover_image_url, content_html_raw, country_slug, city, sector_slug, is_paid, show_contact_when_free, status, scheduled_at, application_deadline_date, application_deadline_text"
+      "id, title, slug, cover_image_url, content_html_raw, country_slug, city, sector_slug, is_paid, show_contact_when_free, status, scheduled_at, application_deadline_date, application_deadline_text, summary"
     )
     .eq("id", id)
     .maybeSingle();
@@ -49,6 +49,7 @@ export default async function AdminPostEditPage({
     apply_url: contactRow?.apply_url ?? "",
     application_deadline_date: (post as { application_deadline_date?: string | null })?.application_deadline_date ?? null,
     application_deadline_text: (post as { application_deadline_text?: string | null })?.application_deadline_text ?? null,
+    summary: (post as { summary?: string | null })?.summary ?? null,
   };
 
   return <NewPostForm initial={initial} postId={id} />;

@@ -45,11 +45,22 @@ export async function PATCH(
     scheduled_at?: string | null;
     application_deadline_date?: string | null;
     application_deadline_text?: string | null;
+    summary?: string | null;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (body.summary !== undefined) {
+    const summaryTrim = (body.summary ?? "").trim();
+    if (!summaryTrim) {
+      return NextResponse.json({ error: "Özet (SEO meta açıklama) zorunludur." }, { status: 400 });
+    }
+    if (summaryTrim.length < 140 || summaryTrim.length > 160) {
+      return NextResponse.json({ error: "Özet 140–160 karakter arasında olmalıdır." }, { status: 400 });
+    }
   }
 
   const nowIso = new Date().toISOString();
@@ -103,6 +114,9 @@ export async function PATCH(
   }
   if (body.application_deadline_text !== undefined) {
     patch.application_deadline_text = (body.application_deadline_text?.trim() ?? "").slice(0, 120) || null;
+  }
+  if (body.summary !== undefined) {
+    patch.summary = (body.summary ?? "").trim().slice(0, 160) || null;
   }
 
   const newIsPaid = body.is_paid ?? existingPost?.is_paid ?? false;
