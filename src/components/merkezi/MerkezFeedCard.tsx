@@ -55,8 +55,8 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
 
   if (isJob) {
     return (
-      <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/80 transition-shadow hover:shadow-md">
-        <div className="relative aspect-[3/1] w-full shrink-0 overflow-hidden bg-slate-100 sm:aspect-video">
+      <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/80 transition-shadow hover:shadow-md">
+        <div className="relative h-[140px] sm:h-[180px] w-full shrink-0 overflow-hidden bg-slate-100">
           {post.cover_image_url ? (
             <Image
               src={post.cover_image_url}
@@ -68,11 +68,11 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-              <span className="text-4xl text-slate-400" aria-hidden>📄</span>
+              <span className="text-3xl text-slate-400" aria-hidden>📄</span>
             </div>
           )}
           <span
-            className={`absolute right-3 top-3 rounded-lg px-2.5 py-1 text-xs font-semibold shadow ${
+            className={`absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-semibold shadow ${
               post.is_paid ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white" : "bg-emerald-500/90 text-white"
             }`}
           >
@@ -80,14 +80,14 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
           </span>
         </div>
 
-        <div className="p-5">
-          <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{post.title}</h2>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+        <div className="p-4">
+          <h2 className="text-lg font-bold text-slate-900 md:text-xl">{post.title}</h2>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
             {location && <span>📍 {location}</span>}
             {post.sector_slug && <span>🏷 {post.sector_slug}</span>}
           </div>
           {(post.application_deadline_date || post.application_deadline_text) && (
-            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800">
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/80 px-2 py-1 text-xs text-amber-800">
               <span className="shrink-0 font-medium">Son Başvuru</span>
               <span>
                 {post.application_deadline_date ? (
@@ -105,27 +105,23 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             </div>
           )}
           {post.summary && (
-            <p className="mt-3 line-clamp-3 text-sm text-slate-600">{post.summary}</p>
+            <p className="mt-2 line-clamp-2 text-sm text-slate-600">{post.summary}</p>
           )}
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex-1">
-              <Link
-                href={`${BASE}/${post.slug}`}
-                className="inline-flex items-center gap-1 rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-white hover:bg-slate-700"
-              >
-                İlan Bilgilerinin Tamamını Görüntüle
-                <span aria-hidden>→</span>
-              </Link>
-            </div>
-            <div className="w-full sm:w-56 shrink-0">
-              <JobActionsStack
-                postId={post.id}
-                slug={post.slug}
-                isPaid={post.is_paid}
-                onContactClick={handleContactClick}
-                onLetterClick={handleLetterClick}
-              />
-            </div>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Link
+              href={`${BASE}/${post.slug}`}
+              className="inline-flex w-fit items-center gap-1 rounded-xl bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              İlan Bilgilerinin Tamamını Görüntüle
+              <span aria-hidden>→</span>
+            </Link>
+            <JobActionsStack
+              postId={post.id}
+              slug={post.slug}
+              isPaid={post.is_paid}
+              onContactClick={handleContactClick}
+              onLetterClick={handleLetterClick}
+            />
           </div>
         </div>
 
@@ -140,10 +136,10 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     );
   }
 
-  // Bilgilendirme yazısı kartı (blog hissi)
+  // Bilgilendirme yazısı kartı (kompakt blog)
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/80 transition-shadow hover:shadow-md">
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
+    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200/80 transition-shadow hover:shadow-md">
+      <div className="relative h-[140px] sm:h-[180px] w-full overflow-hidden bg-slate-100">
         {post.cover_image_url ? (
           <Image
             src={post.cover_image_url}
@@ -155,31 +151,31 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-            <span className="text-4xl text-slate-400" aria-hidden>📄</span>
+            <span className="text-3xl text-slate-400" aria-hidden>📄</span>
           </div>
         )}
-        <span className="absolute right-3 top-3 rounded-lg bg-slate-700/90 px-2.5 py-1 text-xs font-medium text-white shadow">
+        <span className="absolute right-2 top-2 rounded-md bg-slate-700/90 px-2 py-0.5 text-[10px] font-medium text-white shadow">
           Yazı
         </span>
       </div>
-      <div className="p-5">
-        <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{post.title}</h2>
-        {post.summary && <p className="mt-3 line-clamp-3 text-sm text-slate-600">{post.summary}</p>}
+      <div className="p-4">
+        <h2 className="text-lg font-bold text-slate-900 md:text-xl">{post.title}</h2>
+        {post.summary && <p className="mt-2 line-clamp-2 text-sm text-slate-600">{post.summary}</p>}
         {displayTags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {displayTags.map((t) => (
-              <span key={t.id} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">
+              <span key={t.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                 {t.name}
               </span>
             ))}
             {extraTags > 0 && (
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500">+{extraTags}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">+{extraTags}</span>
             )}
           </div>
         )}
         <Link
           href={`${BASE}/${post.slug}`}
-          className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700"
         >
           Devamını Oku
           <span aria-hidden>→</span>

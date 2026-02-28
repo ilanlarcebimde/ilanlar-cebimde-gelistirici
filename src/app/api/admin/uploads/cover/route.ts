@@ -5,9 +5,8 @@ import { getSupabaseServerClient } from "@/lib/supabase/ssr";
 export const runtime = "nodejs";
 
 const BUCKET = "merkezi-covers";
-const MAX_SIZE_MB = 6;
 
-/** Admin kapak görseli upload. */
+/** Admin kapak görseli upload. Boyut sınırı yok. */
 export async function POST(req: NextRequest) {
   const supabaseUser = await getSupabaseServerClient();
   const { data: { user } } = await supabaseUser.auth.getUser();
@@ -27,9 +26,6 @@ export async function POST(req: NextRequest) {
   }
   if (!file.type.startsWith("image/")) {
     return NextResponse.json({ error: "Sadece resim dosyaları kabul edilir" }, { status: 400 });
-  }
-  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-    return NextResponse.json({ error: `Dosya boyutu ${MAX_SIZE_MB}MB'dan küçük olmalı` }, { status: 400 });
   }
 
   const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase() || "jpg";

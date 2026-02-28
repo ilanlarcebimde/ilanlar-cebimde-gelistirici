@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RichHtmlEditor } from "@/components/admin/RichHtmlEditor";
+import { supabase } from "@/lib/supabase";
+
+const COVER_BUCKET = "merkezi-covers";
 
 type Status = "draft" | "published" | "scheduled";
 
@@ -185,9 +188,9 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
     const text = await res.text();
     if (!ct.includes("application/json")) {
       if (res.status === 413 || text.toLowerCase().includes("request entity") || text.toLowerCase().includes("too large")) {
-        return { error: "Dosya çok büyük. En fazla 6MB yükleyebilirsiniz." };
+        return { error: "Dosya çok büyük. Daha küçük bir dosya deneyin veya görseli sıkıştırın." };
       }
-      return { error: "Sunucu beklenmeyen yanıt verdi. Dosya 6MB'dan küçük olmalı." };
+      return { error: "Sunucu beklenmeyen yanıt verdi. Lütfen tekrar deneyin." };
     }
     try {
       const data = JSON.parse(text) as { url?: string; error?: string };
@@ -200,22 +203,31 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
+    if (!file.type.startsWith("image/")) {
+      setError("Sadece resim dosyaları kabul edilir.");
+      return;
+    }
     setError(null);
     try {
-      const res = await fetch("/api/admin/uploads/cover", {
+      const signedRes = await fetch("/api/admin/uploads/cover/signed", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name }),
         credentials: "include",
       });
-      const data = await parseUploadResponse(res);
-      if (!res.ok) {
-        setError(data.error || "Kapak yüklenemedi");
+      const signedData = await signedRes.json();
+      if (!signedRes.ok || !signedData.path || !signedData.token || !signedData.publicUrl) {
+        setError(signedData.error || "İmzalı URL alınamadı.");
         return;
       }
-      if (data.url) setCoverUrl(data.url);
-      else setError(data.error || "Kapak yüklenemedi");
+      const { error: uploadErr } = await supabase.storage
+        .from(COVER_BUCKET)
+        .uploadToSignedUrl(signedData.path, signedData.token, file, { contentType: file.type });
+      if (uploadErr) {
+        setError(uploadErr.message || "Yükleme başarısız.");
+        return;
+      }
+      setCoverUrl(signedData.publicUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kapak yüklenemedi");
     }

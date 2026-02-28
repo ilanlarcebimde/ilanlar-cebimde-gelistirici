@@ -12,7 +12,7 @@ interface JobActionsStackProps {
   onLetterClick: () => void;
 }
 
-/** İlan kartında alt alta, eşit genişlikte 4 buton. Ücretliyse iletişim + mektup; hep CV + Usta linkleri. */
+/** İlan kartında kompakt, içerik genişliğinde 4 buton. */
 export function JobActionsStack({
   postId,
   slug,
@@ -20,36 +20,24 @@ export function JobActionsStack({
   onContactClick,
   onLetterClick,
 }: JobActionsStackProps) {
+  const btnClass =
+    "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 w-fit whitespace-nowrap";
   return (
-    <div className="mt-4 flex flex-col gap-2">
+    <div className="flex flex-col gap-2 items-start">
       {isPaid && (
         <>
-          <button
-            type="button"
-            onClick={onContactClick}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
-          >
-            İlan Sahibi İletişim Bilgileri
+          <button type="button" onClick={onContactClick} className={btnClass}>
+            İletişim Bilgileri
           </button>
-          <button
-            type="button"
-            onClick={onLetterClick}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
-          >
-            İş Başvuru Mektubu Oluştur
+          <button type="button" onClick={onLetterClick} className={btnClass}>
+            Başvuru Mektubu
           </button>
         </>
       )}
-      <Link
-        href="/yurtdisi-cv-paketi"
-        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
-      >
-        Yurtdışı CV Paketi
+      <Link href="/yurtdisi-cv-paketi" className={btnClass}>
+        CV Paketi
       </Link>
-      <Link
-        href="/usta-basvuru-paketi"
-        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
-      >
+      <Link href="/usta-basvuru-paketi" className={btnClass}>
         Usta Başvuru Paketi
       </Link>
     </div>
