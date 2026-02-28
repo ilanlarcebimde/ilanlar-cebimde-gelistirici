@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/ssr";
 import { sanitizeContent } from "@/lib/merkezi/sanitize";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { slugifyTR } from "@/lib/slugify";
+import { normalizeSlugForPost } from "@/lib/slugify";
 
 export const runtime = "nodejs";
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   if (!title) {
     return NextResponse.json({ error: "Başlık zorunlu" }, { status: 400 });
   }
-  const normalizedSlug = slugifyTR(body.slug?.trim() || title);
+  const normalizedSlug = normalizeSlugForPost(body.slug || title, title);
   if (!normalizedSlug || normalizedSlug === "icerik") {
     return NextResponse.json({ error: "Geçerli bir slug türetilemedi" }, { status: 400 });
   }

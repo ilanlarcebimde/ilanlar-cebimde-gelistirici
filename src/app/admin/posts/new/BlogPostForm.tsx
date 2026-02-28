@@ -247,14 +247,17 @@ export function BlogPostForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600">Slug (URL)</label>
+              <label className="block text-xs font-medium text-slate-600">Slug (URL parçası)</label>
               <input
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 onBlur={handleSlugBlur}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-                placeholder="url-slug"
+                placeholder="örn: blog-yazisi-basligi"
               />
+              <p className="mt-0.5 text-xs text-slate-500">
+                Sadece slug girin; tam adres yapıştırırsanız kayıtta otomatik düzeltilir.
+              </p>
               {slugStatus && (
                 <p className={`mt-0.5 text-xs ${slugStatus === "Uygun" ? "text-emerald-600" : "text-amber-600"}`}>
                   {slugStatus}

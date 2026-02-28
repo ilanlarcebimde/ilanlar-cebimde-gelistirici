@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/ssr";
 import { sanitizeContent } from "@/lib/merkezi/sanitize";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { slugifyTR } from "@/lib/slugify";
+import { normalizeSlugForPost } from "@/lib/slugify";
 
 export const runtime = "nodejs";
 
@@ -83,7 +83,7 @@ export async function PATCH(
 
   const { data: existingPost } = await supabaseAdmin
     .from("merkezi_posts")
-    .select("is_paid")
+    .select("is_paid, title")
     .eq("id", id)
     .maybeSingle();
 
@@ -95,7 +95,10 @@ export async function PATCH(
 
   const patch: Record<string, unknown> = {};
   if (body.title != null) patch.title = body.title;
-  if (body.slug != null && String(body.slug).trim()) patch.slug = slugifyTR(String(body.slug).trim());
+  if (body.slug != null && String(body.slug).trim()) {
+    const fallbackTitle = (body.title ?? (existingPost as { title?: string } | null)?.title ?? "").trim() || "icerik";
+    patch.slug = normalizeSlugForPost(String(body.slug).trim(), fallbackTitle);
+  }
   if (body.cover_image_url !== undefined) patch.cover_image_url = body.cover_image_url;
   if (contentRaw !== undefined) {
     patch.content_html_raw = contentRaw || null;

@@ -87,3 +87,29 @@ export function humanizeSlug(slug: string | null | undefined): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
 }
+
+const POST_PATH = "/yurtdisi-is-ilanlari/";
+const FEED_PATH = "yurtdisi-is-basvuru-merkezi";
+
+/**
+ * Admin'de tam URL yapıştırıldığında doğru slug üretir.
+ * - .../yurtdisi-is-ilanlari/XXX → XXX slug'ı kullanılır.
+ * - Sadece liste sayfası URL'si (yurtdisi-is-basvuru-merkezi) → başlıktan slug üretilir (yazı kaybolmasın).
+ */
+export function normalizeSlugForPost(
+  slugInput: string | null | undefined,
+  fallbackTitle: string
+): string {
+  const raw = (slugInput ?? "").trim();
+  if (!raw) return slugifyTR(fallbackTitle);
+  const lower = raw.toLowerCase();
+  if (lower.includes(POST_PATH)) {
+    const start = lower.indexOf(POST_PATH) + POST_PATH.length;
+    const after = raw.slice(start).split("?")[0].split("#")[0].trim();
+    if (after) return slugifyTR(after);
+  }
+  if (lower.includes(FEED_PATH) && !lower.includes(POST_PATH)) {
+    return slugifyTR(fallbackTitle);
+  }
+  return slugifyTR(raw);
+}

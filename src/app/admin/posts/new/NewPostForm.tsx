@@ -403,15 +403,19 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
                 </button>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600">Slug</label>
+                <label className="block text-xs font-medium text-slate-600">Slug (URL parçası)</label>
                 <input
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   onBlur={handleSlugBlur}
+                  placeholder="örn: belcika-gent-ahsap-ustasi"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 />
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Sadece slug girin; tam adres yapıştırırsanız kayıtta otomatik düzeltilir.
+                </p>
                 {slugStatus && (
-                  <p className="mt-1 text-xs text-slate-500">{slugStatus}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{slugStatus}</p>
                 )}
               </div>
             </div>
