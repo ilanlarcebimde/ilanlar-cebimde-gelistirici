@@ -333,13 +333,14 @@ export async function POST(req: NextRequest) {
         }
         const normalized = ensureCoverLetterResponseUiNotes(webhookData);
         return NextResponse.json(normalized);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[apply/howto-step] cover_letter generic step 6 error", step, msg, err);
-      return NextResponse.json(
-        { error: "internal_error", detail: msg.slice(0, 200) },
-        { status: 500 }
-      );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[apply/howto-step] cover_letter generic step 6 error", step, msg, err);
+        return NextResponse.json(
+          { error: "internal_error", detail: msg.slice(0, 200) },
+          { status: 500 }
+        );
+      }
     }
 
     // İlanlı mektup (job_id var) — sadece bu dalda job_posts sorgulanır; generic dalı yukarıda return etti.
