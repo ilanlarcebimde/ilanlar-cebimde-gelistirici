@@ -9,18 +9,19 @@ export type CoverLetterStepId = 1 | 2 | 3 | 4 | 5 | 6;
 export const COVER_LETTER_WIZARD_HEADING = {
   title: "İş Başvuru Mektubu Oluştur",
   subtitle: "Bu mektup seçtiğiniz ilana göre hazırlanır.",
+  buttonBack: "Geri",
 } as const;
 
-/** STEP 1 — İlan Doğrulama */
+/** STEP 1 — Mod Seçimi */
 export const COVER_LETTER_STEP_1 = {
-  title: "İlan Doğrulama",
-  question: "Bu pozisyona başvurmak istiyor musunuz?",
+  title: "Mod Seçimi",
+  question: "Mektup hangi şekilde oluşturulsun?",
   options: [
-    { value: "job_specific" as const, label: "İlana Özel", badge: "Önerilen" },
+    { value: "job_specific" as const, label: "İlana Özel (Önerilen)", badge: "Önerilen" },
     { value: "generic" as const, label: "Genel (Hızlı)" },
   ],
   button: "Devam Et",
-  hint: "İlan adı ve şirket bilgisi mektup içinde kullanılacaktır.",
+  hint: "İlana özel mektup geri dönüş oranını artırır.",
   disabledTooltip: "Bir seçim yapın",
 } as const;
 
@@ -33,7 +34,7 @@ export const COVER_LETTER_STEP_2 = {
     phone: "Telefon (opsiyonel)",
     city_country: "Bulunduğunuz şehir / ülke (opsiyonel)",
   },
-  subtext: "İngilizce versiyon işverene gönderileceği için iletişim bilgileri doğru olmalıdır.",
+  subtext: "İngilizce versiyon işverene gönderilecektir.",
   button: "Devam Et",
 } as const;
 
@@ -81,7 +82,7 @@ export const COVER_LETTER_STEP_4 = {
     { value: "1ay", label: "1 ay içinde" },
     { value: "2ay", label: "2 ay içinde" },
   ] as const,
-  subtext: "Yurtdışı başvurularda yasal durum net belirtilmelidir.",
+  subtext: "Yurtdışı başvurularda yasal durum net olmalı.",
   button: "Devam Et",
 } as const;
 
@@ -124,14 +125,13 @@ export const COVER_LETTER_STEPS = [
 
 /** Son ekran (Step 6 sonrası) — iki sekmeli */
 export const COVER_LETTER_RESULT_UI = {
-  tabTr: "Türkçe",
-  tabEn: "English",
+  tabTr: "Türkçe (İnceleme)",
+  tabEn: "English (Send)",
   noticeTr: "Bu metin sizin okumanız ve incelemeniz için oluşturulmuştur.",
   noticeEn:
     "Bu mektubu kopyalayın ve işverenin iletişim bilgisi üzerinden gerekli kanal aracılığıyla iletin (e-posta / başvuru portalı).",
   buttonCopyTr: "Türkçe Kopyala",
   buttonCopyEn: "Copy English",
-  buttonPdfDownload: "PDF İndir",
   buttonOpenInEmail: "E-posta Uygulamasında Aç",
   buttonClose: "Kapat",
 } as const;

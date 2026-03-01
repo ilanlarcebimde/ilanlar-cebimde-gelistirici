@@ -42,7 +42,7 @@ export function ProgressHeader({ currentStep, onClose, stepKey = 0 }: ProgressHe
         ))}
       </div>
       <p className="mt-2 text-xs font-medium text-slate-500">
-        {currentStep} / 6
+        Adım {currentStep} / 6
       </p>
     </header>
   );

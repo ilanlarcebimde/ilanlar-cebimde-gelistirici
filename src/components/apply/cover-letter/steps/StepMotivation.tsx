@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { CoverLetterAnswers } from "../lib/coverLetterSchema";
-import { COVER_LETTER_STEP_5 } from "@/components/apply/coverLetterWizardContent";
+import { COVER_LETTER_STEP_5, COVER_LETTER_WIZARD_HEADING } from "@/components/apply/coverLetterWizardContent";
 import { ExampleBlock } from "../ui/ExampleBlock";
 import { HintCard } from "../ui/HintCard";
 import { StickyActions } from "../ui/StickyActions";
@@ -14,10 +14,11 @@ export interface StepMotivationProps {
   answers: CoverLetterAnswers;
   onChange: (answers: Partial<CoverLetterAnswers>) => void;
   onNext: () => void;
+  onBack?: () => void;
   loading: boolean;
 }
 
-export function StepMotivation({ answers, onChange, onNext, loading }: StepMotivationProps) {
+export function StepMotivation({ answers, onChange, onNext, onBack, loading }: StepMotivationProps) {
   const motivation = (answers.motivation ?? "").trim();
   const len = (answers.motivation ?? "").length;
   const [showMaxMessage, setShowMaxMessage] = useState(false);
@@ -27,6 +28,14 @@ export function StepMotivation({ answers, onChange, onNext, loading }: StepMotiv
     if (len > MAX_CHARS) setShowMaxMessage(true);
     else setShowMaxMessage(false);
   }, [len]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 256)}px`;
+  }, [answers.motivation]);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
@@ -67,7 +76,7 @@ export function StepMotivation({ answers, onChange, onNext, loading }: StepMotiv
           {showMaxMessage && isOver ? COVER_LETTER_STEP_5.maxCharsMessage : "\u00A0"}
         </div>
       </div>
-      <p className="text-sm text-slate-600">{COVER_LETTER_STEP_5.hint}</p>
+      <HintCard>{COVER_LETTER_STEP_5.hint}</HintCard>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_5.toneLabel}</label>
         <div className="flex gap-2">
@@ -90,15 +99,32 @@ export function StepMotivation({ answers, onChange, onNext, loading }: StepMotiv
       <ExampleBlock muted={motivation.length > 0}>{COVER_LETTER_STEP_5.example}</ExampleBlock>
 
       <StickyActions>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={loading || !canNext}
-          title={isOver ? COVER_LETTER_STEP_5.maxCharsMessage : !canNext ? "Motivasyon metni girin (max 400 karakter)" : undefined}
-          className="h-12 w-full rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_5.button}
-        </button>
+        <div className="flex w-full gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={loading}
+              className="h-12 flex-1 rounded-2xl border-2 border-slate-200 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {COVER_LETTER_WIZARD_HEADING.buttonBack}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={loading || !canNext}
+            title={isOver ? COVER_LETTER_STEP_5.maxCharsMessage : !canNext ? "Motivasyon metni girin (max 400 karakter)" : undefined}
+            className="h-12 flex-1 rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_5.button}
+          </button>
+        </div>
+        {!canNext && !loading && (
+          <p className="text-center text-xs text-slate-500">
+            {isOver ? COVER_LETTER_STEP_5.maxCharsMessage : "Motivasyon metni girin (en fazla 400 karakter)"}
+          </p>
+        )}
       </StickyActions>
     </div>
   );

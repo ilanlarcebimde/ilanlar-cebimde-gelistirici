@@ -11,7 +11,7 @@ import { StepExperience } from "./steps/StepExperience";
 import { StepLegalDocs } from "./steps/StepLegalDocs";
 import { StepMotivation } from "./steps/StepMotivation";
 import { StepResultTabs } from "./steps/StepResultTabs";
-import { COVER_LETTER_STEP_6 } from "@/components/apply/coverLetterWizardContent";
+import { COVER_LETTER_STEP_6, COVER_LETTER_WIZARD_HEADING } from "@/components/apply/coverLetterWizardContent";
 
 export interface CoverLetterWizardModalProps {
   open: boolean;
@@ -61,6 +61,10 @@ export function CoverLetterWizardModal({ open, onClose, jobId, accessToken }: Co
 
   const handleStep6Submit = () => submitStep(6, answers);
 
+  const handleBack = () => {
+    if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4 | 5);
+  };
+
   if (!open) return null;
 
   const body = (
@@ -86,28 +90,33 @@ export function CoverLetterWizardModal({ open, onClose, jobId, accessToken }: Co
                   </button>
                 </div>
               )}
-              {(error.code === "webhook_not_configured" || error.code === "webhook_error" || error.message.includes("yapılandırılmamış")) && (
+              {error.code === "webhook_not_configured" && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <h3 className="font-semibold text-slate-900">
-                    {error.code === "webhook_not_configured" ? "Servis Hazır Değil" : "Geçici Sorun"}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-700">
-                    {error.code === "webhook_not_configured"
-                      ? "Mektup servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin."
-                      : error.message}
-                  </p>
-                  {process.env.NODE_ENV === "development" && error.code === "webhook_not_configured" && (
+                  <h3 className="font-semibold text-slate-900">Servis Hazır Değil</h3>
+                  <p className="mt-1 text-sm text-slate-700">Mektup servisi yapılandırılmamış.</p>
+                  {process.env.NODE_ENV === "development" && (
                     <p className="mt-2 text-xs text-slate-500">N8N_LETTER_WEBHOOK_URL eksik</p>
                   )}
-                  {(error.code === "webhook_error" || error.code === "webhook_not_configured") && (
-                    <button
-                      type="button"
-                      onClick={() => { setError(undefined); if (step === 6) handleStep6Submit(); }}
-                      className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-                    >
-                      {COVER_LETTER_STEP_6.retryButton}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setError(undefined); if (step === 6) handleStep6Submit(); }}
+                    className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    {COVER_LETTER_STEP_6.retryButton}
+                  </button>
+                </div>
+              )}
+              {error.code === "webhook_error" && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <h3 className="font-semibold text-slate-900">Geçici Sorun</h3>
+                  <p className="mt-1 text-sm text-slate-700">Mektup servisi geçici olarak yanıt vermiyor.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setError(undefined); if (step === 6) handleStep6Submit(); }}
+                    className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    {COVER_LETTER_STEP_6.retryButton}
+                  </button>
                 </div>
               )}
               {!["premium_plus_required", "webhook_not_configured", "webhook_error"].includes(error.code ?? "") && error.message && (
@@ -185,14 +194,24 @@ export function CoverLetterWizardModal({ open, onClose, jobId, accessToken }: Co
                         </ul>
                       </div>
                       <StickyActions>
-                        <button
-                          type="button"
-                          onClick={handleStep6Submit}
-                          disabled={loading}
-                          className="h-14 w-full rounded-2xl bg-slate-900 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                        >
-                          {COVER_LETTER_STEP_6.button}
-                        </button>
+                        <div className="flex w-full gap-3">
+                          <button
+                            type="button"
+                            onClick={handleBack}
+                            disabled={loading}
+                            className="h-14 flex-1 rounded-2xl border-2 border-slate-200 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            {COVER_LETTER_WIZARD_HEADING.buttonBack}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleStep6Submit}
+                            disabled={loading}
+                            className="h-14 flex-1 rounded-2xl bg-slate-900 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                          >
+                            {COVER_LETTER_STEP_6.button}
+                          </button>
+                        </div>
                       </StickyActions>
                       <button
                         type="button"

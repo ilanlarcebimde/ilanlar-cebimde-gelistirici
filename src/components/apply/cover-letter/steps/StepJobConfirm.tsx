@@ -72,6 +72,9 @@ export function StepJobConfirm({
         >
           {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_1.button}
         </button>
+        {!canNext && !loading && (
+          <p className="text-center text-xs text-slate-500">{COVER_LETTER_STEP_1.disabledTooltip}</p>
+        )}
       </StickyActions>
     </div>
   );

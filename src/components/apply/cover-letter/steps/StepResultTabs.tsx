@@ -46,7 +46,7 @@ export function StepResultTabs({ data, jobEmail, onClose }: StepResultTabsProps)
             activeTab === "tr" ? "border-slate-800 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
-          🇹🇷 {COVER_LETTER_RESULT_UI.tabTr} (İnceleme)
+          🇹🇷 {COVER_LETTER_RESULT_UI.tabTr}
         </button>
         <button
           type="button"
@@ -55,7 +55,7 @@ export function StepResultTabs({ data, jobEmail, onClose }: StepResultTabsProps)
             activeTab === "en" ? "border-slate-800 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
-          🇬🇧 {COVER_LETTER_RESULT_UI.tabEn} (Send)
+          🇬🇧 {COVER_LETTER_RESULT_UI.tabEn}
         </button>
       </div>
 

@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 import type { CoverLetterAnswers } from "../lib/coverLetterSchema";
-import { COVER_LETTER_STEP_2 } from "@/components/apply/coverLetterWizardContent";
+import { COVER_LETTER_STEP_2, COVER_LETTER_WIZARD_HEADING } from "@/components/apply/coverLetterWizardContent";
+import { HintCard } from "../ui/HintCard";
 import { StickyActions } from "../ui/StickyActions";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,10 +20,11 @@ export interface StepIdentityProps {
   answers: CoverLetterAnswers;
   onChange: (answers: Partial<CoverLetterAnswers>) => void;
   onNext: () => void;
+  onBack?: () => void;
   loading: boolean;
 }
 
-export function StepIdentity({ answers, onChange, onNext, loading }: StepIdentityProps) {
+export function StepIdentity({ answers, onChange, onNext, onBack, loading }: StepIdentityProps) {
   const [emailTouched, setEmailTouched] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -93,17 +95,32 @@ export function StepIdentity({ answers, onChange, onNext, loading }: StepIdentit
           />
         </div>
       </div>
-      <p className="text-sm text-slate-500">{COVER_LETTER_STEP_2.subtext}</p>
+      <HintCard>{COVER_LETTER_STEP_2.subtext}</HintCard>
 
       <StickyActions>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={loading || !canNext}
-          className="h-12 w-full rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_2.button}
-        </button>
+        <div className="flex w-full gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={loading}
+              className="h-12 flex-1 rounded-2xl border-2 border-slate-200 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {COVER_LETTER_WIZARD_HEADING.buttonBack}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={loading || !canNext}
+            className="h-12 flex-1 rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_2.button}
+          </button>
+        </div>
+        {!canNext && !loading && (
+          <p className="text-center text-xs text-slate-500">Ad Soyad ve geçerli e-posta gerekli</p>
+        )}
       </StickyActions>
     </div>
   );

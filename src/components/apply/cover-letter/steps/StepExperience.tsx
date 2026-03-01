@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { X } from "lucide-react";
 import type { CoverLetterAnswers } from "../lib/coverLetterSchema";
-import { COVER_LETTER_STEP_3 } from "@/components/apply/coverLetterWizardContent";
+import { COVER_LETTER_STEP_3, COVER_LETTER_WIZARD_HEADING } from "@/components/apply/coverLetterWizardContent";
 import { ExampleBlock } from "../ui/ExampleBlock";
 import { HintCard } from "../ui/HintCard";
 import { StickyActions } from "../ui/StickyActions";
@@ -37,6 +37,7 @@ function SkillsChipInput({
       add();
     }
     if (e.key === "Backspace" && !input && skills.length > 0) {
+      e.preventDefault();
       onChange(skills.slice(0, -1));
     }
   };
@@ -90,10 +91,11 @@ export interface StepExperienceProps {
   answers: CoverLetterAnswers;
   onChange: (answers: Partial<CoverLetterAnswers>) => void;
   onNext: () => void;
+  onBack?: () => void;
   loading: boolean;
 }
 
-export function StepExperience({ answers, onChange, onNext, loading }: StepExperienceProps) {
+export function StepExperience({ answers, onChange, onNext, onBack, loading }: StepExperienceProps) {
   const skills = answers.top_skills ?? [];
   const hasContent = answers.total_experience_years != null || skills.length > 0 || (answers.last_company ?? "").trim() !== "";
   const canNext =
@@ -158,15 +160,30 @@ export function StepExperience({ answers, onChange, onNext, loading }: StepExper
       <HintCard variant="amber">{COVER_LETTER_STEP_3.bodyHint}</HintCard>
 
       <StickyActions>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={loading || !canNext}
-          title={!canNext ? "Toplam deneyim ve en az 2 beceri gerekli" : undefined}
-          className="h-12 w-full rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_3.button}
-        </button>
+        <div className="flex w-full gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={loading}
+              className="h-12 flex-1 rounded-2xl border-2 border-slate-200 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {COVER_LETTER_WIZARD_HEADING.buttonBack}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={loading || !canNext}
+            title={!canNext ? "Toplam deneyim ve en az 2 beceri gerekli" : undefined}
+            className="h-12 flex-1 rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_3.button}
+          </button>
+        </div>
+        {!canNext && !loading && (
+          <p className="text-center text-xs text-slate-500">Toplam deneyim (yıl) ve en az 2 beceri gerekli</p>
+        )}
       </StickyActions>
     </div>
   );
