@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 interface PremiumUpsellModalProps {
@@ -18,6 +19,7 @@ const ADVANTAGES = [
 ];
 
 export function PremiumUpsellModal({ open, onClose, onCta }: PremiumUpsellModalProps) {
+  const router = useRouter();
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -35,8 +37,10 @@ export function PremiumUpsellModal({ open, onClose, onCta }: PremiumUpsellModalP
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) {
-        setCouponError("Kuponu uygulamak için giriş yapın.");
         setCouponLoading(false);
+        onClose();
+        const current = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+        router.push("/giris?next=" + encodeURIComponent(current));
         return;
       }
       const res = await fetch("/api/premium/apply-coupon", {
@@ -100,7 +104,6 @@ export function PremiumUpsellModal({ open, onClose, onCta }: PremiumUpsellModalP
         {/* Kupon alanı */}
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
           <p className="text-sm font-medium text-slate-700">Kupon kodunuz var mı?</p>
-          <p className="mt-0.5 text-xs text-slate-500">Örn: 99TLDENEME</p>
           <div className="mt-2 flex gap-2">
             <input
               type="text"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -10,15 +11,18 @@ export function AuthModal({
   onClose,
   onGoogle,
   onEmailSubmit,
-  redirectNext = "/panel",
+  redirectNext,
 }: {
   open: boolean;
   onClose: () => void;
   onGoogle: () => void;
   onEmailSubmit: (email: string, password: string) => void;
-  /** Google giriş sonrası yönlendirilecek sayfa (örn. /odeme) */
+  /** Giriş sonrası yönlendirilecek sayfa. Verilmezse bulunulan sayfada kalınır (pathname). */
   redirectNext?: string;
 }) {
+  const pathname = usePathname();
+  const next = redirectNext ?? (pathname && pathname !== "/giris" ? pathname : "/panel");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,9 +33,8 @@ export function AuthModal({
   const handleGoogle = async () => {
     setError("");
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const next = redirectNext;
     // OAuth redirect bazen query'yi kaybettigi icin next'i sessionStorage'da da sakla
-    if (typeof window !== "undefined" && next) {
+    if (typeof window !== "undefined") {
       sessionStorage.setItem("auth_redirect_next", next);
     }
     const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(next)}`;

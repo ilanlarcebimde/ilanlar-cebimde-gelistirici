@@ -111,7 +111,7 @@ export default function Home() {
           }}
           onGoogle={handleGoogleAuth}
           onEmailSubmit={handleEmailAuth}
-          redirectNext={paymentPayload ? "/odeme" : "/panel"}
+          redirectNext={paymentPayload ? "/odeme" : undefined}
         />
       </AnimatePresence>
     </>

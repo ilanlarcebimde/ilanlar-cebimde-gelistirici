@@ -430,7 +430,7 @@ export function UcretsizPanelClient() {
           onClose={() => { setAuthOpen(false); setPendingJobId(null); }}
           onGoogle={() => { setAuthOpen(false); if (pendingJobId) setPremiumOpen(true); }}
           onEmailSubmit={() => { setAuthOpen(false); if (pendingJobId) setPremiumOpen(true); }}
-          redirectNext="/panel"
+          redirectNext={undefined}
         />
       </AnimatePresence>
       <AnimatePresence>

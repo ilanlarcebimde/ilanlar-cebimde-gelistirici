@@ -137,7 +137,7 @@ export default function YurtdisiCvPaketiPage() {
           }}
           onGoogle={handleAuthSuccess}
           onEmailSubmit={handleAuthSuccess}
-          redirectNext={paymentPayload ? "/odeme" : "/panel"}
+          redirectNext={paymentPayload ? "/odeme" : undefined}
         />
       </AnimatePresence>
     </>
