@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { JobActionsStack } from "./JobActionsStack";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
-import { LetterGeneratorModal } from "./LetterGeneratorModal";
+import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { humanizeSlug } from "@/lib/slugify";
+import { supabase } from "@/lib/supabase";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
 
 const BASE = "/yurtdisi-is-ilanlari";
@@ -24,7 +25,7 @@ function isJobCard(post: MerkeziPostLandingItem): boolean {
 
 export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [showLetterModal, setShowLetterModal] = useState(false);
+  const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
 
   const isJob = isJobCard(post);
   const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
@@ -42,14 +43,18 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     if (res.status === 401 || res.status === 403) setShowPremiumModal(true);
   };
 
-  const handleLetterClick = () => {
-    setShowLetterModal(true);
-  };
+  const handleLetterClick = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setLetterWizardState({ open: true, token: session.access_token });
+  }, []);
 
-  const handleLetterPremiumRequired = () => {
-    setShowLetterModal(false);
-    setShowPremiumModal(true);
-  };
+  const handleLetterWizardClose = useCallback(() => {
+    setLetterWizardState(null);
+  }, []);
 
   const handlePremiumCta = () => {
     setShowPremiumModal(false);
@@ -132,12 +137,14 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
         </div>
 
         <PremiumUpsellModal open={showPremiumModal} onClose={() => setShowPremiumModal(false)} onCta={handlePremiumCta} />
-        <LetterGeneratorModal
-          postId={post.id}
-          open={showLetterModal}
-          onClose={() => setShowLetterModal(false)}
-          onPremiumRequired={handleLetterPremiumRequired}
-        />
+        {letterWizardState && (
+          <CoverLetterWizardModal
+            open={letterWizardState.open}
+            onClose={handleLetterWizardClose}
+            postId={post.id}
+            accessToken={letterWizardState.token}
+          />
+        )}
       </article>
     );
   }

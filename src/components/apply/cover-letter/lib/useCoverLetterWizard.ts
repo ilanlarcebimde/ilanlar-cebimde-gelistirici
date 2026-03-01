@@ -62,6 +62,40 @@ export async function postCoverLetterStep({
   return data;
 }
 
+export async function postCoverLetterStepMerkezi({
+  post_id,
+  session_id,
+  mode,
+  answers,
+  token,
+}: {
+  post_id: string;
+  session_id: string;
+  mode: Mode;
+  answers: CoverLetterAnswers;
+  token: string;
+}) {
+  const res = await fetch(`/api/merkezi/post/${post_id}/letter-wizard`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      session_id,
+      step: 6,
+      approved: true,
+      locale: "tr-TR",
+      derived: { mode },
+      answers,
+    }),
+  });
+
+  const data = await res.json().catch(() => ({})) as Record<string, unknown> & { type?: string; data?: CoverLetterResult };
+  if (!res.ok) throw { status: res.status, data };
+  return data;
+}
+
 export type WizardState = {
   open: boolean;
   step: 1 | 2 | 3 | 4 | 5 | 6;
@@ -74,7 +108,13 @@ export type WizardState = {
   result?: CoverLetterResult;
 };
 
-export function useCoverLetterWizard(open: boolean, jobId: string, accessToken: string) {
+export type UseCoverLetterWizardSource = { jobId: string; postId?: never } | { jobId?: never; postId: string };
+
+export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizardSource, accessToken: string) {
+  const jobId = "jobId" in source ? source.jobId : undefined;
+  const postId = "postId" in source ? source.postId : undefined;
+  const isMerkezi = !!postId;
+
   const [sessionId] = useState(() => randomUUID());
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [mode, setMode] = useState<Mode>("job_specific");
@@ -84,8 +124,12 @@ export function useCoverLetterWizard(open: boolean, jobId: string, accessToken: 
   const [answers, setAnswers] = useState<CoverLetterAnswers>({});
   const [result, setResult] = useState<CoverLetterResult | undefined>();
 
+  const fetchUrl = isMerkezi
+    ? `/api/apply/full-merkezi-post?post_id=${encodeURIComponent(postId!)}`
+    : `/api/apply/full-job?job_id=${encodeURIComponent(jobId!)}`;
+
   useEffect(() => {
-    if (!open || !jobId || !accessToken) return;
+    if (!open || (!jobId && !postId) || !accessToken) return;
     setError(undefined);
     setJob(null);
     setAnswers({});
@@ -95,9 +139,7 @@ export function useCoverLetterWizard(open: boolean, jobId: string, accessToken: 
 
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/apply/full-job?job_id=${encodeURIComponent(jobId)}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
+    fetch(fetchUrl, { headers: { Authorization: `Bearer ${accessToken}` } })
       .then(async (res) => {
         const data = await res.json().catch(() => ({})) as JobRow | { error?: string; detail?: string };
         return { res, data };
@@ -132,7 +174,7 @@ export function useCoverLetterWizard(open: boolean, jobId: string, accessToken: 
     return () => {
       cancelled = true;
     };
-  }, [open, jobId, accessToken]);
+  }, [open, jobId, postId, accessToken]);
 
   const submitStep = useCallback(
     async (stepNum: 1 | 2 | 3 | 4 | 5 | 6, payloadAnswers?: CoverLetterAnswers) => {
@@ -141,19 +183,34 @@ export function useCoverLetterWizard(open: boolean, jobId: string, accessToken: 
       setError(undefined);
       setLoading(true);
       try {
-        const data = await postCoverLetterStep({
-          job_id: jobId,
-          session_id: sessionId,
-          step: stepNum,
-          approved: true,
-          mode,
-          answers: merged,
-          token: accessToken,
-        });
-        if (stepNum === 6 && data?.type === "cover_letter" && data?.data) {
-          setResult(data.data);
-        } else if (typeof data?.next_step === "number" && stepNum < 6) {
-          setStep(data.next_step as 1 | 2 | 3 | 4 | 5 | 6);
+        if (isMerkezi && postId) {
+          if (stepNum < 6) {
+            setStep((stepNum + 1) as 1 | 2 | 3 | 4 | 5 | 6);
+          } else {
+            const data = await postCoverLetterStepMerkezi({
+              post_id: postId,
+              session_id: sessionId,
+              mode,
+              answers: merged,
+              token: accessToken,
+            });
+            if (data?.type === "cover_letter" && data?.data) setResult(data.data);
+          }
+        } else if (jobId) {
+          const data = await postCoverLetterStep({
+            job_id: jobId,
+            session_id: sessionId,
+            step: stepNum,
+            approved: true,
+            mode,
+            answers: merged,
+            token: accessToken,
+          });
+          if (stepNum === 6 && data?.type === "cover_letter" && data?.data) {
+            setResult(data.data);
+          } else if (typeof data?.next_step === "number" && stepNum < 6) {
+            setStep(data.next_step as 1 | 2 | 3 | 4 | 5 | 6);
+          }
         }
       } catch (err: unknown) {
         const cast = err as { status?: number; data?: { error?: string; detail?: string; message?: string } };
@@ -174,7 +231,7 @@ export function useCoverLetterWizard(open: boolean, jobId: string, accessToken: 
         setLoading(false);
       }
     },
-    [jobId, sessionId, mode, answers, accessToken]
+    [jobId, postId, isMerkezi, sessionId, mode, answers, accessToken]
   );
 
   const goToStep = useCallback((s: 1 | 2 | 3 | 4 | 5 | 6) => {

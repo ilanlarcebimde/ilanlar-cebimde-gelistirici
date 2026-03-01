@@ -16,12 +16,16 @@ import { COVER_LETTER_STEP_6, COVER_LETTER_WIZARD_HEADING } from "@/components/a
 export interface CoverLetterWizardModalProps {
   open: boolean;
   onClose: () => void;
-  jobId: string;
+  /** İlan (job_posts) — yurtdışı ilanlar paneli vb. */
+  jobId?: string;
+  /** Merkezi ilan (merkezi_posts) — yurtdışı iş başvuru merkezi feed. */
+  postId?: string;
   accessToken: string;
 }
 
-export function CoverLetterWizardModal({ open, onClose, jobId, accessToken }: CoverLetterWizardModalProps) {
-  const { state, setStep, setMode, setAnswers, setError, submitStep } = useCoverLetterWizard(open, jobId, accessToken);
+export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken }: CoverLetterWizardModalProps) {
+  const source: { jobId: string } | { postId: string } = postId ? { postId } : { jobId: jobId ?? "" };
+  const { state, setStep, setMode, setAnswers, setError, submitStep } = useCoverLetterWizard(open, source, accessToken);
   const { step, mode, loading, error, job, answers, result } = state;
 
   const companyName = (job?.source_name as string) || (job?.company_name as string) || "—";
