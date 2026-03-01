@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { MerkezFeedCard } from "./MerkezFeedCard";
+import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
+import { supabase } from "@/lib/supabase";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
 
 type FilterType = "all" | "premium" | "free";
@@ -32,6 +34,16 @@ function matchesSearch(post: MerkeziPostLandingItem, query: string): boolean {
 export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
+  const [genericWizardState, setGenericWizardState] = useState<{ open: boolean; token: string } | null>(null);
+
+  const openGenericLetter = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      window.location.href = "/giris?next=" + encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/yurtdisi-is-basvuru-merkezi");
+      return;
+    }
+    setGenericWizardState({ open: true, token: session.access_token });
+  }, []);
 
   const filtered = useMemo(() => {
     let list = posts.filter((p) => matchesSearch(p, search));
@@ -43,6 +55,15 @@ export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={openGenericLetter}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
+          >
+            Genel İş Başvuru Mektubu (Premium Plus)
+          </button>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <input
             type="search"
@@ -85,6 +106,14 @@ export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
           </ul>
         )}
       </div>
+      {genericWizardState && (
+        <CoverLetterWizardModal
+          open={genericWizardState.open}
+          onClose={() => setGenericWizardState(null)}
+          generic
+          accessToken={genericWizardState.token}
+        />
+      )}
     </div>
   );
 }

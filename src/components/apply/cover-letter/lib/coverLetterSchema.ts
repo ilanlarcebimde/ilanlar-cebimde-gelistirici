@@ -9,6 +9,9 @@ export const availabilitySchema = z.enum(["hemen", "1ay", "2ay"]);
 export const toneSchema = z.enum(["professional", "very_formal"]);
 
 export const coverLetterAnswersSchema = z.object({
+  role: z.string().optional(),
+  work_area: z.string().optional(),
+
   full_name: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
@@ -44,10 +47,17 @@ export type WizardError = {
   message: string;
 };
 
-/** Step 1: mode required */
+/** Step 1 (ilanlı): mode required */
 export function validateStep1(mode: Mode | undefined): { ok: true } | { ok: false; message: string } {
   if (mode === "job_specific" || mode === "generic") return { ok: true };
   return { ok: false, message: "Bir seçim yapın" };
+}
+
+/** Step 1 (genel / ilan bağımsız): role required */
+export function validateStep1Generic(answers: CoverLetterAnswers): { ok: true } | { ok: false; message: string } {
+  const role = (answers.role ?? "").trim();
+  if (!role) return { ok: false, message: "Meslek / rol gereklidir" };
+  return { ok: true };
 }
 
 /** Step 2: full_name, email required */
@@ -87,6 +97,23 @@ export function validateStep(step: WizardStep, mode: Mode | undefined, answers: 
   switch (step) {
     case 1:
       return validateStep1(mode);
+    case 2:
+      return validateStep2(answers);
+    case 3:
+      return validateStep3(answers);
+    case 4:
+      return validateStep4(answers);
+    case 5:
+      return validateStep5(answers);
+    default:
+      return { ok: true as const };
+  }
+}
+
+export function validateStepGeneric(step: WizardStep, answers: CoverLetterAnswers) {
+  switch (step) {
+    case 1:
+      return validateStep1Generic(answers);
     case 2:
       return validateStep2(answers);
     case 3:

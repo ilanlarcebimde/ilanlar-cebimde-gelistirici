@@ -20,7 +20,7 @@ async function getUserFromRequest(req: NextRequest) {
 }
 
 type StepBody = {
-  job_id: string;
+  job_id?: string;
   session_id: string;
   step: number;
   approved: boolean;
@@ -111,6 +111,78 @@ function validateCoverLetterStep(step: number, body: StepBody): { ok: true } | {
   }
 }
 
+/** Genel mektup (ilan bağımsız): job_id yok, sadece answers ile validation. */
+function validateCoverLetterStepGeneric(step: number, body: StepBody): { ok: true } | { ok: false; error: string; details?: Record<string, string> } {
+  const answers = body.answers && typeof body.answers === "object" ? body.answers : {};
+
+  switch (step) {
+    case 1: {
+      const role = answers.role;
+      if (role == null || String(role).trim() === "") {
+        return { ok: false, error: "invalid_request", details: { answers_role: "answers.role gereklidir." } };
+      }
+      return { ok: true };
+    }
+    case 2: {
+      const fullName = answers.full_name;
+      const email = answers.email;
+      const missing: string[] = [];
+      if (fullName == null || String(fullName).trim() === "") missing.push("answers.full_name");
+      if (email == null || String(email).trim() === "") missing.push("answers.email");
+      if (missing.length) {
+        return { ok: false, error: "invalid_request", details: { missing: missing.join(", ") } };
+      }
+      return { ok: true };
+    }
+    case 3: {
+      const years = answers.total_experience_years;
+      const skills = answers.top_skills;
+      const missing: string[] = [];
+      if (years == null) missing.push("answers.total_experience_years");
+      if (!Array.isArray(skills) || skills.length < 2) missing.push("answers.top_skills (en az 2 öğe)");
+      if (missing.length) {
+        return { ok: false, error: "invalid_request", details: { missing: missing.join(", ") } };
+      }
+      return { ok: true };
+    }
+    case 4: {
+      const workPermit = answers.work_permit_status;
+      const passport = answers.passport_status;
+      const missing: string[] = [];
+      if (workPermit == null || String(workPermit).trim() === "") missing.push("answers.work_permit_status");
+      if (passport == null || String(passport).trim() === "") missing.push("answers.passport_status");
+      if (missing.length) {
+        return { ok: false, error: "invalid_request", details: { missing: missing.join(", ") } };
+      }
+      return { ok: true };
+    }
+    case 5: {
+      const motivation = answers.motivation;
+      if (motivation == null || String(motivation).trim() === "") {
+        return { ok: false, error: "invalid_request", details: { answers_motivation: "answers.motivation gereklidir." } };
+      }
+      if (String(motivation).length > 400) {
+        return { ok: false, error: "invalid_request", details: { answers_motivation: "answers.motivation en fazla 400 karakter." } };
+      }
+      return { ok: true };
+    }
+    case 6: {
+      const required = ["role", "full_name", "email", "total_experience_years", "top_skills", "work_permit_status", "passport_status", "motivation"];
+      const missing = required.filter((k) => {
+        const v = answers[k];
+        if (k === "top_skills") return !Array.isArray(v) || v.length < 2;
+        return v == null || String(v).trim() === "";
+      });
+      if (missing.length) {
+        return { ok: false, error: "invalid_request", details: { missing: "Step 1–5 verileri eksik: " + missing.join(", ") } };
+      }
+      return { ok: true };
+    }
+    default:
+      return { ok: false, error: "invalid_request", details: { step: "step 1..6 olmalıdır." } };
+  }
+}
+
 /**
  * POST /api/apply/howto-step
  * Body: { job_id, session_id, step, approved, derived?, answers?, intent?, locale? }
@@ -174,15 +246,98 @@ export async function POST(req: NextRequest) {
   const stepMin = intent === "cover_letter_generate" ? 1 : 1;
   const stepMax = intent === "cover_letter_generate" ? COVER_LETTER_STEPS : 7;
 
-  if (!jobId || !sessionId || step < stepMin || step > stepMax) {
+  if (!sessionId || step < stepMin || step > stepMax) {
     return NextResponse.json(
-      { error: "Bad request", detail: `job_id, session_id and step (${stepMin}..${stepMax}) required` },
+      { error: "Bad request", detail: `session_id and step (${stepMin}..${stepMax}) required` },
       { status: 400 }
     );
   }
 
-  // Cover letter: n8n sadece metin üretir; PDF/storage yok. Response sadece JSON (turkish_version, english_version, ui_notes).
+  if (intent === "howto_apply" && !jobId) {
+    return NextResponse.json(
+      { error: "Bad request", detail: "job_id required for howto_apply" },
+      { status: 400 }
+    );
+  }
+
+  // Cover letter: n8n sadece metin üretir; PDF/storage yok. İki dal: job_id varsa ilanlı, yoksa genel (ilan bağımsız).
   if (intent === "cover_letter_generate") {
+    const isGeneric = !jobId;
+
+    if (isGeneric) {
+      const validation = validateCoverLetterStepGeneric(step, body);
+      if (!validation.ok) {
+        return NextResponse.json(
+          { error: validation.error, detail: "Validation failed", details: validation.details },
+          { status: 400 }
+        );
+      }
+      if (step < COVER_LETTER_STEPS) {
+        return NextResponse.json({
+          type: "cover_letter_progress",
+          status: "ok",
+          next_step: step + 1,
+        });
+      }
+      if (!LETTER_WEBHOOK_URL) {
+        return NextResponse.json(
+          { error: "webhook_not_configured", detail: "N8N_LETTER_WEBHOOK_URL is not set" },
+          { status: 503 }
+        );
+      }
+      const letterPayload = {
+        intent: "cover_letter_generate",
+        session_id: sessionId,
+        step: 6,
+        approved: body.approved === true,
+        locale: body.locale ?? "tr-TR",
+        answers: body.answers ?? {},
+        request: { version: 1 },
+      };
+      try {
+        const webhookRes = await fetch(LETTER_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(letterPayload),
+        });
+        const contentType = webhookRes.headers.get("content-type") ?? "";
+        let webhookData: unknown;
+        if (contentType.includes("application/json")) {
+          try {
+            webhookData = await webhookRes.json();
+          } catch {
+            webhookData = { _raw: await webhookRes.text() };
+          }
+        } else {
+          webhookData = { _raw: await webhookRes.text() };
+        }
+        if (!webhookRes.ok) {
+          const detailObj = webhookData && typeof webhookData === "object" && webhookData !== null ? (webhookData as Record<string, unknown>) : null;
+          const fallback =
+            typeof detailObj?.message === "string"
+              ? detailObj.message
+              : typeof detailObj?.error === "string"
+                ? detailObj.error
+                : typeof detailObj?.detail === "string"
+                  ? detailObj.detail
+                  : "Mektup servisi geçici olarak yanıt vermiyor.";
+          return NextResponse.json(
+            { error: "webhook_error", status: webhookRes.status, detail: fallback },
+            { status: 502 }
+          );
+        }
+        return NextResponse.json(webhookData);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[apply/howto-step] cover_letter generic step 6 error", step, msg, err);
+        return NextResponse.json(
+          { error: "internal_error", detail: msg.slice(0, 200) },
+          { status: 500 }
+        );
+      }
+    }
+
+    // İlanlı mektup (job_id var)
     const validation = validateCoverLetterStep(step, body);
     if (!validation.ok) {
       return NextResponse.json(

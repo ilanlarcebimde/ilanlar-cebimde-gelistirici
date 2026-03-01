@@ -74,3 +74,18 @@ n8n’de **OpenAI** (veya benzeri) node ile mektup üretirken kullanılacak kıs
 İngilizce metnin sonunda şu anlama gelen bir cümle mutlaka yer almalı (n8n prompt’a eklenmeli):
 
 > *"This English version is prepared to be sent through the employer's official communication channel (email or application portal)."*
+
+---
+
+## Genel mektup (ilan bağımsız) — Premium Plus
+
+- **Amaç:** İlan verisine bağlı olmayan, yalnızca kullanıcının girdiği bilgilere göre mektup.
+- **Backend:** Aynı endpoint `POST /api/apply/howto-step`, `intent: "cover_letter_generate"`, **job_id gönderilmez**.
+  - Premium Plus zorunlu.
+  - Step 1: `answers.role` zorunlu; Step 2–5 aynı validation; Step 6: n8n’e sadece `answers` + `session_id`, `locale`, `request` (job yok).
+- **n8n payload (genel):** `{ intent, session_id, step: 6, approved, locale, answers, request }` — **job alanı yok**.
+- **n8n prompt (genel):**
+  - İlan/şirket bilgisi yok; mektup tamamen genel ve profesyonel.
+  - English mektup sonunda yine: *"This English version is prepared to be sent through the employer's official communication channel (email or application portal)."*
+  - Markdown yok, emoji yok, strict JSON.
+- **Giriş:** Yurtdışı İş Başvuru Merkezi sayfasında “Genel İş Başvuru Mektubu (Premium Plus)” butonu.

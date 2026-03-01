@@ -2,10 +2,11 @@
 
 import { createPortal } from "react-dom";
 import { useCoverLetterWizard } from "./lib/useCoverLetterWizard";
-import { validateStep } from "./lib/coverLetterSchema";
+import { validateStep, validateStepGeneric } from "./lib/coverLetterSchema";
 import { ProgressHeader } from "./ui/ProgressHeader";
 import { StickyActions } from "./ui/StickyActions";
 import { StepJobConfirm } from "./steps/StepJobConfirm";
+import { Step1Generic } from "./steps/Step1Generic";
 import { StepIdentity } from "./steps/StepIdentity";
 import { StepExperience } from "./steps/StepExperience";
 import { StepLegalDocs } from "./steps/StepLegalDocs";
@@ -23,12 +24,19 @@ export interface CoverLetterWizardModalProps {
   accessToken: string;
   /** Premium (haftalık) yoksa çağrılır — avantajlar + kupon popup açmak için. */
   onPremiumRequired?: () => void;
+  /** Genel mektup (ilan bağımsız) — Premium Plus, job_id/postId yok. */
+  generic?: boolean;
 }
 
-export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired }: CoverLetterWizardModalProps) {
-  const source: { jobId: string } | { postId: string } = postId ? { postId } : { jobId: jobId ?? "" };
+export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired, generic }: CoverLetterWizardModalProps) {
+  const source = generic
+    ? { generic: true as const }
+    : postId
+      ? { postId }
+      : { jobId: jobId ?? "" };
   const { state, setStep, setMode, setAnswers, setError, submitStep } = useCoverLetterWizard(open, source, accessToken);
   const { step, mode, loading, error, job, answers, result } = state;
+  const isGeneric = generic === true;
 
   const companyName = (job?.source_name as string) || (job?.company_name as string) || "—";
   const position = (job?.title as string) || "—";
@@ -36,31 +44,36 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
   const jobEmail = job ? ((job.application_email as string) || (job.contact_email as string) || null) : null;
 
   const handleStep1Next = () => {
-    const v = validateStep(1, mode, answers);
-    if (!v.ok) return;
+    if (isGeneric) {
+      const v = validateStepGeneric(1, answers);
+      if (!v.ok) return;
+    } else {
+      const v = validateStep(1, mode, answers);
+      if (!v.ok) return;
+    }
     submitStep(1, answers);
   };
 
   const handleStep2Next = () => {
-    const v = validateStep(2, mode, answers);
+    const v = isGeneric ? validateStepGeneric(2, answers) : validateStep(2, mode, answers);
     if (!v.ok) return;
     submitStep(2, answers);
   };
 
   const handleStep3Next = () => {
-    const v = validateStep(3, mode, answers);
+    const v = isGeneric ? validateStepGeneric(3, answers) : validateStep(3, mode, answers);
     if (!v.ok) return;
     submitStep(3, answers);
   };
 
   const handleStep4Next = () => {
-    const v = validateStep(4, mode, answers);
+    const v = isGeneric ? validateStepGeneric(4, answers) : validateStep(4, mode, answers);
     if (!v.ok) return;
     submitStep(4, answers);
   };
 
   const handleStep5Next = () => {
-    const v = validateStep(5, mode, answers);
+    const v = isGeneric ? validateStepGeneric(5, answers) : validateStep(5, mode, answers);
     if (!v.ok) return;
     submitStep(5, answers);
   };
@@ -228,7 +241,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                             disabled={loading}
                             className="h-14 flex-1 rounded-2xl bg-slate-900 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                           >
-                            {COVER_LETTER_STEP_6.button}
+                            {isGeneric ? COVER_LETTER_STEP_6.buttonGeneric : COVER_LETTER_STEP_6.button}
                           </button>
                         </div>
                       </StickyActions>
@@ -256,7 +269,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
             </div>
           )}
 
-          {!job && !error && loading && <p className="mt-6 text-sm text-slate-600">İlan yükleniyor…</p>}
+          {!job && !isGeneric && !error && loading && <p className="mt-6 text-sm text-slate-600">İlan yükleniyor…</p>}
         </>
       )}
     </div>

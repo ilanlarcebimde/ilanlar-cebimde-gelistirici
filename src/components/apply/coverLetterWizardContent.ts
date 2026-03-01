@@ -12,7 +12,20 @@ export const COVER_LETTER_WIZARD_HEADING = {
   buttonBack: "Geri",
 } as const;
 
-/** STEP 1 — Mod Seçimi */
+/** STEP 1 — Genel (ilan bağımsız): Meslek / Rol */
+export const COVER_LETTER_STEP_1_GENERIC = {
+  title: "Meslek / Rol",
+  roleLabel: "Meslek / Rol (zorunlu)",
+  rolePlaceholder: "Örn: İnşaat Şoförü, Tesisatçı",
+  workAreaLabel: "Çalışma alanı (opsiyonel)",
+  workAreaPlaceholder: "Örn: Lojistik, İnşaat",
+  hint: "Mektup bu bilgiye göre profesyonel bir tonla hazırlanır.",
+  example: "Örnek: İnşaat Şoförü — Ağır vasıta, şantiye lojistiği.",
+  button: "Devam Et",
+  disabledTooltip: "Meslek / rol girin",
+} as const;
+
+/** STEP 1 — Mod Seçimi (ilanlı) */
 export const COVER_LETTER_STEP_1 = {
   title: "Mod Seçimi",
   question: "Mektup hangi şekilde oluşturulsun?",
@@ -106,6 +119,7 @@ export const COVER_LETTER_STEP_5 = {
 export const COVER_LETTER_STEP_6 = {
   title: "Üretim & Sonuç",
   button: "Profesyonel Mektubumu Oluştur",
+  buttonGeneric: "Mektubu Oluştur",
   loadingPhases: [
     "Bilgiler kontrol ediliyor…",
     "Mektup hazırlanıyor…",
