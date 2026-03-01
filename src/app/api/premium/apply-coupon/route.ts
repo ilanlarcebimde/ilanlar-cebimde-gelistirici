@@ -3,9 +3,9 @@ import { getSupabaseForUser, getSupabaseAdmin } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const PREMIUM_COUPON_CODE = "ADMIN89";
+const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
 
-/** ADMIN89: Haftalık premium (7 gün) tanımlı; sadece giriş yapmış kullanıcıya uygulanır. */
+/** Geçerli kuponlarla haftalık premium (7 gün); sadece giriş yapmış kullanıcıya uygulanır. */
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
     }
     const code = (body?.code ?? "").trim().toUpperCase();
-    if (code !== PREMIUM_COUPON_CODE) {
+    if (!PREMIUM_COUPON_CODES.includes(code)) {
       return NextResponse.json({ error: "Geçersiz kupon kodu" }, { status: 400 });
     }
 
