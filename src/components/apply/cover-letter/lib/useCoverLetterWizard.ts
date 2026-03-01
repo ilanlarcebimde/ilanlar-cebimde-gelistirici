@@ -177,21 +177,14 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
     setMode("job_specific");
     setResult(undefined);
 
-    // Generic akışta job/post fetch yok; ilan yok, "İlan bulunamadı" imkânsız.
-    if (isGeneric) {
+    // Generic ve merkezi: ilan bilgisi client'ta yüklenmez; sorular doğrudan gösterilir. Merkezde step 6'da server post_id ile ilanı alır.
+    if (isGeneric || isMerkezi) {
       setJob(null);
       setLoading(false);
       return;
     }
 
-    if (!jobId && !postId) return;
-
-    if (isMerkezi && (!postId || typeof postId !== "string" || !postId.trim())) {
-      setJob(null);
-      setLoading(false);
-      setError({ code: "merkezi_load_failed", message: "İçerik yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin." });
-      return;
-    }
+    if (!jobId) return;
 
     setJob(null);
     let cancelled = false;

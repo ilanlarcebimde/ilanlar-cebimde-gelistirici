@@ -37,6 +37,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
   const { state, setStep, setMode, setAnswers, setError, submitStep } = useCoverLetterWizard(open, source, accessToken);
   const { step, mode, loading, error, job, answers, result } = state;
   const isGeneric = generic === true;
+  const isMerkezi = !!postId;
 
   const companyName = (job?.source_name as string) || (job?.company_name as string) || "—";
   const position = (job?.title as string) || "—";
@@ -44,7 +45,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
   const jobEmail = job ? ((job.application_email as string) || (job.contact_email as string) || null) : null;
 
   const handleStep1Next = () => {
-    if (isGeneric) {
+    if (isGeneric || isMerkezi) {
       const v = validateStepGeneric(1, answers);
       if (!v.ok) return;
     } else {
@@ -55,25 +56,25 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
   };
 
   const handleStep2Next = () => {
-    const v = isGeneric ? validateStepGeneric(2, answers) : validateStep(2, mode, answers);
+    const v = (isGeneric || isMerkezi) ? validateStepGeneric(2, answers) : validateStep(2, mode, answers);
     if (!v.ok) return;
     submitStep(2, answers);
   };
 
   const handleStep3Next = () => {
-    const v = isGeneric ? validateStepGeneric(3, answers) : validateStep(3, mode, answers);
+    const v = (isGeneric || isMerkezi) ? validateStepGeneric(3, answers) : validateStep(3, mode, answers);
     if (!v.ok) return;
     submitStep(3, answers);
   };
 
   const handleStep4Next = () => {
-    const v = isGeneric ? validateStepGeneric(4, answers) : validateStep(4, mode, answers);
+    const v = (isGeneric || isMerkezi) ? validateStepGeneric(4, answers) : validateStep(4, mode, answers);
     if (!v.ok) return;
     submitStep(4, answers);
   };
 
   const handleStep5Next = () => {
-    const v = isGeneric ? validateStepGeneric(5, answers) : validateStep(5, mode, answers);
+    const v = (isGeneric || isMerkezi) ? validateStepGeneric(5, answers) : validateStep(5, mode, answers);
     if (!v.ok) return;
     submitStep(5, answers);
   };
@@ -176,9 +177,9 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
             </div>
           )}
 
-          {(job || isGeneric) && !result && !error?.code && (
+          {(job || isGeneric || isMerkezi) && !result && !error?.code && (
             <div className="min-h-[52vh] transition-opacity duration-200">
-              {step === 1 && isGeneric && (
+              {step === 1 && (isGeneric || isMerkezi) && (
                 <Step1Generic
                   answers={answers}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
@@ -186,7 +187,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   loading={loading}
                 />
               )}
-              {step === 1 && !isGeneric && job && (
+              {step === 1 && !isGeneric && !isMerkezi && job && (
                 <StepJobConfirm
                   companyName={companyName}
                   position={position}
