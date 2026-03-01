@@ -114,11 +114,11 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             )}
           </div>
 
-          {/* Sağ: Butonlar */}
-          <div className="mt-2 flex flex-col gap-2 md:mt-0">
+          {/* Sağ: Butonlar — primary + gruplu CTA */}
+          <div className="mt-2 flex flex-col gap-4 md:mt-0">
             <Link
               href={`${BASE}/${post.slug}`}
-              className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 text-sm font-medium text-white transition hover:bg-slate-800"
+              className="flex h-12 w-full items-center justify-center gap-1.5 rounded-2xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               İlan Bilgilerinin Tamamını Görüntüle
               <span aria-hidden>→</span>
