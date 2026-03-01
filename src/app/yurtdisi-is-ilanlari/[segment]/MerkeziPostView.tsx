@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { RichContent } from "@/components/merkezi/RichContent";
 import { PostCover } from "@/components/merkezi/PostCover";
 import { CompanyCard } from "@/components/merkezi/CompanyCard";
@@ -11,8 +11,9 @@ import { ViewsCounter } from "@/components/merkezi/ViewsCounter";
 import { PremiumUpsellModal } from "@/components/merkezi/PremiumUpsellModal";
 import { ViewTracker } from "@/components/merkezi/ViewTracker";
 import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
-import { LetterGeneratorModal } from "@/components/merkezi/LetterGeneratorModal";
+import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { humanizeSlug } from "@/lib/slugify";
+import { supabase } from "@/lib/supabase";
 import type { MerkeziPost, MerkeziTag } from "@/lib/merkezi/types";
 import type { MerkeziPostContact } from "@/lib/merkezi/types";
 
@@ -40,7 +41,7 @@ export function MerkeziPostView({
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [contactUnlocked, setContactUnlocked] = useState(!!contact && isPremium);
   const [contactData, setContactData] = useState<MerkeziPostContact | null>(contact);
-  const [showLetterModal, setShowLetterModal] = useState(false);
+  const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
 
   const showContactCard = post.is_paid
     ? contactUnlocked && contactData
@@ -61,10 +62,18 @@ export function MerkeziPostView({
     } else setShowPremiumModal(true);
   };
 
-  const handleLetterCta = () => {
-    if (isPremium) setShowLetterModal(true);
-    else setShowPremiumModal(true);
-  };
+  const handleLetterCta = useCallback(async () => {
+    if (!isPremium) {
+      setShowPremiumModal(true);
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setLetterWizardState({ open: true, token: session.access_token });
+  }, [isPremium]);
 
   const handlePremiumCta = () => {
     setShowPremiumModal(false);
@@ -162,15 +171,14 @@ export function MerkeziPostView({
         onClose={() => setShowPremiumModal(false)}
         onCta={handlePremiumCta}
       />
-      <LetterGeneratorModal
-        postId={post.id}
-        open={showLetterModal}
-        onClose={() => setShowLetterModal(false)}
-        onPremiumRequired={() => {
-          setShowLetterModal(false);
-          setShowPremiumModal(true);
-        }}
-      />
+      {letterWizardState && (
+        <CoverLetterWizardModal
+          open={letterWizardState.open}
+          onClose={() => setLetterWizardState(null)}
+          postId={post.id}
+          accessToken={letterWizardState.token}
+        />
+      )}
     </article>
   );
 }
