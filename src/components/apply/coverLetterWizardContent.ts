@@ -1,64 +1,117 @@
 /**
- * Cover Letter Wizard (6 adım) — UI metinleri, ipuçları ve örnekler.
- * Her adım: soru/başlık, ipucu, örnek, gereken alanlar.
+ * Cover Letter Wizard (6 adım) — Profesyonel UI metinleri, ipuçları, örnekler.
+ * Progress: 1/6 … 6/6. İlana özel üretim, Premium Plus algısı.
  */
 
 export type CoverLetterStepId = 1 | 2 | 3 | 4 | 5 | 6;
 
+/** Modal genel */
+export const COVER_LETTER_WIZARD_HEADING = {
+  title: "İş Başvuru Mektubu Oluştur",
+  subtitle: "Bu mektup seçtiğiniz ilana göre hazırlanır.",
+} as const;
+
+/** STEP 1 — İlan Doğrulama */
 export const COVER_LETTER_STEP_1 = {
-  title: "Mod seçimi",
-  question: "Mektup hangi şekilde oluşturulsun?",
+  title: "İlan Doğrulama",
+  question: "Bu pozisyona başvurmak istiyor musunuz?",
   options: [
-    { value: "job_specific" as const, label: "İlana Özel (Önerilen)" },
+    { value: "job_specific" as const, label: "İlana Özel", badge: "Önerilen" },
     { value: "generic" as const, label: "Genel (Hızlı)" },
   ],
-  hint: "İlana özel mektup, işverenin aradığı şartları doğrudan yakalar.",
-  example: "İlana Özel: şirket + pozisyon + 2 şart (ehliyet, sertifika) içeren metin.",
-  requiredFields: ["derived.mode"],
-};
+  button: "Devam Et",
+  hint: "İlan adı ve şirket bilgisi mektup içinde kullanılacaktır.",
+  disabledTooltip: "Bir seçim yapın",
+} as const;
 
+/** STEP 2 — Kimlik & İletişim */
 export const COVER_LETTER_STEP_2 = {
-  title: "Kimlik ve iletişim",
-  question: "Adınız ve e-posta adresiniz",
-  hint: "İngilizce mektup işverene gönderileceği için e-posta doğru olmalı.",
-  example: "Buğra Keser / bugra@mail.com / +90 5xx…",
-  requiredFields: ["answers.full_name", "answers.email"],
-  optionalFields: ["answers.phone", "answers.city_country"],
-};
+  title: "Kimlik & İletişim",
+  fields: {
+    full_name: "Ad Soyad (zorunlu)",
+    email: "E-posta (zorunlu)",
+    phone: "Telefon (opsiyonel)",
+    city_country: "Bulunduğunuz şehir / ülke (opsiyonel)",
+  },
+  subtext: "İngilizce versiyon işverene gönderileceği için iletişim bilgileri doğru olmalıdır.",
+  button: "Devam Et",
+} as const;
 
+/** STEP 3 — Deneyim & Güçlü Yönler */
 export const COVER_LETTER_STEP_3 = {
-  title: "Deneyim ve güçlü yönler",
-  question: "Deneyim süreniz ve en güçlü 2–5 beceri",
-  hint: "Genel cümle yerine somut deneyim yaz: saha, araç, ekip, tempo.",
-  example:
-    "Kariyerimde 6 yıldır şantiye taşımacılığı ve saha lojistiğinde çalıştım. Zamanında teslim ve ekip koordinasyonu güçlü yönlerimdir.",
-  requiredFields: ["answers.total_experience_years", "answers.top_skills (min 2, max 5)"],
-};
+  title: "Deneyim & Güçlü Yönler",
+  fields: {
+    total_experience_years: "Toplam deneyim (yıl) (zorunlu)",
+    position_experience_years: "Bu pozisyondaki deneyim (yıl)",
+    last_company: "Son çalıştığınız firma",
+    top_skills: "En güçlü 3 beceri",
+  },
+  example: "Örnek: Şantiye lojistiği, ağır vasıta kullanımı, zamanında teslim.",
+  bodyHint: "Bu adım mektubun ana gövdesini oluşturur.",
+  button: "Devam Et",
+} as const;
 
+/** STEP 4 — Belgeler & Yasal Durum */
 export const COVER_LETTER_STEP_4 = {
-  title: "Belgeler ve yasal durum",
-  question: "Pasaport ve çalışma izni durumunuz",
-  hint: "Yurtdışı başvurularında pasaport/izin bilgisi mutlaka net olmalı.",
-  example:
-    "Geçerli pasaportum bulunmaktadır. Çalışma izni için gerekli süreci başlatabilirim.",
-  requiredFields: ["answers.passport_status", "answers.work_permit_status"],
-  optionalFields: ["answers.documents", "answers.availability"],
-};
+  title: "Belgeler & Yasal Durum",
+  passportLabel: "Pasaport durumu",
+  workPermitLabel: "Çalışma izni durumu",
+  visaLabel: "Vize durumu",
+  passportOptions: [
+    { value: "var", label: "Var" },
+    { value: "yok", label: "Yok" },
+    { value: "yenileniyor", label: "Yenileniyor" },
+  ] as const,
+  workPermitOptions: [
+    { value: "var", label: "Var" },
+    { value: "yok", label: "Yok" },
+    { value: "başvuracağım", label: "Başvuracağım" },
+  ] as const,
+  visaOptions: [
+    { value: "var", label: "Var" },
+    { value: "yok", label: "Yok" },
+    { value: "başvuracağım", label: "Başvuracağım" },
+  ] as const,
+  passportNoneWarning: "Bazı başvurularda pasaport şart olabilir.",
+  certificates: "Sertifikalar",
+  certificateSuggestions: ["SRC", "Psikoteknik", "Forklift", "İş Güvenliği", "CE", "TIR"],
+  availabilityLabel: "Çalışmaya başlama süresi",
+  availabilityOptions: [
+    { value: "hemen", label: "Hemen" },
+    { value: "1ay", label: "1 ay içinde" },
+    { value: "2ay", label: "2 ay içinde" },
+  ] as const,
+  subtext: "Yurtdışı başvurularda yasal durum net belirtilmelidir.",
+  button: "Devam Et",
+} as const;
 
+/** STEP 5 — Motivasyon */
 export const COVER_LETTER_STEP_5 = {
-  title: "Motivasyon (kısa ve net)",
-  question: "Pozisyona kısa motivasyonunuz (en fazla 400 karakter)",
-  hint: "Şirket adı + pozisyon + katkı cümlesi: 1–2 cümle.",
-  example:
-    "Firmanızın İnşaat Şoförü pozisyonunda güvenli ve düzenli çalışma disiplinimle şantiye operasyonlarına katkı sağlamak istiyorum.",
-  requiredFields: ["answers.motivation (≤ 400 karakter)"],
-};
+  title: "Motivasyon",
+  question: "Bu pozisyona neden başvuruyorsunuz?",
+  charCount: "0 / 400",
+  hint: "Şirket adı ve pozisyonu 1–2 cümlede geçirin.",
+  example: "Firmanızın Dublin'deki İnşaat Şoförü pozisyonunda uzun vadeli çalışarak katkı sağlamak istiyorum.",
+  toneLabel: "Ton",
+  toneOptions: [
+    { value: "professional", label: "Profesyonel" },
+    { value: "very_formal", label: "Çok resmî" },
+  ] as const,
+  maxCharsMessage: "400 karakter sınırı",
+  button: "Devam Et",
+} as const;
 
+/** STEP 6 — Üretim */
 export const COVER_LETTER_STEP_6 = {
-  title: "Üretim ve sonuç",
-  question: "Mektup oluşturuluyor",
-  hint: "n8n ile TR ve EN metinler üretilir; son ekranda kopyalayıp kullanabilirsiniz.",
-};
+  title: "Üretim & Sonuç",
+  button: "Profesyonel Mektubumu Oluştur",
+  loadingPhases: [
+    "Bilgiler kontrol ediliyor…",
+    "Mektup hazırlanıyor…",
+    "Son düzenleme yapılıyor…",
+  ] as const,
+  retryButton: "Tekrar Dene",
+} as const;
 
 export const COVER_LETTER_STEPS = [
   COVER_LETTER_STEP_1,
@@ -69,10 +122,10 @@ export const COVER_LETTER_STEPS = [
   COVER_LETTER_STEP_6,
 ] as const;
 
-/** Son ekran (Step 6 sonrası) — iki sekmeli ekran metinleri */
+/** Son ekran (Step 6 sonrası) — iki sekmeli */
 export const COVER_LETTER_RESULT_UI = {
-  tabTr: "Türkçe (İnceleme)",
-  tabEn: "English (Send)",
+  tabTr: "Türkçe",
+  tabEn: "English",
   noticeTr: "Bu metin sizin okumanız ve incelemeniz için oluşturulmuştur.",
   noticeEn:
     "Bu mektubu kopyalayın ve işverenin iletişim bilgisi üzerinden gerekli kanal aracılığıyla iletin (e-posta / başvuru portalı).",
