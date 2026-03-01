@@ -197,11 +197,12 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
       .then(({ res, data }) => {
         if (cancelled) return;
         setLoading(false);
-        if (res.status === 403 && data && typeof data === "object" && "error" in data) {
+        if (res.status === 403 && data && typeof data === "object") {
           const err = data as { error?: string; detail?: string };
+          const code = err.error ?? (isMerkezi ? "premium_required" : "premium_plus_required");
           setError({
-            code: err.error ?? "premium_plus_required",
-            message: err.detail ?? "Bu özellik Premium Plus abonelerine açıktır.",
+            code,
+            message: err.detail ?? (code === "premium_required" ? "Bu özellik için haftalık Premium aboneliği gereklidir. Firma İletişim Bilgileri ile aynı abonelik." : "Bu özellik Premium Plus abonelerine açıktır."),
           });
           if (typeof window !== "undefined") window.dispatchEvent(new Event("premium-subscription-invalidate"));
           return;
@@ -279,7 +280,7 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
         }
       } catch (err: unknown) {
         const cast = err as { status?: number; data?: { error?: string; detail?: string; message?: string } };
-        const code = cast?.data?.error ?? (cast?.status === 403 ? "premium_plus_required" : cast?.status === 503 ? "webhook_not_configured" : "webhook_error");
+        const code = cast?.data?.error ?? (cast?.status === 403 ? (isMerkezi ? "premium_required" : "premium_plus_required") : cast?.status === 503 ? "webhook_not_configured" : "webhook_error");
         const rawMessage =
           typeof cast?.data?.message === "string"
             ? cast.data.message
@@ -294,7 +295,7 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
             ? "Beklenmeyen hata. Lütfen sayfayı yenileyip tekrar deneyin."
             : rawMessage;
         setError({ code, message });
-        if (code === "premium_plus_required" && typeof window !== "undefined") {
+        if ((code === "premium_required" || code === "premium_plus_required") && typeof window !== "undefined") {
           window.dispatchEvent(new Event("premium-subscription-invalidate"));
         }
       } finally {
