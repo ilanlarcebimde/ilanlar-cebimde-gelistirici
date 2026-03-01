@@ -152,14 +152,24 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                 </div>
               )}
               {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error"].includes(error.code ?? "") && error.message && (
-                <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{error.message}</div>
+                <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+                  {isGeneric && error.message === "İlan bulunamadı." ? "Beklenmeyen hata. Lütfen sayfayı yenileyip tekrar deneyin." : error.message}
+                </div>
               )}
             </div>
           )}
 
-          {job && !result && !error?.code && (
+          {(job || isGeneric) && !result && !error?.code && (
             <div className="min-h-[52vh] transition-opacity duration-200">
-              {step === 1 && (
+              {step === 1 && isGeneric && (
+                <Step1Generic
+                  answers={answers}
+                  onChange={(a) => setAnswers({ ...answers, ...a })}
+                  onNext={handleStep1Next}
+                  loading={loading}
+                />
+              )}
+              {step === 1 && !isGeneric && job && (
                 <StepJobConfirm
                   companyName={companyName}
                   position={position}
@@ -175,6 +185,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   answers={answers}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
                   onNext={handleStep2Next}
+                  onBack={handleBack}
                   loading={loading}
                 />
               )}
@@ -183,6 +194,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   answers={answers}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
                   onNext={handleStep3Next}
+                  onBack={handleBack}
                   loading={loading}
                 />
               )}
@@ -191,6 +203,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   answers={answers}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
                   onNext={handleStep4Next}
+                  onBack={handleBack}
                   loading={loading}
                 />
               )}
@@ -199,6 +212,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   answers={answers}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
                   onNext={handleStep5Next}
+                  onBack={handleBack}
                   loading={loading}
                 />
               )}

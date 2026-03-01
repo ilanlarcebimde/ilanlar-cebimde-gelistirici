@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSupabaseForUser } from "@/lib/supabase/server";
 import { isPremiumSubscriptionActive } from "@/lib/premiumSubscription";
+import {
+  buildCoverLetterStep6Payload,
+  ensureCoverLetterResponseUiNotes,
+} from "@/lib/coverLetterWebhookContract";
 
 export const runtime = "nodejs";
 
@@ -110,17 +114,13 @@ export async function POST(
     contact_email: contact?.contact_email ?? null,
   };
 
-  const letterPayload = {
-    intent: "cover_letter_generate",
+  const letterPayload = buildCoverLetterStep6Payload({
     session_id: body.session_id ?? "",
-    step: 6,
-    approved: body.approved === true,
+    answers: answers as Record<string, unknown>,
     locale: body.locale ?? "tr-TR",
     job: jobLike,
     derived: body.derived ?? {},
-    answers,
-    request: { version: 1 },
-  };
+  });
 
   try {
     const webhookRes = await fetch(LETTER_WEBHOOK_URL, {
@@ -157,7 +157,8 @@ export async function POST(
       );
     }
 
-    return NextResponse.json(webhookData);
+    const normalized = ensureCoverLetterResponseUiNotes(webhookData);
+    return NextResponse.json(normalized);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[merkezi/letter-wizard] webhook error", postId, msg);

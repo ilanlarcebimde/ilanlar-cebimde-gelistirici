@@ -210,9 +210,10 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
           setJob(data as JobRow);
         } else {
           const err = data as { error?: string; detail?: string };
-          // Sadece ilanlı akışta (full-job / full-merkezi-post) bu mesaj; generic'te bu fetch çalışmaz.
+          const isJobNotFound = err?.error === "job_not_found" || err?.error === "Not found";
           setError({
-            message: err?.error === "job_not_found" || err?.error === "Not found" ? "İlan bulunamadı." : err?.detail ?? "İlan yüklenemedi.",
+            code: isJobNotFound ? "job_not_found" : undefined,
+            message: !isGeneric && isJobNotFound ? "İlan bulunamadı." : err?.detail ?? "İlan yüklenemedi.",
           });
         }
       })

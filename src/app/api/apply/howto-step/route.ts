@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSupabaseForUser } from "@/lib/supabase/server";
 import { isPremiumSubscriptionActive, isPremiumPlusSubscriptionActive } from "@/lib/premiumSubscription";
+import {
+  buildCoverLetterStep6Payload,
+  ensureCoverLetterResponseUiNotes,
+} from "@/lib/coverLetterWebhookContract";
 
 export const runtime = "nodejs";
 
@@ -290,15 +294,11 @@ export async function POST(req: NextRequest) {
           { status: 503 }
         );
       }
-      const letterPayload = {
-        intent: "cover_letter_generate",
+      const letterPayload = buildCoverLetterStep6Payload({
         session_id: sessionId,
-        step: 6,
-        approved: body.approved === true,
+        answers: (body.answers ?? {}) as Record<string, unknown>,
         locale: body.locale ?? "tr-TR",
-        answers: body.answers ?? {},
-        request: { version: 1 },
-      };
+      });
       try {
         const webhookRes = await fetch(LETTER_WEBHOOK_URL, {
           method: "POST",
@@ -331,7 +331,8 @@ export async function POST(req: NextRequest) {
             { status: 502 }
           );
         }
-      return NextResponse.json(webhookData);
+        const normalized = ensureCoverLetterResponseUiNotes(webhookData);
+        return NextResponse.json(normalized);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[apply/howto-step] cover_letter generic step 6 error", step, msg, err);
@@ -389,17 +390,13 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const letterPayload = {
-        intent: "cover_letter_generate",
+      const letterPayload = buildCoverLetterStep6Payload({
         session_id: sessionId,
-        step,
-        approved: body.approved === true,
+        answers: (body.answers ?? {}) as Record<string, unknown>,
         locale: body.locale ?? "tr-TR",
         job: job as Record<string, unknown>,
         derived: body.derived ?? {},
-        answers: body.answers ?? {},
-        request: { version: 1 },
-      };
+      });
 
       const webhookRes = await fetch(LETTER_WEBHOOK_URL, {
         method: "POST",
@@ -441,7 +438,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      return NextResponse.json(webhookData);
+      const normalized = ensureCoverLetterResponseUiNotes(webhookData);
+      return NextResponse.json(normalized);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[apply/howto-step] cover_letter step 6 error", jobId, step, msg, err);
