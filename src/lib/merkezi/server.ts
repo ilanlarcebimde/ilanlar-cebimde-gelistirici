@@ -223,12 +223,13 @@ const EXCLUDED_FROM_LANDING_TITLES = [
   "Isı Pompası Teknisyeni – İsveç / Svedala",
 ];
 
-/** Merkez feed için yayındaki yazılar. summary server-side türetilir (content_html_sanitized'dan). limit 30. */
-export async function getPublishedPostsForMerkeziLanding(limit = 30): Promise<{
+/** Merkez feed için yayındaki yazılar. limit yüksek tutulur (tüm yazılar listelenebilir). */
+export async function getPublishedPostsForMerkeziLanding(limit = 500): Promise<{
   posts: MerkeziPostLandingItem[];
   tagsByPostId: Record<string, MerkeziTag[]>;
 }> {
   const supabase = getSupabaseAdmin();
+  const requestLimit = Math.min(limit + EXCLUDED_FROM_LANDING_TITLES.length * 2, 2000);
   const { data: rows } = await supabase
     .from("merkezi_posts")
     .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at, content_html_sanitized, application_deadline_date, application_deadline_text, content_type, summary")
@@ -236,7 +237,7 @@ export async function getPublishedPostsForMerkeziLanding(limit = 30): Promise<{
     .or(`published_at.is.null,published_at.lte.${NOW}`)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .limit(limit + EXCLUDED_FROM_LANDING_TITLES.length * 2);
+    .limit(requestLimit);
 
   const raw = (rows ?? []) as (MerkeziPostLandingItem & {
     content_html_sanitized?: string | null;
