@@ -151,9 +151,26 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   </button>
                 </div>
               )}
-              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error"].includes(error.code ?? "") && error.message && (
+              {(error.code === "merkezi_load_failed" || error.code === "job_not_found") && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <h3 className="font-semibold text-slate-900">
+                    {error.code === "merkezi_load_failed" ? "İçerik yüklenemedi" : "İlan bulunamadı"}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-700">{error.message}</p>
+                  {error.code === "merkezi_load_failed" && (
+                    <button
+                      type="button"
+                      onClick={() => typeof window !== "undefined" && window.location.reload()}
+                      className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      Sayfayı yenile
+                    </button>
+                  )}
+                </div>
+              )}
+              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error", "merkezi_load_failed", "job_not_found"].includes(error.code ?? "") && error.message && (
                 <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
-                  {isGeneric && error.message === "İlan bulunamadı." ? "Beklenmeyen hata. Lütfen sayfayı yenileyip tekrar deneyin." : error.message}
+                  {error.message}
                 </div>
               )}
             </div>

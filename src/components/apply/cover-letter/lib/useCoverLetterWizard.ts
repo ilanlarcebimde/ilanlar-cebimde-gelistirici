@@ -186,6 +186,13 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
 
     if (!jobId && !postId) return;
 
+    if (isMerkezi && (!postId || typeof postId !== "string" || !postId.trim())) {
+      setJob(null);
+      setLoading(false);
+      setError({ code: "merkezi_load_failed", message: "İçerik yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin." });
+      return;
+    }
+
     setJob(null);
     let cancelled = false;
     setLoading(true);
@@ -209,13 +216,19 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
         }
         if (data && typeof data === "object" && "id" in data && !("error" in data)) {
           setJob(data as JobRow);
-        } else {
-          const err = data as { error?: string; detail?: string };
-          const isJobNotFound = err?.error === "job_not_found" || err?.error === "Not found";
+          return;
+        }
+        const err = data as { error?: string; detail?: string };
+        const isNotFound = err?.error === "job_not_found" || err?.error === "Not found" || res.status === 404;
+        if (isMerkezi && isNotFound) {
           setError({
-            code: isJobNotFound ? "job_not_found" : undefined,
-            message: !isGeneric && isJobNotFound ? "İlan bulunamadı." : err?.detail ?? "İlan yüklenemedi.",
+            code: "merkezi_load_failed",
+            message: "İçerik şu an yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.",
           });
+        } else if (!isGeneric && isNotFound) {
+          setError({ code: "job_not_found", message: "İlan bulunamadı." });
+        } else {
+          setError({ message: err?.detail ?? "İlan yüklenemedi." });
         }
       })
       .catch(() => {
