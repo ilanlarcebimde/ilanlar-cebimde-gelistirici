@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSupabaseForUser } from "@/lib/supabase/server";
-import { isPremiumPlusSubscriptionActive } from "@/lib/premiumSubscription";
+import { isPremiumSubscriptionActive } from "@/lib/premiumSubscription";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,7 @@ async function getUserFromRequest(req: NextRequest) {
 /**
  * GET /api/apply/full-merkezi-post?post_id=<uuid>
  * Returns a job-like object from merkezi_posts + contact for the Cover Letter Wizard.
- * Premium Plus required (same as cover letter wizard).
+ * Premium (haftalık) gerekli — Firma İletişim Bilgileri ile aynı abonelik.
  */
 export async function GET(req: NextRequest) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -34,10 +34,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const hasPremiumPlus = await isPremiumPlusSubscriptionActive(auth.user.id);
-  if (!hasPremiumPlus) {
+  const hasPremium = await isPremiumSubscriptionActive(auth.user.id);
+  if (!hasPremium) {
     return NextResponse.json(
-      { error: "premium_plus_required", detail: "Bu özellik Premium Plus abonelerine açıktır." },
+      { error: "premium_required", detail: "Bu özellik için haftalık Premium aboneliği gereklidir." },
       { status: 403 }
     );
   }

@@ -21,9 +21,11 @@ export interface CoverLetterWizardModalProps {
   /** Merkezi ilan (merkezi_posts) — yurtdışı iş başvuru merkezi feed. */
   postId?: string;
   accessToken: string;
+  /** Premium (haftalık) yoksa çağrılır — avantajlar + kupon popup açmak için. */
+  onPremiumRequired?: () => void;
 }
 
-export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken }: CoverLetterWizardModalProps) {
+export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired }: CoverLetterWizardModalProps) {
   const source: { jobId: string } | { postId: string } = postId ? { postId } : { jobId: jobId ?? "" };
   const { state, setStep, setMode, setAnswers, setError, submitStep } = useCoverLetterWizard(open, source, accessToken);
   const { step, mode, loading, error, job, answers, result } = state;
@@ -81,6 +83,19 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
 
           {error && (
             <div className="mt-6 space-y-4">
+              {error.code === "premium_required" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                  <h3 className="font-semibold text-amber-900">Premium Gerekli</h3>
+                  <p className="mt-1 text-sm text-amber-800">{error.message}</p>
+                  <button
+                    type="button"
+                    onClick={() => { onPremiumRequired?.(); onClose(); }}
+                    className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    Premium&apos;a Geç (Avantajlar & Kupon)
+                  </button>
+                </div>
+              )}
               {error.code === "premium_plus_required" && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
                   <h3 className="font-semibold text-amber-900">Premium Plus Gerekli</h3>
@@ -123,7 +138,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   </button>
                 </div>
               )}
-              {!["premium_plus_required", "webhook_not_configured", "webhook_error"].includes(error.code ?? "") && error.message && (
+              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error"].includes(error.code ?? "") && error.message && (
                 <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{error.message}</div>
               )}
             </div>

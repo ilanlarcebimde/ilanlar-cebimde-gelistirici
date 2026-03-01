@@ -143,6 +143,10 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             onClose={handleLetterWizardClose}
             postId={post.id}
             accessToken={letterWizardState.token}
+            onPremiumRequired={() => {
+              setLetterWizardState(null);
+              setShowPremiumModal(true);
+            }}
           />
         )}
       </article>

@@ -177,6 +177,10 @@ export function MerkeziPostView({
           onClose={() => setLetterWizardState(null)}
           postId={post.id}
           accessToken={letterWizardState.token}
+          onPremiumRequired={() => {
+            setLetterWizardState(null);
+            setShowPremiumModal(true);
+          }}
         />
       )}
     </article>
