@@ -96,7 +96,7 @@ export async function postCoverLetterStepMerkezi({
   return data;
 }
 
-/** Genel mektup (ilan bağımsız): job_id gönderilmez, Premium Plus. */
+/** Genel mektup (ilan bağımsız): job_id asla gönderilmez; backend generic dalına girer, job lookup yok. */
 export async function postCoverLetterStepGeneric({
   session_id,
   step,
@@ -110,20 +110,21 @@ export async function postCoverLetterStepGeneric({
   answers: CoverLetterAnswers;
   token: string;
 }) {
+  const payload: Record<string, unknown> = {
+    intent: "cover_letter_generate",
+    session_id,
+    step,
+    approved,
+    locale: "tr-TR",
+    answers,
+  };
   const res = await fetch("/api/apply/howto-step", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      intent: "cover_letter_generate",
-      session_id,
-      step,
-      approved,
-      locale: "tr-TR",
-      answers,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await res.json().catch(() => ({})) as Record<string, unknown> & { type?: string; data?: CoverLetterResult; next_step?: number };
@@ -168,14 +169,24 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
     : `/api/apply/full-job?job_id=${encodeURIComponent(jobId!)}`;
 
   useEffect(() => {
-    if (!open || (!jobId && !postId) || !accessToken) return;
+    if (!open || !accessToken) return;
+
     setError(undefined);
-    setJob(null);
     setAnswers({});
     setStep(1);
     setMode("job_specific");
     setResult(undefined);
 
+    // Generic akışta job/post fetch yok; ilan yok, "İlan bulunamadı" imkânsız.
+    if (isGeneric) {
+      setJob(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!jobId && !postId) return;
+
+    setJob(null);
     let cancelled = false;
     setLoading(true);
     fetch(fetchUrl, { headers: { Authorization: `Bearer ${accessToken}` } })
@@ -199,8 +210,9 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
           setJob(data as JobRow);
         } else {
           const err = data as { error?: string; detail?: string };
+          // Sadece ilanlı akışta (full-job / full-merkezi-post) bu mesaj; generic'te bu fetch çalışmaz.
           setError({
-            message: err?.error === "Not found" ? "İlan bulunamadı." : err?.detail ?? "İlan yüklenemedi.",
+            message: err?.error === "job_not_found" || err?.error === "Not found" ? "İlan bulunamadı." : err?.detail ?? "İlan yüklenemedi.",
           });
         }
       })
@@ -267,7 +279,7 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
       } catch (err: unknown) {
         const cast = err as { status?: number; data?: { error?: string; detail?: string; message?: string } };
         const code = cast?.data?.error ?? (cast?.status === 403 ? "premium_plus_required" : cast?.status === 503 ? "webhook_not_configured" : "webhook_error");
-        const message =
+        const rawMessage =
           typeof cast?.data?.message === "string"
             ? cast.data.message
             : typeof cast?.data?.detail === "string"
@@ -275,6 +287,11 @@ export function useCoverLetterWizard(open: boolean, source: UseCoverLetterWizard
               : cast?.status === 502 || cast?.status === 503
                 ? "Mektup servisi geçici olarak yanıt vermiyor. Lütfen tekrar deneyin."
                 : "İstek başarısız.";
+        // Generic akışta job yok; 404/job_not_found gelmemeli; gelirse "İlan bulunamadı" gösterme.
+        const message =
+          isGeneric && (code === "job_not_found" || cast?.status === 404)
+            ? "Beklenmeyen hata. Lütfen sayfayı yenileyip tekrar deneyin."
+            : rawMessage;
         setError({ code, message });
         if (code === "premium_plus_required" && typeof window !== "undefined") {
           window.dispatchEvent(new Event("premium-subscription-invalidate"));

@@ -260,11 +260,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Cover letter: n8n sadece metin üretir; PDF/storage yok. İki dal: job_id varsa ilanlı, yoksa genel (ilan bağımsız).
+  // Cover letter: n8n sadece metin üretir; PDF/storage yok.
+  // KRİTİK: Bu branch'te job_posts SADECE ilanlı dalda (jobId var) sorgulanır. Generic dalda 0 job lookup, 0 job_not_found.
   if (intent === "cover_letter_generate") {
-    const isGeneric = !jobId;
+    const isGeneric = !jobId; // job_id boş/undefined => genel mektup; body'de gelse bile generic'te ignore
 
     if (isGeneric) {
+      // Genel mektup: job'a hiç dokunulmaz, 404/job_not_found imkânsız. (job_id body'de gelse bile kullanılmaz.)
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[apply/howto-step] cover_letter_generate generic flow (job_id ignored)");
+      }
       const validation = validateCoverLetterStepGeneric(step, body);
       if (!validation.ok) {
         return NextResponse.json(
@@ -326,18 +331,17 @@ export async function POST(req: NextRequest) {
             { status: 502 }
           );
         }
-        return NextResponse.json(webhookData);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("[apply/howto-step] cover_letter generic step 6 error", step, msg, err);
-        return NextResponse.json(
-          { error: "internal_error", detail: msg.slice(0, 200) },
-          { status: 500 }
-        );
-      }
+      return NextResponse.json(webhookData);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[apply/howto-step] cover_letter generic step 6 error", step, msg, err);
+      return NextResponse.json(
+        { error: "internal_error", detail: msg.slice(0, 200) },
+        { status: 500 }
+      );
     }
 
-    // İlanlı mektup (job_id var)
+    // İlanlı mektup (job_id var) — sadece bu dalda job_posts sorgulanır; generic dalı yukarıda return etti.
     const validation = validateCoverLetterStep(step, body);
     if (!validation.ok) {
       return NextResponse.json(
