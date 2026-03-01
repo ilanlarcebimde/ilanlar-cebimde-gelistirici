@@ -9,7 +9,7 @@ import { StickyActions } from "../ui/StickyActions";
 
 type PassportStatus = "var" | "yok" | "yenileniyor";
 type VisaWorkPermitStatus = "var" | "yok" | "başvuracağım";
-type Availability = "hemen" | "1ay" | "2ay";
+type Availability = "hemen" | "1ay" | "2ay" | "esnek";
 
 function DocumentChips({
   documents,
@@ -43,7 +43,7 @@ function DocumentChips({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
-          placeholder="Sertifika adı"
+          placeholder={COVER_LETTER_STEP_4.certificatePlaceholder}
           className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
         />
         <button
@@ -104,6 +104,8 @@ export function StepLegalDocs({ answers, onChange, onNext, onBack, loading }: St
 
   return (
     <div className="mt-6 space-y-6">
+      <p className="text-sm text-slate-600">{COVER_LETTER_STEP_4.question}</p>
+
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_4.passportLabel}</label>
@@ -119,25 +121,29 @@ export function StepLegalDocs({ answers, onChange, onNext, onBack, loading }: St
               </option>
             ))}
           </select>
+          {passport === "var" && (
+            <>
+              <label className="mt-2 mb-1 block text-xs font-medium text-slate-600">{COVER_LETTER_STEP_4.passportValidityLabel}</label>
+              <select
+                value={answers.passport_validity_bucket ?? ""}
+                onChange={(e) => onChange({ passport_validity_bucket: (e.target.value || undefined) as "0-6ay" | "6-12ay" | "12+ay" | "bilmiyorum" | undefined })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+              >
+                <option value="">Seçin (opsiyonel)</option>
+                {COVER_LETTER_STEP_4.passportValidityOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_4.passportValidityHint}</p>
+            </>
+          )}
           {passport === "yok" && (
             <p className="mt-1 text-xs text-amber-700">{COVER_LETTER_STEP_4.passportNoneWarning}</p>
           )}
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_4.workPermitLabel}</label>
-          <select
-            value={workPermit ?? ""}
-            onChange={(e) => onChange({ work_permit_status: (e.target.value || undefined) as VisaWorkPermitStatus | undefined })}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-          >
-            <option value="">Seçin</option>
-            {COVER_LETTER_STEP_4.workPermitOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_4.visaLabel}</label>
           <select
@@ -152,7 +158,60 @@ export function StepLegalDocs({ answers, onChange, onNext, onBack, loading }: St
               </option>
             ))}
           </select>
+          {answers.visa_status === "var" && (
+            <>
+              <label className="mt-2 mb-1 block text-xs font-medium text-slate-600">{COVER_LETTER_STEP_4.visaTypeLabel}</label>
+              <select
+                value={answers.visa_type ?? ""}
+                onChange={(e) => onChange({ visa_type: (e.target.value || undefined) as "turistik" | "calisma" | "diger" | "bilmiyorum" | undefined })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+              >
+                <option value="">Seçin (opsiyonel)</option>
+                {COVER_LETTER_STEP_4.visaTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_4.visaHint}</p>
         </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_4.workPermitLabel}</label>
+          <select
+            value={workPermit ?? ""}
+            onChange={(e) => onChange({ work_permit_status: (e.target.value || undefined) as VisaWorkPermitStatus | undefined })}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+          >
+            <option value="">Seçin</option>
+            {COVER_LETTER_STEP_4.workPermitOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {workPermit && (
+            <>
+              <label className="mt-2 mb-1 block text-xs font-medium text-slate-600">{COVER_LETTER_STEP_4.workPermitSupportLabel}</label>
+              <select
+                value={answers.work_permit_support_needed ?? ""}
+                onChange={(e) => onChange({ work_permit_support_needed: (e.target.value || undefined) as "evet" | "hayir" | undefined })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+              >
+                <option value="">Seçin (opsiyonel)</option>
+                {COVER_LETTER_STEP_4.workPermitSupportOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_4.workPermitSupportHint}</p>
+            </>
+          )}
+        </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_4.certificates}</label>
           <DocumentChips
@@ -160,7 +219,9 @@ export function StepLegalDocs({ answers, onChange, onNext, onBack, loading }: St
             onChange={(list) => onChange({ documents: list })}
             suggestions={COVER_LETTER_STEP_4.certificateSuggestions}
           />
+          <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_4.certificatesHint}</p>
         </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_4.availabilityLabel}</label>
           <select

@@ -27,11 +27,15 @@ export type CoverLetterStep6Answers = {
   phone?: string;
   city_country?: string;
   total_experience_years?: number;
+  relevant_experience_years?: number;
   top_skills?: string[];
   last_company?: string;
   passport_status?: string;
+  passport_validity_bucket?: string;
   visa_status?: string;
+  visa_type?: string;
   work_permit_status?: string;
+  work_permit_support_needed?: string;
   documents?: string[];
   availability?: string;
   motivation?: string;
@@ -108,8 +112,9 @@ function normalizeStep6Answers(answers: Record<string, unknown>): CoverLetterSte
   const out: CoverLetterStep6Answers = {};
   const keys: (keyof CoverLetterStep6Answers)[] = [
     "role", "work_area", "full_name", "email", "phone", "city_country",
-    "total_experience_years", "top_skills", "last_company",
-    "passport_status", "visa_status", "work_permit_status", "documents", "availability",
+    "total_experience_years", "relevant_experience_years", "top_skills", "last_company",
+    "passport_status", "passport_validity_bucket", "visa_status", "visa_type",
+    "work_permit_status", "work_permit_support_needed", "documents", "availability",
     "motivation", "tone",
   ];
   for (const k of keys) {

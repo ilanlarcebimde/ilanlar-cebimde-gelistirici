@@ -2,10 +2,9 @@
 
 import { createPortal } from "react-dom";
 import { useCoverLetterWizard } from "./lib/useCoverLetterWizard";
-import { validateStep, validateStepGeneric } from "./lib/coverLetterSchema";
+import { validateStepGeneric } from "./lib/coverLetterSchema";
 import { ProgressHeader } from "./ui/ProgressHeader";
 import { StickyActions } from "./ui/StickyActions";
-import { StepJobConfirm } from "./steps/StepJobConfirm";
 import { Step1Generic } from "./steps/Step1Generic";
 import { StepIdentity } from "./steps/StepIdentity";
 import { StepExperience } from "./steps/StepExperience";
@@ -22,9 +21,9 @@ export interface CoverLetterWizardModalProps {
   /** Merkezi ilan (merkezi_posts) — yurtdışı iş başvuru merkezi feed. */
   postId?: string;
   accessToken: string;
-  /** Premium (haftalık) yoksa çağrılır — avantajlar + kupon popup açmak için. */
+  /** Premium Plus yoksa çağrılır (tüm akışlar Premium Plus). */
   onPremiumRequired?: () => void;
-  /** Genel mektup (ilan bağımsız) — Premium Plus, job_id/postId yok. */
+  /** Genel mektup (ilan bağımsız). */
   generic?: boolean;
 }
 
@@ -34,51 +33,37 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
     : postId
       ? { postId }
       : { jobId: jobId ?? "" };
-  const { state, setStep, setMode, setAnswers, setError, submitStep } = useCoverLetterWizard(open, source, accessToken);
-  const { step, mode, loading, error, job, answers, result } = state;
-  const isGeneric = generic === true;
-  const isMerkezi = !!postId;
+  const { state, setStep, setAnswers, setError, submitStep, hasJobOrPost } = useCoverLetterWizard(open, source, accessToken);
+  const { step, loading, error, answers, result } = state;
 
-  const companyName = (job?.source_name as string) || (job?.company_name as string) || "—";
-  const position = (job?.title as string) || "—";
-  const location = [job?.country, job?.location_text].filter(Boolean).join(" / ") || "—";
-  const jobEmail = job ? ((job.application_email as string) || (job.contact_email as string) || null) : null;
+  const subtitle = hasJobOrPost ? COVER_LETTER_WIZARD_HEADING.subtitle : COVER_LETTER_WIZARD_HEADING.subtitleGeneric;
+  const jobEmail = null;
 
   const handleStep1Next = () => {
-    if (isGeneric || isMerkezi) {
-      const v = validateStepGeneric(1, answers);
-      if (!v.ok) return;
-    } else {
-      const v = validateStep(1, mode, answers);
-      if (!v.ok) return;
-    }
+    const v = validateStepGeneric(1, answers);
+    if (!v.ok) return;
     submitStep(1, answers);
   };
-
   const handleStep2Next = () => {
-    const v = (isGeneric || isMerkezi) ? validateStepGeneric(2, answers) : validateStep(2, mode, answers);
+    const v = validateStepGeneric(2, answers);
     if (!v.ok) return;
     submitStep(2, answers);
   };
-
   const handleStep3Next = () => {
-    const v = (isGeneric || isMerkezi) ? validateStepGeneric(3, answers) : validateStep(3, mode, answers);
+    const v = validateStepGeneric(3, answers);
     if (!v.ok) return;
     submitStep(3, answers);
   };
-
   const handleStep4Next = () => {
-    const v = (isGeneric || isMerkezi) ? validateStepGeneric(4, answers) : validateStep(4, mode, answers);
+    const v = validateStepGeneric(4, answers);
     if (!v.ok) return;
     submitStep(4, answers);
   };
-
   const handleStep5Next = () => {
-    const v = (isGeneric || isMerkezi) ? validateStepGeneric(5, answers) : validateStep(5, mode, answers);
+    const v = validateStepGeneric(5, answers);
     if (!v.ok) return;
     submitStep(5, answers);
   };
-
   const handleStep6Submit = () => submitStep(6, answers);
 
   const handleBack = () => {
@@ -93,7 +78,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
         <StepResultTabs data={result} jobEmail={jobEmail} onClose={onClose} />
       ) : (
         <>
-          <ProgressHeader currentStep={step} onClose={onClose} stepKey={step} />
+          <ProgressHeader currentStep={step} onClose={onClose} stepKey={step} subtitle={subtitle} />
 
           {error && (
             <div className="mt-6 space-y-4">
@@ -152,24 +137,20 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   </button>
                 </div>
               )}
-              {(error.code === "merkezi_load_failed" || error.code === "job_not_found") && (
+              {(error.code === "job_not_found" || error.code === "post_not_found") && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <h3 className="font-semibold text-slate-900">
-                    {error.code === "merkezi_load_failed" ? "İçerik yüklenemedi" : "İlan bulunamadı"}
-                  </h3>
+                  <h3 className="font-semibold text-slate-900">İçerik bulunamadı</h3>
                   <p className="mt-1 text-sm text-slate-700">{error.message}</p>
-                  {error.code === "merkezi_load_failed" && (
-                    <button
-                      type="button"
-                      onClick={() => typeof window !== "undefined" && window.location.reload()}
-                      className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-                    >
-                      Sayfayı yenile
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    Kapat
+                  </button>
                 </div>
               )}
-              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error", "merkezi_load_failed", "job_not_found"].includes(error.code ?? "") && error.message && (
+              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error", "job_not_found", "post_not_found"].includes(error.code ?? "") && error.message && (
                 <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
                   {error.message}
                 </div>
@@ -177,23 +158,12 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
             </div>
           )}
 
-          {(job || isGeneric || isMerkezi) && !result && !error?.code && (
+          {!result && !error?.code && (
             <div className="min-h-[52vh] transition-opacity duration-200">
-              {step === 1 && (isGeneric || isMerkezi) && (
+              {step === 1 && (
                 <Step1Generic
                   answers={answers}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
-                  onNext={handleStep1Next}
-                  loading={loading}
-                />
-              )}
-              {step === 1 && !isGeneric && !isMerkezi && job && (
-                <StepJobConfirm
-                  companyName={companyName}
-                  position={position}
-                  location={location}
-                  mode={mode}
-                  onModeChange={setMode}
                   onNext={handleStep1Next}
                   loading={loading}
                 />
@@ -228,6 +198,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
               {step === 5 && (
                 <StepMotivation
                   answers={answers}
+                  hasJobOrPost={hasJobOrPost}
                   onChange={(a) => setAnswers({ ...answers, ...a })}
                   onNext={handleStep5Next}
                   onBack={handleBack}
@@ -247,14 +218,16 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   ) : (
                     <>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Özet kontrol</p>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Özet kontrol listesi</p>
                         <ul className="space-y-1 text-sm text-slate-700">
-                          <li>Ad: {(answers.full_name as string) || "—"}</li>
-                          <li>E-posta: {(answers.email as string) || "—"}</li>
-                          <li>Deneyim: {answers.total_experience_years != null ? `${answers.total_experience_years} yıl` : "—"}</li>
-                          <li>Beceriler: {(answers.top_skills as string[])?.slice(0, 2).join(", ") || "—"}</li>
-                          <li>Pasaport / İzin: {[answers.passport_status, answers.work_permit_status].filter(Boolean).join(" – ") || "—"}</li>
-                          <li>Motivasyon: {(answers.motivation as string)?.trim() ? "✓" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.full_name}: {(answers.full_name as string)?.trim() ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.email}: {(answers.email as string)?.trim() ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.role}: {(answers.role as string)?.trim() ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.experience}: {answers.total_experience_years != null ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.skills}: {(answers.top_skills as string[])?.length >= 2 ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.passport}: {answers.passport_status ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.work_permit}: {answers.work_permit_status ? "✅" : "—"}</li>
+                          <li>{COVER_LETTER_STEP_6.summaryLabels.motivation}: {(answers.motivation as string)?.trim() ? "✅" : "—"}</li>
                         </ul>
                       </div>
                       <StickyActions>
@@ -273,7 +246,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                             disabled={loading}
                             className="h-14 flex-1 rounded-2xl bg-slate-900 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                           >
-                            {isGeneric ? COVER_LETTER_STEP_6.buttonGeneric : COVER_LETTER_STEP_6.button}
+                            {COVER_LETTER_STEP_6.buttonGeneric}
                           </button>
                         </div>
                       </StickyActions>
@@ -300,8 +273,6 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
               )}
             </div>
           )}
-
-          {!job && !isGeneric && !error && loading && <p className="mt-6 text-sm text-slate-600">İlan yükleniyor…</p>}
         </>
       )}
     </div>

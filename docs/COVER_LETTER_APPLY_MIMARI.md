@@ -1,34 +1,22 @@
 # Cover Letter (Başvuru Mektubu) Akışı — Mimari (PDF’siz)
 
-Bu dokümanda **iş başvuru mektubu** sihirbazı (howto-step `intent=cover_letter_generate`) mimarisi özetlenir. **PDF üretimi, dosya sistemi ve Supabase storage kullanılmaz.**
+Bu dokümanda **iş başvuru mektubu** sihirbazı mimarisi özetlenir. **PDF üretimi, dosya sistemi ve Supabase storage kullanılmaz.**
 
 ---
 
-## Backend
+## Backend (Sade Mimari — Tek Endpoint)
 
-- **Endpoint:** `POST /api/apply/howto-step`  
-  Body’de `intent: "cover_letter_generate"`, `step: 1..6`.
-- **Yetki:** Giriş zorunlu (Bearer). **Premium Plus** aboneliği gerekir (`premium_subscriptions.tier = 'plus'`).
-- **Step 1–5:** Sadece validasyon; n8n çağrılmaz. Cevap: `{ type: "cover_letter_progress", status: "ok", next_step: step + 1 }`.
-- **Step 6:** `N8N_LETTER_WEBHOOK_URL` ile n8n’e POST; n8n **sadece metin üretir** (TR/EN). Response **yalnızca JSON** döner; PDF yok.
-- **Step 6 response şeması:**
+- **Endpoint:** `POST /api/cover-letter`  
+  Body: `{ job_id?: string, post_id?: string, session_id: string, locale?: string, answers: {...} }`  
+  - `job_id` varsa → ilanlı (job_posts’tan ilan çekilir)  
+  - `post_id` varsa → merkez (merkezi_posts’tan ilan çekilir)  
+  - ikisi de yoksa → generic (ilan yok)
+- **Yetki:** Giriş zorunlu (Bearer). **Tüm akışlar Premium Plus** (`isPremiumPlusSubscriptionActive`).
+- **Step 1–5:** Client-only; API çağrılmaz. Sadece **final submission (Step 6)** bu endpoint’i çağırır.
+- **Step 6 (tek istek):** Cevap doğrulama → job/post varsa DB’den çek → `buildCoverLetterStep6Payload` → `N8N_LETTER_WEBHOOK_URL` ile n8n’e POST. Response **yalnızca JSON**; PDF yok.
 
-```json
-{
-  "type": "cover_letter",
-  "status": "success",
-  "data": {
-    "turkish_version": "...",
-    "english_version": "...",
-    "ui_notes": {
-      "tr_notice": "Sizin okumanız ve incelemeniz için oluşturulmuştur.",
-      "en_notice": "Bu mektubu kopyalayın ve işveren iletişim bilgisi ile gerekli kanal aracılığıyla iletin."
-    }
-  }
-}
-```
-
-- Route bu JSON’u **aynen** client’a iletir; ek PDF/storage işlemi yok.
+**Eski (artık kullanılmıyor):** `POST /api/apply/howto-step` (intent=cover_letter_generate) ve `POST /api/merkezi/post/[id]/letter-wizard` — wizard tek endpoint’e taşındı.
+- **Response şeması (n8n’den):** `ensureCoverLetterResponseUiNotes` ile normalize edilir; client aynı yapıyı bekler (turkish_version, english_version, ui_notes). Route bu JSON’u **aynen** client’a iletir; ek PDF/storage işlemi yok.
 
 ---
 
@@ -77,15 +65,10 @@ n8n’de **OpenAI** (veya benzeri) node ile mektup üretirken kullanılacak kıs
 
 ---
 
-## Genel mektup (ilan bağımsız) — Premium Plus
+## Tek wizard, tek sözleşme
 
-- **Amaç:** İlan verisine bağlı olmayan, yalnızca kullanıcının girdiği bilgilere göre mektup.
-- **Backend:** Aynı endpoint `POST /api/apply/howto-step`, `intent: "cover_letter_generate"`, **job_id gönderilmez**.
-  - Premium Plus zorunlu.
-  - Step 1: `answers.role` zorunlu; Step 2–5 aynı validation; Step 6: n8n’e sadece `answers` + `session_id`, `locale`, `request` (job yok).
-- **n8n payload (genel):** `{ intent, session_id, step: 6, approved, locale, answers, request }` — **job alanı yok**.
-- **n8n prompt (genel):**
-  - İlan/şirket bilgisi yok; mektup tamamen genel ve profesyonel.
-  - English mektup sonunda yine: *"This English version is prepared to be sent through the employer's official communication channel (email or application portal)."*
-  - Markdown yok, emoji yok, strict JSON.
-- **Giriş:** Yurtdışı İş Başvuru Merkezi sayfasında “Genel İş Başvuru Mektubu (Premium Plus)” butonu.
+- **Adım 1:** Her zaman Meslek/Rol + Çalışma alanı (client-only). Mod seçimi yok.
+- **Adım 2–5:** Kimlik, Deneyim, Belgeler, Motivasyon (client-only).
+- **Adım 6:** Tek API çağrısı `POST /api/cover-letter`; backend job/post’u (varsa) çeker, n8n’e tek payload gönderir.
+- **n8n:** `buildCoverLetterStep6Payload` ile tek contract; job varsa payload’da `job` alanı dolu, yoksa boş/gönderilmez.
+- **Hata (404):** job_id/post_id ile ilan bulunamazsa `job_not_found` / `post_not_found`, mesaj: “Bu ilan artık yayında değil.” / “Bu içerik artık yayında değil.”

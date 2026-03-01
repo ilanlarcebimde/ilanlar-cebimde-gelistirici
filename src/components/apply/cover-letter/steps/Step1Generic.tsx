@@ -20,6 +20,7 @@ export function Step1Generic({ answers, onChange, onNext, loading }: Step1Generi
 
   return (
     <div className="mt-6 space-y-6">
+      <p className="text-sm text-slate-600">{COVER_LETTER_STEP_1_GENERIC.question}</p>
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">

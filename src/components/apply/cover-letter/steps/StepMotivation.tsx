@@ -16,9 +16,11 @@ export interface StepMotivationProps {
   onNext: () => void;
   onBack?: () => void;
   loading: boolean;
+  /** İlan/job/post varsa şirket adı ipucu; yoksa generic ipucu gösterilir */
+  hasJobOrPost?: boolean;
 }
 
-export function StepMotivation({ answers, onChange, onNext, onBack, loading }: StepMotivationProps) {
+export function StepMotivation({ answers, onChange, onNext, onBack, loading, hasJobOrPost = false }: StepMotivationProps) {
   const motivation = (answers.motivation ?? "").trim();
   const len = (answers.motivation ?? "").length;
   const [showMaxMessage, setShowMaxMessage] = useState(false);
@@ -61,7 +63,7 @@ export function StepMotivation({ answers, onChange, onNext, onBack, loading }: S
           rows={minRows}
           className="min-h-[120px] w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm leading-relaxed md:min-h-[140px]"
           maxLength={MAX_CHARS + 1}
-          placeholder="Firmanızın [Pozisyon] pozisyonunda…"
+          placeholder={COVER_LETTER_STEP_5.placeholder}
           style={{ minHeight: "7.5rem", maxHeight: "16rem" }}
         />
         <div className="mt-1 flex items-center gap-2">
@@ -76,7 +78,7 @@ export function StepMotivation({ answers, onChange, onNext, onBack, loading }: S
           {showMaxMessage && isOver ? COVER_LETTER_STEP_5.maxCharsMessage : "\u00A0"}
         </div>
       </div>
-      <HintCard>{COVER_LETTER_STEP_5.hint}</HintCard>
+      <HintCard>{hasJobOrPost ? COVER_LETTER_STEP_5.hint : COVER_LETTER_STEP_5.hintGeneric}</HintCard>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_5.toneLabel}</label>
         <div className="flex gap-2">

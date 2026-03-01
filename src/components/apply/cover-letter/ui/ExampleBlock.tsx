@@ -34,7 +34,7 @@ export function ExampleBlock({
         {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         {label}
       </button>
-      {open && <div className="mt-2 text-sm italic text-slate-700">{children}</div>}
+      {open && <div className="mt-2 text-sm italic text-slate-700 whitespace-pre-line">{children}</div>}
     </div>
   );
 }

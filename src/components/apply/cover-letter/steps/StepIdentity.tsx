@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import type { CoverLetterAnswers } from "../lib/coverLetterSchema";
 import { COVER_LETTER_STEP_2, COVER_LETTER_WIZARD_HEADING } from "@/components/apply/coverLetterWizardContent";
 import { HintCard } from "../ui/HintCard";
+import { ExampleBlock } from "../ui/ExampleBlock";
 import { StickyActions } from "../ui/StickyActions";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,6 +50,7 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
 
   return (
     <div className="mt-6 space-y-6">
+      <p className="text-sm text-slate-600">{COVER_LETTER_STEP_2.question}</p>
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_2.fields.full_name}</label>
@@ -57,7 +59,7 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
             value={answers.full_name ?? ""}
             onChange={(e) => handleFullNameChange(e.target.value)}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="Ad Soyad"
+            placeholder={COVER_LETTER_STEP_2.placeholders.full_name}
           />
         </div>
         <div>
@@ -68,7 +70,7 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
             onChange={(e) => onChange({ email: e.target.value })}
             onBlur={handleBlurEmail}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="ornek@email.com"
+            placeholder={COVER_LETTER_STEP_2.placeholders.email}
           />
           <div className="min-h-[20px] pt-1 text-xs text-red-600">
             {errorMessage ?? "\u00A0"}
@@ -81,7 +83,7 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
             value={answers.phone ?? ""}
             onChange={(e) => onChange({ phone: e.target.value })}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="+90 5xx xxx xx xx"
+            placeholder={COVER_LETTER_STEP_2.placeholders.phone}
           />
         </div>
         <div>
@@ -91,11 +93,12 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
             value={answers.city_country ?? ""}
             onChange={(e) => onChange({ city_country: e.target.value })}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="İstanbul, Türkiye"
+            placeholder={COVER_LETTER_STEP_2.placeholders.city_country}
           />
         </div>
       </div>
       <HintCard>{COVER_LETTER_STEP_2.subtext}</HintCard>
+      <ExampleBlock muted={!!email && !!fullName}>{COVER_LETTER_STEP_2.example}</ExampleBlock>
 
       <StickyActions>
         <div className="flex w-full gap-3">

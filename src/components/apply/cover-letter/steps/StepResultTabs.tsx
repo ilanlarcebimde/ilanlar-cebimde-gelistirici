@@ -69,6 +69,7 @@ export function StepResultTabs({ data, jobEmail, onClose }: StepResultTabsProps)
             >
               {trText || "—"}
             </div>
+            <p className="mt-2 text-xs text-slate-500">{COVER_LETTER_RESULT_UI.noticeTrFooter}</p>
           </>
         )}
         {activeTab === "en" && (

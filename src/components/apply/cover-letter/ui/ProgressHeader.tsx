@@ -10,9 +10,12 @@ export interface ProgressHeaderProps {
   onClose: () => void;
   /** Fade effect when step changes */
   stepKey?: number;
+  /** Dinamik alt başlık: job/post varsa ilana göre, yoksa verdiğiniz bilgilere göre */
+  subtitle?: string;
 }
 
-export function ProgressHeader({ currentStep, onClose, stepKey = 0 }: ProgressHeaderProps) {
+export function ProgressHeader({ currentStep, onClose, stepKey = 0, subtitle }: ProgressHeaderProps) {
+  const subtext = subtitle ?? COVER_LETTER_WIZARD_HEADING.subtitle;
   return (
     <header className="relative">
       <button
@@ -29,7 +32,7 @@ export function ProgressHeader({ currentStep, onClose, stepKey = 0 }: ProgressHe
       >
         {COVER_LETTER_WIZARD_HEADING.title}
       </h2>
-      <p className="mt-1 text-sm text-slate-500">{COVER_LETTER_WIZARD_HEADING.subtitle}</p>
+      <p className="mt-1 text-sm text-slate-500">{subtext}</p>
 
       <div className="mt-6 flex items-center gap-1">
         {([1, 2, 3, 4, 5, 6] as const).map((s) => (

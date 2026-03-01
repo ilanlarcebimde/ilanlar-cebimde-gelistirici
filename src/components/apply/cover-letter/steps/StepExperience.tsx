@@ -14,9 +14,11 @@ const MIN_SKILLS = 2;
 function SkillsChipInput({
   skills,
   onChange,
+  placeholder = "Beceri yazın ve Enter'a basın",
 }: {
   skills: string[];
   onChange: (list: string[]) => void;
+  placeholder?: string;
 }) {
   const [input, setInput] = useState("");
   const add = useCallback(() => {
@@ -50,7 +52,7 @@ function SkillsChipInput({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Beceri yazıp Enter veya virgül ile ekleyin"
+          placeholder={placeholder}
           className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
         />
         <button
@@ -104,6 +106,7 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
 
   return (
     <div className="mt-6 space-y-6">
+      <p className="text-sm text-slate-600">{COVER_LETTER_STEP_3.question}</p>
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_3.fields.total_experience_years}</label>
@@ -118,7 +121,7 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
               })
             }
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="6"
+            placeholder={COVER_LETTER_STEP_3.placeholders.total_experience_years}
           />
         </div>
         <div>
@@ -134,7 +137,7 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
               })
             }
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="3"
+            placeholder={COVER_LETTER_STEP_3.placeholders.position_experience_years}
           />
         </div>
         <div>
@@ -144,7 +147,7 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
             value={answers.last_company ?? ""}
             onChange={(e) => onChange({ last_company: e.target.value })}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-            placeholder="Son çalıştığınız firma"
+            placeholder={COVER_LETTER_STEP_3.placeholders.last_company}
           />
         </div>
         <div>
@@ -152,12 +155,13 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
           <SkillsChipInput
             skills={skills}
             onChange={(list) => onChange({ top_skills: list })}
+            placeholder={COVER_LETTER_STEP_3.placeholders.top_skills}
           />
         </div>
       </div>
 
+      <HintCard>{COVER_LETTER_STEP_3.hint}</HintCard>
       <ExampleBlock muted={hasContent}>{COVER_LETTER_STEP_3.example}</ExampleBlock>
-      <HintCard variant="amber">{COVER_LETTER_STEP_3.bodyHint}</HintCard>
 
       <StickyActions>
         <div className="flex w-full gap-3">
@@ -175,14 +179,14 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
             type="button"
             onClick={onNext}
             disabled={loading || !canNext}
-            title={!canNext ? "Toplam deneyim ve en az 2 beceri gerekli" : undefined}
+            title={!canNext ? COVER_LETTER_STEP_3.disabledTooltip : undefined}
             className="h-12 flex-1 rounded-2xl bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
           >
             {loading ? "Gönderiliyor…" : COVER_LETTER_STEP_3.button}
           </button>
         </div>
         {!canNext && !loading && (
-          <p className="text-center text-xs text-slate-500">Toplam deneyim (yıl) ve en az 2 beceri gerekli</p>
+          <p className="text-center text-xs text-slate-500">{COVER_LETTER_STEP_3.disabledTooltip}</p>
         )}
       </StickyActions>
     </div>

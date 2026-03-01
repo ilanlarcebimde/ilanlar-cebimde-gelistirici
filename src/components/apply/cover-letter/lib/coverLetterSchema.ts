@@ -5,8 +5,11 @@ export type Mode = "job_specific" | "generic";
 export const passportStatusSchema = z.enum(["var", "yok", "yenileniyor"]);
 export const visaStatusSchema = z.enum(["var", "yok", "başvuracağım"]);
 export const workPermitStatusSchema = z.enum(["var", "yok", "başvuracağım"]);
-export const availabilitySchema = z.enum(["hemen", "1ay", "2ay"]);
+export const availabilitySchema = z.enum(["hemen", "1ay", "2ay", "esnek"]);
 export const toneSchema = z.enum(["professional", "very_formal"]);
+export const passportValiditySchema = z.enum(["0-6ay", "6-12ay", "12+ay", "bilmiyorum"]);
+export const visaTypeSchema = z.enum(["turistik", "calisma", "diger", "bilmiyorum"]);
+export const workPermitSupportSchema = z.enum(["evet", "hayir"]);
 
 export const coverLetterAnswersSchema = z.object({
   role: z.string().optional(),
@@ -23,8 +26,11 @@ export const coverLetterAnswersSchema = z.object({
   last_company: z.string().optional(),
 
   passport_status: passportStatusSchema.optional(),
+  passport_validity_bucket: passportValiditySchema.optional(),
   visa_status: visaStatusSchema.optional(),
+  visa_type: visaTypeSchema.optional(),
   work_permit_status: workPermitStatusSchema.optional(),
+  work_permit_support_needed: workPermitSupportSchema.optional(),
   documents: z.array(z.string()).optional(),
   availability: availabilitySchema.optional(),
 
