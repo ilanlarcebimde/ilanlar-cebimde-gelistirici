@@ -74,7 +74,7 @@ export function JobActionsStack({
           <Link href="/yurtdisi-cv-paketi" className={tertiaryClass}>
             Yurtdışı CV Paketi (İngilizce)
           </Link>
-          <Link href="/usta-basvuru-paketi" className={tertiaryClass}>
+          <Link href="/" className={tertiaryClass}>
             Usta Başvuru Paketi
           </Link>
         </div>
