@@ -248,12 +248,12 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
               {step === 6 && (
                 <div className="mt-6 space-y-6">
                   {loading ? (
-                    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-6">
-                      {COVER_LETTER_STEP_6.loadingPhases.map((phase, i) => (
-                        <p key={i} className="text-sm font-medium text-slate-700">
-                          {phase}
-                        </p>
-                      ))}
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-10">
+                      <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-700" aria-hidden />
+                      <p className="mt-4 text-center text-sm font-medium text-slate-700">
+                        {COVER_LETTER_STEP_6.loadingMessage}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">Lütfen bekleyin…</p>
                     </div>
                   ) : (
                     <>

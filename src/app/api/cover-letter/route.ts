@@ -2,15 +2,13 @@
  * POST /api/cover-letter
  *
  * Tek endpoint: İş Başvuru Mektubu wizard son adımı (final submission).
- * job_id varsa ilanlı, post_id varsa merkez, hiçbiri yoksa generic.
- * Step 1–5 client-only; sadece Step 6 bu API'yi çağırır.
- * Tüm akışlar: Premium Plus zorunlu, tek webhook contract.
+ * Form verileri n8n webhook URL'ine POST edilir.
+ * Premium Plus kontrolü yok; giriş yapan herkes kullanabilir.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSupabaseForUser } from "@/lib/supabase/server";
-import { isPremiumPlusSubscriptionActive } from "@/lib/premiumSubscription";
 import {
   buildCoverLetterStep6Payload,
   ensureCoverLetterResponseUiNotes,
@@ -19,7 +17,8 @@ import {
 
 export const runtime = "nodejs";
 
-const LETTER_WEBHOOK_URL = process.env.N8N_LETTER_WEBHOOK_URL?.trim() || "";
+const DEFAULT_WEBHOOK_URL = "https://s02c0alq.rcld.app/webhook-test/3b4796b7-7556-415d-81af-7d55664e9c59";
+const LETTER_WEBHOOK_URL = process.env.N8N_LETTER_WEBHOOK_URL?.trim() || DEFAULT_WEBHOOK_URL;
 
 async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -124,21 +123,6 @@ export async function POST(req: NextRequest) {
   const auth = await getUserFromRequest(req);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const hasPlus = await isPremiumPlusSubscriptionActive(auth.user.id);
-  if (!hasPlus) {
-    return NextResponse.json(
-      { error: "premium_plus_required", detail: "Bu özellik Premium Plus abonelerine açıktır." },
-      { status: 403 }
-    );
-  }
-
-  if (!LETTER_WEBHOOK_URL) {
-    return NextResponse.json(
-      { error: "webhook_not_configured", detail: "N8N_LETTER_WEBHOOK_URL is not set" },
-      { status: 503 }
-    );
   }
 
   let body: Body;

@@ -53,7 +53,7 @@ export const COVER_LETTER_STEP_2 = {
     city_country: "Bulunduğunuz şehir / ülke (opsiyonel)",
   },
   placeholders: {
-    full_name: "Örn: Buğra Keser",
+    full_name: "Örn: Arslan İbrahimoğlu",
     email: "Örn: örnek@gmail.com",
     phone: "Örn: +90 5xx xxx xx xx",
     city_country: "Örn: İstanbul / Türkiye",
@@ -181,6 +181,7 @@ export const COVER_LETTER_STEP_6 = {
     work_permit: "Çalışma izni",
     motivation: "Motivasyon",
   },
+  loadingMessage: "İş Başvuru Mektubunuz oluşturuluyor",
   loadingPhases: [
     "Bilgiler kontrol ediliyor…",
     "Mektup hazırlanıyor…",
