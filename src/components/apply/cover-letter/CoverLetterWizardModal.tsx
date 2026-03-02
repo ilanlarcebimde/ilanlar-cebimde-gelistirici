@@ -171,7 +171,8 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
               {error.code === "webhook_error" && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="font-semibold text-slate-900">Geçici Sorun</h3>
-                  <p className="mt-1 text-sm text-slate-700">Mektup servisi geçici olarak yanıt vermiyor.</p>
+                  <p className="mt-1 text-sm text-slate-700">{error.message}</p>
+                  <p className="mt-2 text-xs text-slate-500">Birkaç dakika sonra &quot;Tekrar dene&quot; ile yeniden deneyebilirsiniz.</p>
                   <button
                     type="button"
                     onClick={() => { setError(undefined); if (step === 6) handleStep6Submit(); }}

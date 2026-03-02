@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
     payloadPreview: payloadStr.slice(0, 300),
   });
 
-  const WEBHOOK_TIMEOUT_MS = 35_000;
+  const WEBHOOK_TIMEOUT_MS = 55_000;
 
   try {
     const controller = new AbortController();
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!webhookRes.ok) {
-      let fallback = "Mektup servisi geçici olarak yanıt vermiyor.";
+      let fallback = "Mektup servisi geçici olarak yanıt vermiyor. Lütfen tekrar deneyin.";
       try {
         const parsed = JSON.parse(text) as Record<string, unknown>;
         fallback =
@@ -256,7 +256,7 @@ export async function POST(req: NextRequest) {
       } catch {
         fallback = text.slice(0, 200).trim() || fallback;
       }
-      console.warn("[API] n8n non-OK", { status: webhookRes.status, bodyPreview: text.slice(0, 300) });
+      console.warn("[API] cover-letter n8n non-OK", { status: webhookRes.status, bodyPreview: text.slice(0, 400) });
       return NextResponse.json(
         {
           error: "webhook_error",
@@ -282,7 +282,12 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const isAbort = err instanceof Error && err.name === "AbortError";
-    console.error("[cover-letter] webhook error", { message: msg, isAbort });
+    console.error("[cover-letter] webhook error", {
+      message: msg,
+      isAbort,
+      webhookUrl: maskUrl(targetUrl),
+      hasCustomUrl: !!process.env.N8N_LETTER_WEBHOOK_URL?.trim(),
+    });
     const detail =
       isAbort
         ? "Mektup servisi zaman aşımına uğradı. Lütfen tekrar deneyin."
