@@ -28,15 +28,15 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     const seg = typeof segment === "string" ? segment : "";
     const resolved = seg ? await resolveSegment(seg) : null;
     if (!resolved) return { title: "Bulunamadı | İlanlar Cebimde" };
-    const canonical = `${SITE_ORIGIN}${BASE}/${seg}`;
+    const canonical = SITE_ORIGIN + BASE + "/" + seg;
     const robots = etiket ? { index: false, follow: true } : undefined;
 
     if (resolved.kind === "post") {
       const post = resolved.post;
-      const title = `${post?.title ?? "Yazı"} | İlanlar Cebimde`;
+      const title = (post?.title ?? "Yazı") + " | İlanlar Cebimde";
       const description = (post?.summary?.trim() || post?.title) ?? title;
       const slug = post?.slug ?? seg;
-      const canonicalUrl = `${SITE_ORIGIN}${BASE}/${slug}`;
+      const canonicalUrl = SITE_ORIGIN + BASE + "/" + slug;
       const coverUrl = absoluteOgImageUrl(post?.cover_image_url);
       return {
         title,
@@ -62,7 +62,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     }
 
     if (resolved.kind === "sector") {
-      const title = resolved.seoPage?.title ?? `${resolved.sectorSlug ?? "Sektör"} | İlanlar Cebimde`;
+      const title = resolved.seoPage?.title ?? (resolved.sectorSlug ?? "Sektör") + " | İlanlar Cebimde";
       const ogImageUrl = absoluteOgImageUrl(resolved.seoPage?.cover_image_url);
       return {
         title,
@@ -81,7 +81,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 
     const title =
       resolved.seoPage?.title ??
-      `${resolved.countrySlug ?? "Ülke"} - ${resolved.sectorSlug ?? "Sektör"} | İlanlar Cebimde";
+      (resolved.countrySlug ?? "Ülke") + " - " + (resolved.sectorSlug ?? "Sektör") + " | İlanlar Cebimde";
     const ogImageUrl = absoluteOgImageUrl(resolved.seoPage?.cover_image_url);
     return {
       title,
