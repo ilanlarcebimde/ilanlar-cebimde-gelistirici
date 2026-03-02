@@ -25,26 +25,9 @@ export async function isPremiumSubscriptionActive(userId: string): Promise<boole
 }
 
 /**
- * Premium Plus: hem ends_at > now() hem tier = 'plus' olan kayıt gerekli.
- * Cover letter sihirbazı gibi özellikler sadece Plus abonelerine açıktır.
+ * Premium abonelik (tier ayrımı yok; haftalık 99 TL = tek Premium).
+ * Cover letter ve diğer premium özellikler aynı abonelikle açıktır.
  */
 export async function isPremiumPlusSubscriptionActive(userId: string): Promise<boolean> {
-  if (!userId) return false;
-  const nowIso = new Date().toISOString();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("premium_subscriptions")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("tier", "plus")
-    .gt("ends_at", nowIso)
-    .order("ends_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[premiumSubscription] plus query error", error.message, { userId });
-    return false;
-  }
-  return !!data;
+  return isPremiumSubscriptionActive(userId);
 }

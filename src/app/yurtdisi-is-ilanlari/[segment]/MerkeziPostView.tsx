@@ -11,6 +11,7 @@ import { ViewsCounter } from "@/components/merkezi/ViewsCounter";
 import { PremiumUpsellModal } from "@/components/merkezi/PremiumUpsellModal";
 import { ViewTracker } from "@/components/merkezi/ViewTracker";
 import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
+import { NasilBasvururum } from "@/components/merkezi/NasilBasvururum";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { humanizeSlug } from "@/lib/slugify";
 import { supabase } from "@/lib/supabase";
@@ -132,6 +133,10 @@ export function MerkeziPostView({
       </div>
 
       <TagChips tags={tags} currentEtiket={etiket ?? null} baseSegment={post.slug} />
+
+      <div className="mt-6">
+        <NasilBasvururum />
+      </div>
 
       <aside className="mt-8 space-y-6">
         <CompanyCard post={post} />
