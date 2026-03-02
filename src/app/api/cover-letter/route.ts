@@ -3,12 +3,13 @@
  *
  * Tek endpoint: İş Başvuru Mektubu wizard son adımı (final submission).
  * Form verileri n8n webhook URL'ine POST edilir.
- * Premium Plus kontrolü yok; giriş yapan herkes kullanabilir.
+ * Merkezi ücretli ilan (post_id + is_paid): haftalık 99 TL Premium gerekir (Firma İletişim ile aynı).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { getSupabaseForUser } from "@/lib/supabase/server";
+import { isPremiumSubscriptionActive } from "@/lib/premiumSubscription";
 import {
   buildCoverLetterStep6Payload,
   ensureCoverLetterResponseUiNotes,
@@ -122,6 +123,8 @@ async function fetchJobLikeFromPostId(supabase: ReturnType<typeof getSupabaseAdm
 }
 
 export async function POST(req: NextRequest) {
+  console.log("[API] /api/cover-letter hit", { ts: Date.now() });
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(
       { error: "supabase_not_configured", detail: "Server env missing" },
@@ -142,22 +145,51 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = typeof body.session_id === "string" ? body.session_id.trim() : "";
+  const jobId = typeof body.job_id === "string" ? body.job_id.trim() : "";
+  const postId = typeof body.post_id === "string" ? body.post_id.trim() : "";
+  const locale = typeof body.locale === "string" ? body.locale : "tr-TR";
+  const answers = body.answers && typeof body.answers === "object" ? body.answers : {};
+
   if (!sessionId) {
     return NextResponse.json({ error: "Bad request", detail: "session_id required" }, { status: 400 });
   }
 
-  const answers = body.answers && typeof body.answers === "object" ? body.answers : {};
   const validation = validateAnswers(answers);
   if (!validation.ok) {
+    console.log("[API] validation_failed", { detail: validation.detail });
     return NextResponse.json(
       { error: "invalid_request", detail: validation.detail },
       { status: 400 }
     );
   }
 
-  const jobId = typeof body.job_id === "string" ? body.job_id.trim() : "";
-  const postId = typeof body.post_id === "string" ? body.post_id.trim() : "";
-  const locale = typeof body.locale === "string" ? body.locale : "tr-TR";
+  console.log("[API] parsed", {
+    session_id: sessionId,
+    locale,
+    hasJobId: !!jobId,
+    hasPostId: !!postId,
+    answersKeys: Object.keys(answers),
+    skillsLen: Array.isArray(answers.top_skills) ? answers.top_skills.length : 0,
+  });
+
+  if (postId) {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: postRow } = await supabaseAdmin
+      .from("merkezi_posts")
+      .select("is_paid")
+      .eq("id", postId)
+      .eq("status", "published")
+      .maybeSingle();
+    if (postRow?.is_paid) {
+      const hasPremium = await isPremiumSubscriptionActive(auth.user.id);
+      if (!hasPremium) {
+        return NextResponse.json(
+          { error: "premium_required", detail: "Bu özellik için haftalık Premium (99 TL) aboneliği gereklidir." },
+          { status: 403 }
+        );
+      }
+    }
+  }
 
   let job: Record<string, unknown> | undefined;
   const supabase = getSupabaseAdmin();
@@ -181,12 +213,10 @@ export async function POST(req: NextRequest) {
 
   const targetUrl = LETTER_WEBHOOK_URL;
 
-  console.log("[cover-letter] posting", {
+  console.log("[API] posting_n8n", {
     targetUrl: maskUrl(targetUrl),
     session_id: sessionId,
-    locale,
-    answersKeys: Object.keys(payload.answers ?? {}),
-    skillsLen: Array.isArray(payload.answers?.top_skills) ? payload.answers.top_skills.length : 0,
+    step: 6,
   });
 
   try {
@@ -198,7 +228,7 @@ export async function POST(req: NextRequest) {
 
     const text = await webhookRes.text();
 
-    console.log("[cover-letter] n8n response", {
+    console.log("[API] n8n_done", {
       status: webhookRes.status,
       bodyPreview: text.slice(0, 200),
     });

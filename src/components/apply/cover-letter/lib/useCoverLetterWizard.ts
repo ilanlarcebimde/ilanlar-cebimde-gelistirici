@@ -139,6 +139,7 @@ export async function postCoverLetterFinal({
   }
 
   const text = await res.text();
+  console.log("[UI] /api/cover-letter response", { status: res.status, textPreview: text.slice(0, 200) });
   const data = (() => {
     try {
       return JSON.parse(text) as Record<string, unknown> & { type?: string; data?: CoverLetterResult };
@@ -242,6 +243,23 @@ export function useCoverLetterWizard(
         setStep((stepNum + 1) as 1 | 2 | 3 | 4 | 5 | 6);
         return;
       }
+
+      console.log("[UI] cover-letter submit fired", {
+        step: 6,
+        session_id: sessionId,
+        hasAnswers: !!Object.keys(merged).length,
+        answersKeys: Object.keys(merged || {}),
+        ts: Date.now(),
+      });
+
+      console.log("[UI] POST /api/cover-letter", {
+        session_id: sessionId,
+        locale: "tr-TR",
+        job_id: !!jobId,
+        post_id: !!postId,
+        skillsLen: Array.isArray(merged.top_skills) ? merged.top_skills.length : 0,
+        motivationLen: typeof merged.motivation === "string" ? merged.motivation.length : 0,
+      });
 
       setLoading(true);
       try {
