@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useCoverLetterWizard } from "./lib/useCoverLetterWizard";
 import { validateStepGeneric } from "./lib/coverLetterSchema";
@@ -25,16 +26,42 @@ export interface CoverLetterWizardModalProps {
   onPremiumRequired?: () => void;
   /** Genel mektup (ilan bağımsız). */
   generic?: boolean;
+  /** Opsiyonel: taslak anahtarı için kullanıcı id (localStorage key). */
+  userId?: string;
 }
 
-export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired, generic }: CoverLetterWizardModalProps) {
+export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired, generic, userId }: CoverLetterWizardModalProps) {
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const source = generic
     ? { generic: true as const }
     : postId
       ? { postId }
       : { jobId: jobId ?? "" };
-  const { state, setStep, setAnswers, setError, submitStep, hasJobOrPost } = useCoverLetterWizard(open, source, accessToken);
+  const { state, setStep, setAnswers, setError, submitStep, hasJobOrPost, clearDraft, hasDraft } = useCoverLetterWizard(open, source, accessToken, { userId });
   const { step, loading, error, answers, result } = state;
+
+  const handleCloseRequest = () => {
+    if (result) {
+      onClose();
+      return;
+    }
+    if (hasDraft) {
+      setShowCloseConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleDiscardAndClose = () => {
+    clearDraft();
+    setShowCloseConfirm(false);
+    onClose();
+  };
+
+  const handleKeepDraftAndClose = () => {
+    setShowCloseConfirm(false);
+    onClose();
+  };
 
   const subtitle = hasJobOrPost ? COVER_LETTER_WIZARD_HEADING.subtitle : COVER_LETTER_WIZARD_HEADING.subtitleGeneric;
   const jobEmail = null;
@@ -78,7 +105,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
         <StepResultTabs data={result} jobEmail={jobEmail} onClose={onClose} />
       ) : (
         <>
-          <ProgressHeader currentStep={step} onClose={onClose} stepKey={step} subtitle={subtitle} />
+          <ProgressHeader currentStep={step} onClose={handleCloseRequest} stepKey={step} subtitle={subtitle} />
 
           {error && (
             <div className="mt-6 space-y-4">
@@ -137,6 +164,19 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   </button>
                 </div>
               )}
+              {error.code === "network_error" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                  <h3 className="font-semibold text-amber-900">Bağlantı Hatası</h3>
+                  <p className="mt-1 text-sm text-amber-800">{error.message}</p>
+                  <button
+                    type="button"
+                    onClick={() => { setError(undefined); if (step === 6) handleStep6Submit(); }}
+                    className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    {COVER_LETTER_STEP_6.retryButton}
+                  </button>
+                </div>
+              )}
               {(error.code === "job_not_found" || error.code === "post_not_found") && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="font-semibold text-slate-900">İçerik bulunamadı</h3>
@@ -150,7 +190,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   </button>
                 </div>
               )}
-              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error", "job_not_found", "post_not_found"].includes(error.code ?? "") && error.message && (
+              {!["premium_required", "premium_plus_required", "webhook_not_configured", "webhook_error", "network_error", "job_not_found", "post_not_found"].includes(error.code ?? "") && error.message && (
                 <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
                   {error.message}
                 </div>
@@ -252,7 +292,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                       </StickyActions>
                       <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleCloseRequest}
                         className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
                       >
                         İptal
@@ -265,7 +305,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
               {step < 6 && !loading && (
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleCloseRequest}
                   className="mt-6 w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   İptal
@@ -280,8 +320,34 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
-      <div className="absolute inset-0 bg-slate-200/70" aria-hidden onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-200/70" aria-hidden onClick={handleCloseRequest} />
       {body}
+      {showCloseConfirm && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal aria-labelledby="close-confirm-title">
+          <div className="max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 id="close-confirm-title" className="font-semibold text-slate-900">Taslağı silmek istiyor musunuz?</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Kapatırsanız girdiğiniz bilgiler taslak olarak saklanır. Bir sonraki açılışta kaldığınız yerden devam edebilirsiniz.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={handleDiscardAndClose}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={handleKeepDraftAndClose}
+                className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Devam et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );
