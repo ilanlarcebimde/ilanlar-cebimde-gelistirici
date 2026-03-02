@@ -201,13 +201,25 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                 >
                   Yurtdışı İş Başvuru Merkezi
                 </Link>
-                <Link
+                    <Link
                       href={FEED_PATH}
                       className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
                       onClick={() => setMenuOpen(false)}
                     >
                       Ücretsiz Yurtdışı İş İlanları
                     </Link>
+                    {!loggedIn && (
+                      <>
+                        <div className="my-1 border-t border-slate-100" />
+                        <button
+                          type="button"
+                          onClick={() => { setMenuOpen(false); onLoginClick(); }}
+                          className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                        >
+                          Oturum aç
+                        </button>
+                      </>
+                    )}
                     {loggedIn ? (
                       <>
                         <div className="my-1 border-t border-slate-100" />

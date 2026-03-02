@@ -5,20 +5,9 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { toTurkishAuthError } from "@/lib/authErrors";
 
 type AuthMode = "login" | "signup" | "forgot";
-
-/** Supabase hata mesajını kısa Türkçe uyarıya çevirir. */
-function toTurkishError(message: string): string {
-  const m = message?.toLowerCase() ?? "";
-  if (m.includes("invalid login") || m.includes("invalid_credentials")) return "E-posta veya şifre hatalı.";
-  if (m.includes("email not confirmed")) return "E-posta adresinizi doğrulayın.";
-  if (m.includes("user already registered") || m.includes("already registered")) return "Bu e-posta adresi zaten kayıtlı.";
-  if (m.includes("password") && m.includes("weak")) return "Şifre yeterince güçlü değil (en az 6 karakter).";
-  if (m.includes("signup") && m.includes("disabled")) return "Kayıt şu an kapalı.";
-  if (m.includes("reset") || m.includes("recovery")) return "Şifre sıfırlama bağlantısı gönderilemedi. E-postayı kontrol edin.";
-  return message?.slice(0, 120) || "Bir hata oluştu.";
-}
 
 const GoogleIcon = () => (
   <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -92,7 +81,7 @@ export function AuthModal({
       },
     });
     if (err) {
-      setError(toTurkishError(err.message));
+      setError(toTurkishAuthError(err.message));
       if (typeof window !== "undefined") sessionStorage.removeItem("auth_redirect_next");
       return;
     }
@@ -107,7 +96,7 @@ export function AuthModal({
     try {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
-        setError(toTurkishError(err.message));
+        setError(toTurkishAuthError(err.message));
         return;
       }
       onEmailSubmit(email, password);
@@ -138,7 +127,7 @@ export function AuthModal({
         options: { emailRedirectTo: `${origin}/auth/callback` },
       });
       if (err) {
-        setError(toTurkishError(err.message));
+        setError(toTurkishAuthError(err.message));
         return;
       }
       setSuccessMessage("E-posta doğrulama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.");
@@ -161,7 +150,7 @@ export function AuthModal({
         redirectTo: `${origin}/reset-password`,
       });
       if (err) {
-        setError(toTurkishError(err.message));
+        setError(toTurkishAuthError(err.message));
         return;
       }
       setSuccessMessage("Şifre sıfırlama bağlantısı e-postanıza gönderildi. Lütfen gelen kutunuzu kontrol edin.");
