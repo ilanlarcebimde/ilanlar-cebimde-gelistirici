@@ -56,9 +56,24 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     setLetterWizardState(null);
   }, []);
 
-  const handlePremiumCta = () => {
+  const handlePremiumCta = async () => {
     setShowPremiumModal(false);
-    window.location.href = "/odeme?next=" + encodeURIComponent(window.location.pathname);
+    const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/yurtdisi-is-basvuru-merkezi";
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    const email = user?.email?.trim();
+    if (!email) {
+      window.location.href = "/giris?next=" + encodeURIComponent(currentPath);
+      return;
+    }
+    const paytrPending = {
+      email,
+      user_name: (user?.user_metadata?.full_name as string)?.trim() || email.split("@")[0] || "Müşteri",
+      plan: "weekly" as const,
+      ...(user?.id && { user_id: user.id }),
+    };
+    sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
+    window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
   };
 
   if (isJob) {
