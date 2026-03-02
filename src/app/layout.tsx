@@ -6,6 +6,7 @@ import { AuthHashHandler } from "@/components/AuthHashHandler";
 const GA_ID = "G-NVM52S3EHT";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.ilanlarcebimde.com"),
   title: "İlanlar Cebimde — Usta Başvuru Paketi | 549 TL",
   icons: {
     icon: "/logo.png",

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { resolveSegment, getPostCounts, getTagsByPostIds } from "@/lib/merkezi/server";
+import { absoluteOgImageUrl, SITE_ORIGIN } from "@/lib/og";
 import { MerkeziPostView } from "./MerkeziPostView";
 import { MerkeziListView } from "./MerkeziListView";
 import Link from "next/link";
@@ -9,17 +10,11 @@ import { isPremiumSubscriptionActive } from "@/lib/premiumSubscription";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 const BASE = "/yurtdisi-is-ilanlari";
-const BASE_URL = "https://www.ilanlarcebimde.com";
 const BACK_HREF = "/yurtdisi-is-basvuru-merkezi";
 
 /** Yazı detayı her istekte güncel (kapak, özet vb.) olsun. */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function absoluteUrl(url: string): string {
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return url.startsWith("/") ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`;
-}
 
 interface PageProps {
   params: Promise<{ segment: string }>;
@@ -31,18 +26,15 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   const { etiket } = await searchParams;
   const resolved = await resolveSegment(segment);
   if (!resolved) return { title: "Bulunamadı | İlanlar Cebimde" };
-  const canonical = `${BASE_URL}${BASE}/${segment}`;
+  const canonical = `${SITE_ORIGIN}${BASE}/${segment}`;
   const robots = etiket ? { index: false, follow: true } : undefined;
 
   if (resolved.kind === "post") {
     const post = resolved.post;
     const title = `${post.title} | İlanlar Cebimde`;
     const description = post.summary?.trim() || post.title;
-    const canonicalUrl = `${BASE_URL}${BASE}/${post.slug}`;
-    const coverUrl = post.cover_image_url ? absoluteUrl(post.cover_image_url) : undefined;
-    const ogImages = coverUrl
-      ? [{ url: coverUrl, width: 1200, height: 630, alt: post.title }]
-      : [];
+    const canonicalUrl = `${SITE_ORIGIN}${BASE}/${post.slug}`;
+    const coverUrl = absoluteOgImageUrl(post.cover_image_url);
     return {
       title,
       description,
@@ -54,20 +46,21 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
         type: "article",
         url: canonicalUrl,
         siteName: "İlanlar Cebimde",
-        images: ogImages,
+        images: [{ url: coverUrl, width: 1200, height: 630, alt: post.title }],
         locale: "tr_TR",
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-        images: coverUrl ? [coverUrl] : [],
+        images: [coverUrl],
       },
     };
   }
 
   if (resolved.kind === "sector") {
     const title = resolved.seoPage?.title ?? `${resolved.sectorSlug} | İlanlar Cebimde`;
+    const ogImageUrl = absoluteOgImageUrl(resolved.seoPage?.cover_image_url);
     return {
       title,
       description: resolved.seoPage?.meta_description ?? undefined,
@@ -76,16 +69,16 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       openGraph: {
         title,
         description: resolved.seoPage?.meta_description ?? undefined,
-        images: resolved.seoPage?.cover_image_url
-          ? [{ url: resolved.seoPage.cover_image_url, width: 1200, height: 630 }]
-          : [],
+        images: [{ url: ogImageUrl, width: 1200, height: 630 }],
       },
+      twitter: { card: "summary_large_image", title, images: [ogImageUrl] },
     };
   }
 
   const title =
     resolved.seoPage?.title ??
     `${resolved.countrySlug} - ${resolved.sectorSlug} | İlanlar Cebimde`;
+  const ogImageUrl = absoluteOgImageUrl(resolved.seoPage?.cover_image_url);
   return {
     title,
     description: resolved.seoPage?.meta_description ?? undefined,
@@ -94,10 +87,9 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     openGraph: {
       title,
       description: resolved.seoPage?.meta_description ?? undefined,
-      images: resolved.seoPage?.cover_image_url
-        ? [{ url: resolved.seoPage.cover_image_url, width: 1200, height: 630 }]
-        : [],
+      images: [{ url: ogImageUrl, width: 1200, height: 630 }],
     },
+    twitter: { card: "summary_large_image", title, images: [ogImageUrl] },
   };
 }
 
