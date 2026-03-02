@@ -1,67 +1,87 @@
-# OG / Sosyal Paylaşım Kapak Görseli — Yapılan Değişiklikler ve Test Planı
+# OG / Sosyal Paylaşım Kapak Görseli — Değişiklikler ve Test Planı
+
+## Route Yapısı (Önemli)
+
+- **Liste:** `/yurtdisi-is-basvuru-merkezi` — Başvuru merkezi ana sayfa; kartlar burada listelenir.
+- **Detay:** `/yurtdisi-is-ilanlari/[slug]` — Yazıya tıklanınca açılan sayfa **bu URL’dedir** (başvuru merkezi altında `[slug]` route’u yok).
+
+Sosyal ağlar sadece **paylaşılan URL’nin** meta etiketlerini okur. Liste sayfası paylaşılırsa liste meta’sı, yazı linki paylaşılırsa **yazı detay meta’sı** kullanılır. Bu yüzden `generateMetadata` **yazı detay route’unda** olmalıdır: `src/app/yurtdisi-is-ilanlari/[segment]/page.tsx`. Başvuru merkezi içeriklerinin detayı bu route’ta sunulduğu için metadata doğru yerde.
+
+---
 
 ## Problem
-Yurtdışı İş Başvuru Merkezi yazı detay sayfaları paylaşıldığında (WhatsApp, Facebook, X, LinkedIn) her yazının kendi kapak fotoğrafı görünmüyordu.
+Yurtdışı İş Başvuru Merkezi yazıları paylaşıldığında (WhatsApp, Facebook, X, LinkedIn) yazıya özel kapak/başlık/özet görünmüyordu.
 
 ## Yapılan Değişiklikler (Dosya Bazında)
 
 | Dosya | Değişiklik |
 |-------|------------|
-| **`src/lib/og.ts`** | Yeni: `SITE_ORIGIN`, `DEFAULT_OG_IMAGE`, `absoluteOgImageUrl()` — relative/absolute URL dönüşümü ve fallback. |
-| **`src/app/layout.tsx`** | `metadataBase: new URL("https://www.ilanlarcebimde.com")` eklendi. |
-| **`src/app/yurtdisi-is-ilanlari/[segment]/page.tsx`** | `generateMetadata`: yazı için `absoluteOgImageUrl(post.cover_image_url)` (yoksa varsayılan kapak); sector/country_sector için `absoluteOgImageUrl(seoPage.cover_image_url)`; her durumda tek absolute `og:image`; `twitter: summary_large_image` ve `images` dolu. |
-| **`src/app/yurtdisi-is-basvuru-merkezi/page.tsx`** | Liste sayfası için `openGraph` ve `twitter` metadata eklendi; genel kapak olarak `DEFAULT_OG_IMAGE`. |
+| **`src/lib/og.ts`** | `SITE_ORIGIN`, `DEFAULT_OG_IMAGE` = `https://www.ilanlarcebimde.com/og/default-1200x630.jpg` (logo değil). `absoluteOgImageUrl()`. Signed URL uyarısı (yorum). |
+| **`src/app/layout.tsx`** | `metadataBase: new URL("https://www.ilanlarcebimde.com")`. |
+| **`src/app/yurtdisi-is-ilanlari/[segment]/page.tsx`** | `generateMetadata`: post/sector/country_sector için `og:title`, `og:description`, `og:image` (url, width: 1200, height: 630, alt); `openGraph.url` ve `alternates.canonical` absolute; `twitter: summary_large_image` + images. |
+| **`src/app/yurtdisi-is-basvuru-merkezi/page.tsx`** | Liste için `openGraph` ve `twitter` metadata; `url`, `images` (width/height/alt) absolute. |
+| **`public/og/README.md`** | 1200×630 fallback görsel talimatı: `default-1200x630.jpg` eklenmeli. |
 
-## Kabul Kriterleri (Karşılananlar)
+## Kabul Kriterleri
 
-- **Yazı detay** paylaşıldığında: `og:title` = yazı başlığı, `og:description` = özet/snippet, `og:image` = yazının kapak görseli (absolute); yoksa site varsayılanı.
-- **twitter:card** = `summary_large_image`.
-- Tüm görsel URL'leri **absolute** (`https://www.ilanlarcebimde.com/...` veya tam Supabase/public URL).
-- **Liste sayfası** paylaşıldığında tek genel kapak görseli.
-- Metadata **server-side** (generateMetadata / export metadata); client’a taşınmadı.
+- **Yazı detay** paylaşıldığında: `og:title` = yazı başlığı, `og:description` = özet, `og:image` = yazının kapak görseli (absolute); yoksa `DEFAULT_OG_IMAGE` (/og/default-1200x630.jpg).
+- **twitter:card** = `summary_large_image`; `twitter.images` dolu.
+- **Tüm URL’ler absolute:** `openGraph.url`, `alternates.canonical`, `openGraph.images[].url` — `SITE_ORIGIN` tek kaynak.
+- **openGraph.images / twitter.images:** `url`, `width: 1200`, `height: 630`, `alt` (post/sayfa başlığı).
+- **Liste sayfası:** Genel kapak ve başlık/açıklama.
+- **Metadata server-side;** sayfa `use client` değil.
+- **Supabase kapak görseli:** Signed URL **kullanılmamalı** (süre bitince botlar çekemez). Public bucket veya kalıcı public/CDN URL şart. `og:image` URL’i tarayıcıda açıldığında **HTTP 200** ve **Content-Type: image/** dönmeli.
 
 ## Fallback Kapak
-- Kapak yoksa: `https://www.ilanlarcebimde.com/logo.png` kullanılıyor (`DEFAULT_OG_IMAGE`).
+- **DEFAULT_OG_IMAGE:** `https://www.ilanlarcebimde.com/og/default-1200x630.jpg` (1200×630, logo.png değil).
+- Bu dosyayı `public/og/default-1200x630.jpg` olarak eklemeniz gerekir; yoksa 404 olur. Bkz. `public/og/README.md`.
 
-## Test Planı (3 Gerçek Yazı Slug’ı ile)
+---
 
-1. **Slug’ları belirle**  
-   Veritabanından veya canlı siteden kapaklı 2 yazı + kapaksız 1 yazı seç (örn. farklı merkezi post slug’ları).
+## Test Planı (3 Gerçek Slug + Doğrulama Adımları)
 
-2. **Yazı detay URL’lerini aç**  
-   Örnek:  
-   - `https://www.ilanlarcebimde.com/yurtdisi-is-ilanlari/katar-al-khor-su-tankeri-soforu`  
-   - `https://www.ilanlarcebimde.com/yurtdisi-is-ilanlari/kibris-lefkosa-tesisatci`  
-   - `https://www.ilanlarcebimde.com/yurtdisi-is-ilanlari/belcika-gent-ahsap-ustasi`  
-   (Slug’ları kendi yayındaki yazılara göre güncelle.)
+### Örnek hedef URL
+- `https://www.ilanlarcebimde.com/yurtdisi-is-ilanlari/kibris-lefkosa-da-tesisatci-alimi-1500-euro-maas-tam-zamanli`
 
-3. **Meta kontrolü (tarayıcı veya curl)**  
-   - Sayfa kaynağında `<meta property="og:image" content="...">` ve `content` değerinin **absolute** (https:// ile başlayan) olduğunu doğrula.  
-   - Kapaklı yazıda: kapak URL’i; kapaksız yazıda: `https://www.ilanlarcebimde.com/logo.png` olmalı.
+**Beklenen:** Paylaşımda başlık “Kıbrıs Lefkoşa’da Tesisatçı Alımı – 1.500 € Maaş – Tam Zamanlı”, özet ve yazının kapak görseli; önizleme tıklanınca aynı URL’ye gitsin.
 
-4. **Facebook Sharing Debugger**  
-   - https://developers.facebook.com/tools/debug/  
-   - Yazı detay URL’ini gir → “Scrape Again” → Önizlemede doğru başlık, açıklama ve **yazıya ait kapak** (veya fallback) görünmeli.
+### Adım 1: Sayfa kaynağında meta kontrolü
+Bu URL’yi tarayıcıda açıp **Sayfa kaynağı**nda şunları kontrol edin:
 
-5. **X (Twitter) Card Validator**  
-   - https://cards-dev.twitter.com/validator (veya güncel Twitter geliştirici aracı)  
-   - Aynı detay URL’ini gir → “summary_large_image” ve doğru görsel çıkmalı.
+- `<meta property="og:image" content="https://...">` — **absolute** URL.
+- `<meta property="og:title" content="...">`
+- `<meta property="og:description" content="...">`
+- `<meta property="og:url" content="https://www.ilanlarcebimde.com/yurtdisi-is-ilanlari/...">`
+- `<meta name="twitter:card" content="summary_large_image">`
 
-6. **LinkedIn Post Inspector**  
-   - https://www.linkedin.com/post-inspector/  
-   - Aynı detay URL’ini gir → Önizlemede kapak/fallback görünmeli.
+Bunlar yoksa veya `og:image` relative ise önizleme bozulur.
 
-7. **Liste sayfası**  
-   - `https://www.ilanlarcebimde.com/yurtdisi-is-basvuru-merkezi`  
-   - Paylaşım önizlemesinde genel başlık/açıklama ve varsayılan kapak görseli çıkmalı.
+### Adım 2: og:image erişilebilirlik
+- `og:image` içindeki URL’yi tarayıcıda açın.
+- **HTTP 200** ve **Content-Type: image/jpeg** veya **image/png** vb. olmalı.
+- Auth / hotlink engeli olmamalı.
 
-## Önbellek (Cache) Notu
-Platformlar meta veriyi önbelleğe alır. “Düzeldi ama hala eski görsel çıkıyor” durumunda:
-- Facebook: Sharing Debugger’da “Scrape Again”.
-- X: Card Validator’da tekrar kontrol.
-- Deploy sonrası birkaç dakika bekleyip tekrar deneyin.
+### Adım 3: 3 gerçek slug ile test
+1. Kapaklı 2 yazı + kapaksız 1 yazı için detay URL’lerini yazın (örn. yukarıdaki Kıbrıs tesisatçı + 2 tane daha).
+2. Her URL için:
+   - Facebook Sharing Debugger → URL gir → **Scrape Again** → doğru başlık, açıklama, **yazıya ait kapak** (veya fallback).
+   - X Card Validator → `summary_large_image` ve doğru görsel.
+   - LinkedIn Post Inspector → aynı kontrol.
+3. Liste: `https://www.ilanlarcebimde.com/yurtdisi-is-basvuru-merkezi` → genel kapak ve liste meta’sı.
 
-## Görsel Erişilebilirlik Kontrolü
-- `og:image` URL’i tarayıcıda açıldığında **HTTP 200** ve **Content-Type: image/...** dönmeli.
-- Supabase Storage kullanılıyorsa: ilgili bucket **public** olmalı; signed URL kullanılmamalı (süre bitince botlar çekemez).
-- Önerilen boyut: **1200×630** (en az 600×315).
+### Adım 4: WhatsApp
+- WhatsApp genelde Facebook scraper mantığına benzer; önbellek **çok agresif** olabilir.
+- Aynı linki farklı sohbetlerde test edin.
+- Cache’i atlamak için geçici doğrulama: URL’ye anlamsız query ekleyip deneyin (örn. `?v=2`). Kalıcı çözüm değil, sadece “yeni meta çekildi mi?” doğrulaması için.
+
+### Adım 5: Önbellek
+- “Düzeldi ama hala eski görsel çıkıyor” → Facebook’ta **Scrape Again**, X/LinkedIn’de tekrar kontrol.
+- Deploy sonrası birkaç dakika bekleyin; platformlar meta’yı cache’ler.
+
+---
+
+## Supabase / Signed URL (Kabul Kriteri)
+
+- **cover_image_url** signed URL ise (token/signature içeriyorsa) OG için **kullanılmamalı**; süre bitince botlar görseli alamaz.
+- Kapak görselleri: **public bucket** veya kalıcı **public/CDN** linki ile saklanmalı.
+- Admin upload’ta `getPublicUrl()` kullanılıyorsa URL kalıcıdır; signed URL kullanmayın.

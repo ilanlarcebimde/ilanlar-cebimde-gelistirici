@@ -1,12 +1,13 @@
 /**
  * Open Graph / sosyal paylaşım meta URL yardımcıları.
  * Tüm og:image URL'leri absolute olmalı; platformlar relative URL'leri bazen çekemez.
+ * Kapak görseli: kalıcı public URL olmalı; signed URL kullanılmamalı (süre bitince botlar çekemez).
  */
 
 export const SITE_ORIGIN = "https://www.ilanlarcebimde.com";
 
-/** Liste sayfası ve kapak görseli olmayan sayfalar için varsayılan OG görseli (absolute). */
-export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/logo.png`;
+/** 1200×630 OG fallback; logo.png değil, sosyal önizleme için uygun kapak. public/og/default-1200x630.jpg eklenmeli. */
+export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/og/default-1200x630.jpg`;
 
 /**
  * Relative veya absolute bir görsel URL'ini sosyal paylaşım için absolute URL'e çevirir.
