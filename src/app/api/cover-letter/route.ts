@@ -18,7 +18,7 @@ import {
 
 export const runtime = "nodejs";
 
-const DEFAULT_WEBHOOK_URL = "https://s02c0alq.rcld.app/webhook-test/3b4796b7-7556-415d-81af-7d55664e9c59";
+const DEFAULT_WEBHOOK_URL = "https://s02c0alq.rcld.app/webhook/3b4796b7-7556-415d-81af-7d55664e9c59";
 const LETTER_WEBHOOK_URL = process.env.N8N_LETTER_WEBHOOK_URL?.trim() || DEFAULT_WEBHOOK_URL;
 
 function maskUrl(url: string): string {
