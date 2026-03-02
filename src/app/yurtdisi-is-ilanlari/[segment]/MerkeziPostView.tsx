@@ -154,26 +154,22 @@ export function MerkeziPostView({
                   <button
                     type="button"
                     onClick={handleContactUnlock}
-                    className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
+                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-28 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
                   >
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                      <Check className="h-3 w-3" strokeWidth={2.5} />
-                    </span>
-                    <span>Firma İletişim Bilgileri</span>
-                    <span className="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="min-w-0">Hızlı Başvur: Firma İletişim Bilgisi</span>
+                    <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                      <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={2.5} />
                       Premium · Etkin
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={handleLetterCta}
-                    className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
+                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-28 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
                   >
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                      <Check className="h-3 w-3" strokeWidth={2.5} />
-                    </span>
-                    <span>İş Başvuru Mektubu Oluştur</span>
-                    <span className="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="min-w-0">İş Başvuru Mektubu Oluştur</span>
+                    <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                      <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={2.5} />
                       Premium · Etkin
                     </span>
                   </button>
