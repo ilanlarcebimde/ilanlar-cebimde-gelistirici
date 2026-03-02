@@ -4,23 +4,34 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-const DEFAULT_BULLETS = [
+const DEFAULT_FEATURES = [
   "Firma İletişim Bilgileri",
-  "Doğrudan E-posta / Başvuru Kanalı",
-  "Konaklama ve Maaş Detayları",
-  "Pasaport / Vize Gereksinimi Bilgisi",
+  "Doğrudan E-posta / WhatsApp Başvuru Kanalı",
+  "Konaklama ve Maaş Taleplerinizi Mektup Aracılığıyla İletin",
+  "Pasaport / Vize Gereksinimi Taleplerinizi İletin",
   "Kendi Bilgilerinize Göre İngilizce İş Başvuru Mektubu Oluşturma Aracı",
-  "Öncelikli Destek",
 ];
 
 const DEFAULT_INFO_TEXT =
   "Bu iş ilanları, işverenler tarafından adayların iletişim bilgileri üzerinden doğrudan başvuru alabilmesi amacıyla yayınlanmaktadır. Premium üyelik ile firma iletişim bilgilerine erişebilir ve başvurunuzu doğrudan iletebilirsiniz.";
 
-const DEFAULT_TRUST_BULLETS = [
+const DEFAULT_TRUST = [
   "İşe alım için sizden kimse para istemez.",
   "Hiçbir platform iş garantisi vermez.",
   "Vize ve pasaport işlemleri için resmi kurumlara başvurunuz.",
 ];
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(!!mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+  return reduced;
+}
 
 interface PremiumUpsellModalProps {
   open: boolean;
@@ -28,16 +39,8 @@ interface PremiumUpsellModalProps {
   onCta: () => void;
   title?: string;
   subtitle?: string;
-  bullets?: string[];
-  infoText?: string;
-  trustBullets?: string[];
-  priceLabel?: string;
   priceText?: string;
-  ctaText?: string;
-  secondaryText?: string;
   fomoText?: string;
-  showFomoLine?: boolean;
-  fomoLineText?: string;
 }
 
 export function PremiumUpsellModal({
@@ -46,27 +49,19 @@ export function PremiumUpsellModal({
   onCta,
   title = "Premium ile Başvurunu Güçlendir",
   subtitle = "Firma iletişim bilgilerine eriş ve kendi bilgilerine göre hazırlanmış İngilizce iş başvuru mektubu ile öne çık.",
-  bullets = DEFAULT_BULLETS,
-  infoText = DEFAULT_INFO_TEXT,
-  trustBullets = DEFAULT_TRUST_BULLETS,
-  priceLabel = "Haftalık Premium",
   priceText = "99 TL/Hafta",
-  ctaText = "Premium'u Aç",
-  secondaryText = "Şimdilik Vazgeç",
-  fomoText: fomoTextProp,
-  showFomoLine = true,
-  fomoLineText = "Bu ilana bugün birçok kişi başvurdu. Öne çıkmak ister misiniz?",
+  fomoText = "Bu ilana bugün birçok kişi başvurdu. Öne çıkmak ister misiniz?",
 }: PremiumUpsellModalProps) {
   const router = useRouter();
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const titleId = useMemo(() => `premium-popup-title-${Math.random().toString(36).slice(2)}`, []);
+  const reducedMotion = usePrefersReducedMotion();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState(false);
-
-  const fomoContent = fomoTextProp ?? (showFomoLine ? fomoLineText : undefined);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -74,32 +69,12 @@ export function PremiumUpsellModal({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    const t = setTimeout(() => closeBtnRef.current?.focus(), 0);
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      if (e.key === "Tab" && panelRef.current) {
-        const focusables = panelRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (!focusables.length) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      }
     };
-
     window.addEventListener("keydown", onKeyDown);
-
-    const t = setTimeout(() => {
-      const firstBtn = panelRef.current?.querySelector<HTMLElement>("button[data-autofocus='true']");
-      firstBtn?.focus();
-    }, 0);
 
     return () => {
       document.body.style.overflow = prevOverflow;
@@ -107,6 +82,10 @@ export function PremiumUpsellModal({
       clearTimeout(t);
     };
   }, [open, onClose]);
+
+  const onOverlayMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
 
   const handleCouponSubmit = async () => {
     const code = couponCode.trim();
@@ -151,87 +130,110 @@ export function PremiumUpsellModal({
 
   return (
     <div
-      className="fixed inset-0 z-[9999]"
-      role="dialog"
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 py-6 sm:px-6"
+      onMouseDown={onOverlayMouseDown}
       aria-modal="true"
-      aria-labelledby={titleId}
+      role="dialog"
     >
-      <button
-        type="button"
-        aria-label="Kapat"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px] animate-premium-backdrop cursor-default"
+      <div
+        className={[
+          "absolute inset-0 bg-slate-900/55 backdrop-blur-[2px]",
+          reducedMotion ? "" : "animate-premium-fadeIn",
+        ].join(" ")}
+        aria-hidden
       />
 
-      <div className="relative mx-auto flex min-h-dvh items-start justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(72px,env(safe-area-inset-top))] sm:pt-20 md:pt-24">
-        <div
-          ref={panelRef}
-          className="w-full max-w-[640px] animate-premium-panel rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
-        >
-          <div className="flex items-start justify-between gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
+      <div
+        ref={dialogRef}
+        className={[
+          "relative w-full max-w-[620px] rounded-2xl bg-white shadow-2xl",
+          "max-h-[86vh] overflow-hidden flex flex-col",
+          reducedMotion ? "" : "animate-premium-popIn",
+        ].join(" ")}
+      >
+        {/* header */}
+        <div className="shrink-0 px-5 pt-5 pb-4 sm:px-6 sm:pt-6 border-b border-slate-100">
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h2 id={titleId} className="text-[18px] font-semibold leading-6 text-slate-900 sm:text-xl">
+              <h2 className="text-[18px] sm:text-[20px] font-semibold tracking-[-0.01em] text-slate-900">
                 {title}
               </h2>
-              <p className="mt-1 text-sm leading-5 text-slate-600">{subtitle}</p>
+              <p className="mt-1 text-[13px] sm:text-[14px] leading-relaxed text-slate-600">{subtitle}</p>
             </div>
             <button
+              ref={closeBtnRef}
               type="button"
               onClick={onClose}
-              className="shrink-0 rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95"
+              className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-slate-100 active:scale-[0.98] transition"
               aria-label="Kapat"
-              title="Kapat"
             >
-              ✕
+              <span className="text-slate-500 text-xl leading-none">×</span>
             </button>
           </div>
+        </div>
 
-          <div className="max-h-[calc(100dvh-160px)] overflow-y-auto px-5 pb-5 pt-4 sm:max-h-[calc(100dvh-190px)] sm:px-6 sm:pb-6">
-            <div className="animate-premium-item premium-delay-1 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white">
-              <span className="font-semibold">Kilidi aç:</span> Firma iletişim bilgileri + İngilizce iş başvuru
-              mektubu aracı
+        {/* scroll area: (1) Kilit → (2) Kupon+Fiyat → (3) Not+Güven accordion */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-6 py-5" style={{ maxHeight: "calc(86vh - 76px - 88px)" }}>
+          {/* 1) Unlock block */}
+          <div
+            className={[
+              "rounded-2xl bg-slate-900 text-white px-4 py-4 sm:px-5",
+              reducedMotion ? "" : "animate-premium-slideUp",
+            ].join(" ")}
+            style={!reducedMotion ? { animationDelay: "40ms" } : undefined}
+          >
+            <div className="text-[13px] sm:text-[14px] font-medium">
+              Kilidi aç:{" "}
+              <span className="font-normal opacity-90">
+                Firma iletişim bilgileri + İngilizce iş başvuru mektubu aracı
+              </span>
             </div>
+          </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-900">Kilit açılacaklar</p>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200">
-                  Premium
-                </span>
-              </div>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                {bullets.map((item, idx) => (
-                  <li
-                    key={`${item}-${idx}`}
-                    className="flex gap-2 animate-premium-stagger"
-                    style={{ animationDelay: `${140 + idx * 40}ms` }}
-                  >
-                    <span className="mt-[2px] inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] text-white">
-                      ✓
-                    </span>
-                    <span className="leading-5">{item}</span>
-                  </li>
-                ))}
-              </ul>
+          {/* Features (Kilit açılacaklar) */}
+          <div
+            className={[
+              "mt-4 rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5",
+              reducedMotion ? "" : "animate-premium-fadeUp",
+            ].join(" ")}
+            style={!reducedMotion ? { animationDelay: "90ms" } : undefined}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-900">Kilit açılacaklar</h3>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-medium text-slate-700">
+                Premium
+              </span>
             </div>
+            <ul className="mt-3 space-y-2.5">
+              {DEFAULT_FEATURES.map((t, i) => (
+                <li
+                  key={t}
+                  className={[
+                    "flex items-start gap-2.5 text-[13px] sm:text-[14px] text-slate-700",
+                    reducedMotion ? "" : "opacity-0 animate-premium-staggerIn",
+                  ].join(" ")}
+                  style={!reducedMotion ? { animationDelay: `${140 + i * 55}ms` } : undefined}
+                >
+                  <span className="mt-[2px] inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white text-[12px]">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">{t}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            <div className="mt-4 animate-premium-item premium-delay-2 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Not</p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">{infoText}</p>
-            </div>
-
-            <div className="mt-4 animate-premium-item premium-delay-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-amber-900">Güven Hatırlatması</p>
-              <ul className="mt-2 space-y-1 text-sm leading-6 text-amber-900/90">
-                {trustBullets.map((t, i) => (
-                  <li key={`${t}-${i}`}>• {t}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-4 animate-premium-item premium-delay-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
-              <p className="text-sm font-medium text-slate-700">Kupon kodunuz var mı?</p>
-              <div className="mt-2 flex gap-2">
+          {/* 2) Coupon + FOMO + Price */}
+          <div
+            className={[
+              "mt-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5",
+              reducedMotion ? "" : "animate-premium-fadeUp",
+            ].join(" ")}
+            style={!reducedMotion ? { animationDelay: "240ms" } : undefined}
+          >
+            <div className="text-[13px] sm:text-[14px] font-medium text-slate-900">Kupon kodunuz var mı?</div>
+            <div className="mt-3 flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
                 <input
                   type="text"
                   value={couponCode}
@@ -241,92 +243,156 @@ export function PremiumUpsellModal({
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handleCouponSubmit()}
                   placeholder="Kupon kodu"
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-[14px] outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-300 disabled:opacity-60"
                   disabled={couponLoading || couponSuccess}
                   aria-label="Kupon kodu"
                 />
-                <button
-                  type="button"
-                  onClick={handleCouponSubmit}
-                  disabled={couponLoading || couponSuccess}
-                  className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600 disabled:opacity-50"
-                >
-                  {couponLoading ? "..." : couponSuccess ? "Tamam" : "Kuponu Uygula"}
-                </button>
               </div>
-              {couponError && <p className="mt-1.5 text-xs text-red-600">{couponError}</p>}
-              {couponSuccess && (
-                <p className="mt-1.5 text-xs text-emerald-600">Kupon uygulandı. Premium erişiminiz açıldı.</p>
-              )}
+              <button
+                type="button"
+                onClick={handleCouponSubmit}
+                disabled={couponLoading || !couponCode.trim()}
+                className={[
+                  "h-11 rounded-xl px-4 font-semibold text-[14px] min-w-[140px]",
+                  couponSuccess
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50",
+                  "active:scale-[0.99] transition",
+                ].join(" ")}
+              >
+                {couponLoading ? "..." : couponSuccess ? "Uygulandı ✓" : "Kuponu Uygula"}
+              </button>
+            </div>
+            {couponError && <p className="mt-2 text-xs text-red-600">{couponError}</p>}
+
+            <div className="mt-4 rounded-2xl bg-slate-900 px-4 py-3 text-white">
+              <div className="text-[13px] sm:text-[14px] font-medium">{fomoText}</div>
             </div>
 
-            {fomoContent ? (
-              <div className="mt-4 animate-premium-item premium-delay-4 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white">
-                {fomoContent}
-              </div>
-            ) : null}
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-[1fr,auto] sm:items-stretch">
-              <div className="animate-premium-item premium-delay-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{priceLabel}</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900 animate-premium-price">{priceText}</p>
-                <p className="mt-1 text-xs text-slate-600">Tüm özellikler tek paket içinde açılır.</p>
-              </div>
-              <div className="flex gap-2 sm:flex-col">
-                <button
-                  type="button"
-                  data-autofocus="true"
-                  onClick={onCta}
-                  className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:translate-y-[-1px] hover:shadow-md active:translate-y-0 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-slate-300"
-                >
-                  {ctaText}
-                  <span className="ml-2 text-white/80">({priceText})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-slate-200"
-                >
-                  {secondaryText}
-                </button>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-[12px] tracking-wide text-slate-500 font-semibold">HAFTALIK PREMIUM</div>
+              <div className="mt-1 text-[22px] sm:text-[24px] font-bold text-slate-900">{priceText}</div>
+              <div className="mt-1 text-[13px] sm:text-[14px] text-slate-600">
+                Tüm özellikler tek paket içinde açılır.
               </div>
             </div>
           </div>
+
+          {/* 3) Not + Güven (accordion) */}
+          <div
+            className={[
+              "mt-5 rounded-2xl border border-slate-200 bg-slate-50/40 overflow-hidden",
+              reducedMotion ? "" : "animate-premium-fadeUp",
+            ].join(" ")}
+            style={!reducedMotion ? { animationDelay: "320ms" } : undefined}
+          >
+            <button
+              type="button"
+              onClick={() => setInfoOpen((s) => !s)}
+              className="w-full px-4 sm:px-5 py-4 flex items-center justify-between gap-4 text-left"
+            >
+              <div>
+                <div className="text-[12px] font-semibold tracking-wide text-slate-500">BİLGİLENDİRME</div>
+                <div className="mt-0.5 text-[14px] sm:text-[15px] font-semibold text-slate-900">
+                  Not ve Güven Hatırlatması
+                </div>
+              </div>
+              <span
+                className={[
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-200 shrink-0",
+                  reducedMotion ? "" : "transition-transform duration-200",
+                  infoOpen ? "rotate-180" : "rotate-0",
+                ].join(" ")}
+                aria-hidden
+              >
+                <span className="text-slate-500">⌄</span>
+              </span>
+            </button>
+            <div
+              className={`grid ${infoOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+              style={{ transition: "grid-template-rows 220ms ease" }}
+            >
+              <div className="overflow-hidden">
+                <div className="px-4 sm:px-5 pb-5 text-[13px] sm:text-[14px] text-slate-700 leading-relaxed">
+                  <div className="text-[12px] font-semibold tracking-wide text-slate-500">NOT</div>
+                  <p className="mt-2">{DEFAULT_INFO_TEXT}</p>
+                  <div className="mt-4 text-[12px] font-semibold tracking-wide text-slate-500">
+                    GÜVEN HATIRLATMASI
+                  </div>
+                  <ul className="mt-2 space-y-2">
+                    {DEFAULT_TRUST.map((t, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="mt-[2px] text-slate-900 shrink-0">•</span>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="h-2" />
+        </div>
+
+        {/* footer: CTA (sayfaya yapışmaz, modal içinde) */}
+        <div className="shrink-0 px-5 sm:px-6 py-4 border-t border-slate-100 bg-white">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={onCta}
+              className={[
+                "h-12 rounded-2xl px-5 font-bold text-[14px] text-white",
+                "bg-slate-900 hover:bg-slate-800 active:scale-[0.99] transition",
+                reducedMotion ? "" : "animate-premium-ctaGlow",
+              ].join(" ")}
+            >
+              Premium&apos;u Aç ({priceText})
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-2xl px-5 font-semibold text-[14px] text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 active:scale-[0.99] transition"
+            >
+              Şimdilik Vazgeç
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">
+            {couponSuccess ? "Kupon uygulandı." : "Kuponunuz varsa uygulayın."}
+          </p>
         </div>
       </div>
 
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            @keyframes premiumBackdropIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
+            @keyframes premiumFadeIn { from { opacity: 0 } to { opacity: 1 } }
+            .animate-premium-fadeIn { animation: premiumFadeIn .18s ease-out both; }
+            @keyframes premiumPopIn {
+              from { opacity: 0; transform: translateY(10px) scale(.98) }
+              to { opacity: 1; transform: translateY(0) scale(1) }
             }
-            .animate-premium-backdrop { animation: premiumBackdropIn 180ms ease-out both; }
-            @keyframes premiumPanelIn {
-              from { opacity: 0; transform: translateY(14px) scale(0.985); }
-              to { opacity: 1; transform: translateY(0) scale(1); }
+            .animate-premium-popIn { animation: premiumPopIn .22s cubic-bezier(.2,.9,.2,1) both; }
+            @keyframes premiumSlideUp {
+              from { opacity: 0; transform: translateY(10px) }
+              to { opacity: 1; transform: translateY(0) }
             }
-            .animate-premium-panel { animation: premiumPanelIn 220ms ease-out both; }
-            @keyframes premiumItemIn {
-              from { opacity: 0; transform: translateY(8px); }
-              to { opacity: 1; transform: translateY(0); }
+            .animate-premium-slideUp { animation: premiumSlideUp .24s ease-out both; }
+            @keyframes premiumFadeUp {
+              from { opacity: 0; transform: translateY(10px) }
+              to { opacity: 1; transform: translateY(0) }
             }
-            .animate-premium-item { animation: premiumItemIn 240ms ease-out both; }
-            .premium-delay-1 { animation-delay: 60ms; }
-            .premium-delay-2 { animation-delay: 110ms; }
-            .premium-delay-3 { animation-delay: 160ms; }
-            .premium-delay-4 { animation-delay: 210ms; }
+            .animate-premium-fadeUp { animation: premiumFadeUp .26s ease-out both; }
             @keyframes premiumStaggerIn {
-              from { opacity: 0; transform: translateY(6px); }
-              to { opacity: 1; transform: translateY(0); }
+              from { opacity: 0; transform: translateY(6px) }
+              to { opacity: 1; transform: translateY(0) }
             }
-            .animate-premium-stagger { animation: premiumStaggerIn 220ms ease-out both; }
-            @keyframes premiumPricePulse {
-              0%, 100% { transform: scale(1); }
-              50% { transform: scale(1.012); }
+            .animate-premium-staggerIn { animation: premiumStaggerIn .26s ease-out forwards; }
+            @keyframes premiumCtaGlow {
+              0% { box-shadow: 0 0 0 rgba(0,0,0,0) }
+              60% { box-shadow: 0 14px 30px rgba(15,23,42,.18) }
+              100% { box-shadow: 0 0 0 rgba(0,0,0,0) }
             }
-            .animate-premium-price { animation: premiumPricePulse 900ms ease-in-out 1; }
+            .animate-premium-ctaGlow { animation: premiumCtaGlow .9s ease-out 1; }
           `,
         }}
       />
