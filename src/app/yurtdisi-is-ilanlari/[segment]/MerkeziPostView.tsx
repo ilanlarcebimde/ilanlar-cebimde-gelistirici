@@ -14,7 +14,6 @@ import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { humanizeSlug } from "@/lib/slugify";
 import { supabase } from "@/lib/supabase";
-import { Check } from "lucide-react";
 import type { MerkeziPost, MerkeziTag } from "@/lib/merkezi/types";
 import type { MerkeziPostContact } from "@/lib/merkezi/types";
 
@@ -154,29 +153,31 @@ export function MerkeziPostView({
                   <button
                     type="button"
                     onClick={handleContactUnlock}
-                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-24 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
+                    className="relative overflow-visible inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
                   >
-                    <span className="min-w-0 flex-1 pr-20 text-left">Hızlı Başvur: Firma İletişim Bilgisi</span>
+                    <span className="flex h-full w-full items-center justify-center text-center break-normal whitespace-normal">
+                      Hızlı Başvur: Firma İletişim Bilgisi
+                    </span>
                     <span
-                      className="absolute right-2 top-2 flex h-6 max-w-[85%] items-center gap-1 overflow-hidden truncate whitespace-nowrap rounded-full bg-slate-600/90 px-3 text-[11px] leading-6 font-medium text-white/95 shadow-sm pointer-events-none"
+                      className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
                       aria-hidden
                     >
-                      <Check className="h-3 w-3 shrink-0" strokeWidth={2.5} />
-                      <span className="truncate">Premium · Etkin</span>
+                      Premium
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={handleLetterCta}
-                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-24 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
+                    className="relative overflow-visible inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
                   >
-                    <span className="min-w-0 flex-1 pr-20 text-left">İş Başvuru Mektubu Oluştur</span>
+                    <span className="flex h-full w-full items-center justify-center text-center break-normal whitespace-normal">
+                      İş Başvuru Mektubu Oluştur
+                    </span>
                     <span
-                      className="absolute right-2 top-2 flex h-6 max-w-[85%] items-center gap-1 overflow-hidden truncate whitespace-nowrap rounded-full bg-slate-600/90 px-3 text-[11px] leading-6 font-medium text-white/95 shadow-sm pointer-events-none"
+                      className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
                       aria-hidden
                     >
-                      <Check className="h-3 w-3 shrink-0" strokeWidth={2.5} />
-                      <span className="truncate">Premium · Etkin</span>
+                      Premium
                     </span>
                   </button>
                 </>

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
 
 interface JobActionsStackProps {
   isPaid: boolean;
@@ -16,17 +15,16 @@ const tertiaryClass =
   "flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-transparent bg-slate-50 px-2 py-2.5 text-center text-sm font-medium leading-snug text-slate-800 transition hover:bg-slate-100";
 
 const premiumActiveClass =
-  "relative flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-center text-sm font-medium leading-snug text-emerald-900 transition hover:bg-emerald-100";
+  "relative overflow-visible flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-medium leading-snug text-emerald-900 transition hover:bg-emerald-100";
 
-/** Sağ üst köşede etiket; normal akışta değil, layout'u etkilemez. */
-function PremiumEtkinBadge() {
+/** Sol üst köşede rozet; buton sınırının dışında, içerik layout'unu etkilemez. */
+function PremiumBadge() {
   return (
     <span
-      className="absolute right-2 top-2 flex h-6 max-w-[85%] items-center gap-1 overflow-hidden truncate whitespace-nowrap rounded-full bg-slate-600/90 px-3 text-[11px] leading-6 font-medium text-white/95 shadow-sm pointer-events-none"
+      className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
       aria-hidden
     >
-      <Check className="h-3 w-3 shrink-0" strokeWidth={2.5} />
-      <span className="truncate">Premium · Etkin</span>
+      Premium
     </span>
   );
 }
@@ -46,12 +44,16 @@ export function JobActionsStack({
           {isPremiumActive ? (
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={onContactClick} className={premiumActiveClass}>
-                <span className="min-w-0 flex-1 pr-20 text-left">İşe Hemen Başvur: Firma İletişim Bilgileri</span>
-                <PremiumEtkinBadge />
+                <span className="flex h-full w-full items-center justify-center text-center break-normal whitespace-normal">
+                  İşe Hemen Başvur: Firma İletişim Bilgileri
+                </span>
+                <PremiumBadge />
               </button>
               <button type="button" onClick={onLetterClick} className={premiumActiveClass}>
-                <span className="min-w-0 flex-1 pr-20 text-left">İş Başvuru Mektubu Oluştur</span>
-                <PremiumEtkinBadge />
+                <span className="flex h-full w-full items-center justify-center text-center break-normal whitespace-normal">
+                  İş Başvuru Mektubu Oluştur
+                </span>
+                <PremiumBadge />
               </button>
             </div>
           ) : (
