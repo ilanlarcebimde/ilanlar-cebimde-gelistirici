@@ -83,7 +83,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
           {/* Masaüstü: menü butonları sırayla (popup yok) */}
           <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Ana menü">
             <Link
-              href="/#yontem-secimi"
+              href="/"
               className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               Usta Başvuru Paketi
@@ -181,7 +181,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                     aria-label="Menü"
                   >
                     <Link
-                      href="/#yontem-secimi"
+                      href="/"
                       className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
                       onClick={() => setMenuOpen(false)}
                     >
