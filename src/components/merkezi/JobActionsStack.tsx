@@ -16,14 +16,17 @@ const tertiaryClass =
   "flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-transparent bg-slate-50 px-2 py-2.5 text-center text-sm font-medium leading-snug text-slate-800 transition hover:bg-slate-100";
 
 const premiumActiveClass =
-  "relative flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 pl-2 pr-24 py-2.5 text-center text-sm font-medium leading-snug text-emerald-900 transition hover:bg-emerald-100";
+  "relative flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-center text-sm font-medium leading-snug text-emerald-900 transition hover:bg-emerald-100";
 
-/** Sağ üst köşede Premium · Etkin rozeti */
+/** Sağ üst köşede etiket; normal akışta değil, layout'u etkilemez. */
 function PremiumEtkinBadge() {
   return (
-    <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-      <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={2.5} />
-      Premium · Etkin
+    <span
+      className="absolute right-2 top-2 flex h-6 max-w-[85%] items-center gap-1 overflow-hidden truncate whitespace-nowrap rounded-full bg-slate-600/90 px-3 text-[11px] leading-6 font-medium text-white/95 shadow-sm pointer-events-none"
+      aria-hidden
+    >
+      <Check className="h-3 w-3 shrink-0" strokeWidth={2.5} />
+      <span className="truncate">Premium · Etkin</span>
     </span>
   );
 }
@@ -43,11 +46,11 @@ export function JobActionsStack({
           {isPremiumActive ? (
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={onContactClick} className={premiumActiveClass}>
-                <span className="min-w-0 px-1">İşe Hemen Başvur: Firma İletişim Bilgileri</span>
+                <span className="min-w-0 flex-1 pr-20 text-left">İşe Hemen Başvur: Firma İletişim Bilgileri</span>
                 <PremiumEtkinBadge />
               </button>
               <button type="button" onClick={onLetterClick} className={premiumActiveClass}>
-                <span className="min-w-0 px-1">İş Başvuru Mektubu Oluştur</span>
+                <span className="min-w-0 flex-1 pr-20 text-left">İş Başvuru Mektubu Oluştur</span>
                 <PremiumEtkinBadge />
               </button>
             </div>

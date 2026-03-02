@@ -154,23 +154,29 @@ export function MerkeziPostView({
                   <button
                     type="button"
                     onClick={handleContactUnlock}
-                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-28 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
+                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-24 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
                   >
-                    <span className="min-w-0">Hızlı Başvur: Firma İletişim Bilgisi</span>
-                    <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                      <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={2.5} />
-                      Premium · Etkin
+                    <span className="min-w-0 flex-1 pr-20 text-left">Hızlı Başvur: Firma İletişim Bilgisi</span>
+                    <span
+                      className="absolute right-2 top-2 flex h-6 max-w-[85%] items-center gap-1 overflow-hidden truncate whitespace-nowrap rounded-full bg-slate-600/90 px-3 text-[11px] leading-6 font-medium text-white/95 shadow-sm pointer-events-none"
+                      aria-hidden
+                    >
+                      <Check className="h-3 w-3 shrink-0" strokeWidth={2.5} />
+                      <span className="truncate">Premium · Etkin</span>
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={handleLetterCta}
-                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-28 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
+                    className="relative inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 pl-4 pr-24 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-100 sm:w-auto"
                   >
-                    <span className="min-w-0">İş Başvuru Mektubu Oluştur</span>
-                    <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                      <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={2.5} />
-                      Premium · Etkin
+                    <span className="min-w-0 flex-1 pr-20 text-left">İş Başvuru Mektubu Oluştur</span>
+                    <span
+                      className="absolute right-2 top-2 flex h-6 max-w-[85%] items-center gap-1 overflow-hidden truncate whitespace-nowrap rounded-full bg-slate-600/90 px-3 text-[11px] leading-6 font-medium text-white/95 shadow-sm pointer-events-none"
+                      aria-hidden
+                    >
+                      <Check className="h-3 w-3 shrink-0" strokeWidth={2.5} />
+                      <span className="truncate">Premium · Etkin</span>
                     </span>
                   </button>
                 </>
