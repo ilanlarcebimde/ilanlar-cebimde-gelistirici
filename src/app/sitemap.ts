@@ -47,6 +47,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
+      url: `${base}/yurtdisi-is-basvuru-merkezi`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
       url: `${base}/yurtdisi-cv-paketi`,
       lastModified: now,
       changeFrequency: "weekly",
@@ -128,24 +134,67 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   let channelUrls: MetadataRoute.Sitemap = [];
+  let merkeziUrls: MetadataRoute.Sitemap = [];
+  const merkeziBase = "/yurtdisi-is-ilanlari";
+
   try {
     const supabase = getSupabaseAdmin();
-    const { data: channels } = await supabase
-      .from("channels")
-      .select("slug")
-      .eq("is_active", true)
-      .order("slug");
-    if (channels?.length) {
-      channelUrls = channels.map((c) => ({
+    const [channelsRes, postsRes, seoRes] = await Promise.all([
+      supabase.from("channels").select("slug").eq("is_active", true).order("slug"),
+      supabase
+        .from("merkezi_posts")
+        .select("slug, updated_at, published_at")
+        .eq("status", "published")
+        .or("published_at.is.null,published_at.lte." + new Date().toISOString())
+        .order("published_at", { ascending: false }),
+      supabase
+        .from("merkezi_seo_pages")
+        .select("type, sector_slug, country_slug, updated_at"),
+    ]);
+
+    if (channelsRes.data?.length) {
+      channelUrls = channelsRes.data.map((c) => ({
         url: `${base}/kanal/${encodeURIComponent((c as { slug: string }).slug)}`,
         lastModified: now,
         changeFrequency: "daily" as const,
         priority: 0.8,
       }));
     }
+
+    if (postsRes.data?.length) {
+      merkeziUrls = postsRes.data.map((p) => {
+        const row = p as { slug: string; updated_at?: string; published_at?: string };
+        const lastMod = row.updated_at || row.published_at || now.toISOString();
+        return {
+          url: `${base}${merkeziBase}/${encodeURIComponent(row.slug)}`,
+          lastModified: new Date(lastMod),
+          changeFrequency: "weekly" as const,
+          priority: 0.85,
+        };
+      });
+    }
+
+    if (seoRes.data?.length) {
+      for (const row of seoRes.data as { type: string; sector_slug: string; country_slug?: string | null; updated_at?: string }[]) {
+        const segment =
+          row.type === "sector"
+            ? row.sector_slug
+            : row.type === "country_sector" && row.country_slug
+              ? `${row.country_slug}-${row.sector_slug}`
+              : null;
+        if (segment) {
+          merkeziUrls.push({
+            url: `${base}${merkeziBase}/${encodeURIComponent(segment)}`,
+            lastModified: row.updated_at ? new Date(row.updated_at) : now,
+            changeFrequency: "weekly" as const,
+            priority: 0.8,
+          });
+        }
+      }
+    }
   } catch {
-    // Supabase yoksa veya RLS/table yoksa sadece statik sitemap
+    // Supabase yoksa veya tablo yoksa sadece statik + channel sitemap
   }
 
-  return [...staticRoutes, ...channelUrls];
+  return [...staticRoutes, ...channelUrls, ...merkeziUrls];
 }

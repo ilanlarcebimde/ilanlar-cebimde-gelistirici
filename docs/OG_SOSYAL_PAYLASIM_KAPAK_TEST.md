@@ -85,3 +85,22 @@ Bunlar yoksa veya `og:image` relative ise önizleme bozulur.
 - **cover_image_url** signed URL ise (token/signature içeriyorsa) OG için **kullanılmamalı**; süre bitince botlar görseli alamaz.
 - Kapak görselleri: **public bucket** veya kalıcı **public/CDN** linki ile saklanmalı.
 - Admin upload’ta `getPublicUrl()` kullanılıyorsa URL kalıcıdır; signed URL kullanmayın.
+
+---
+
+## Sitemap (`/sitemap.xml`) — Kontrol ve Düzeltmeler
+
+### Tespit edilen eksikler (giderildi)
+- **Yurtdışı İş Başvuru Merkezi listesi** (`/yurtdisi-is-basvuru-merkezi`) sitemap'te yoktu → statik route olarak eklendi.
+- **Merkezi yazı detay URL'leri** (`/yurtdisi-is-ilanlari/[slug]`) sitemap'te yoktu → `merkezi_posts` (status=published, published_at uygun) üzerinden dinamik eklendi.
+- **Sektör ve ülke-sektör landing sayfaları** sitemap'te yoktu → `merkezi_seo_pages` üzerinden dinamik eklendi.
+
+### Güncel sitemap içeriği (`src/app/sitemap.ts`)
+- **Statik:** ana sayfa, hakkımızda, iletişim, sss, yurtdisi-is-ilanlari, ucretsiz-yurtdisi-is-ilanlari, **yurtdisi-is-basvuru-merkezi**, yurtdisi-cv-paketi, premium/job-guides, giriş, yasal sayfalar.
+- **Kanal:** `channels` tablosundan `/kanal/[slug]`.
+- **Merkezi:** `merkezi_posts` (yayındaki yazılar) → `/yurtdisi-is-ilanlari/[slug]`; `merkezi_seo_pages` (sector + country_sector) → ilgili segment URL'leri.
+
+### Doğrulama
+- `https://www.ilanlarcebimde.com/sitemap.xml` açıldığında geçerli XML dönmeli.
+- Yazı, sektör ve ülke-sektör sayfaları `<loc>` içinde absolute URL ile listelenmeli.
+- `robots.txt` içinde `Sitemap: https://www.ilanlarcebimde.com/sitemap.xml` yer alıyor (`src/app/robots.ts`).
