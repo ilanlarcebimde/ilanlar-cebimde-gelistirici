@@ -54,9 +54,9 @@ export const COVER_LETTER_STEP_2 = {
   },
   placeholders: {
     full_name: "Örn: Buğra Keser",
-    email: "Örn: bugra@mail.com",
+    email: "Örn: örnek@gmail.com",
     phone: "Örn: +90 5xx xxx xx xx",
-    city_country: "Örn: Edirne / Türkiye",
+    city_country: "Örn: İstanbul / Türkiye",
   },
   subtext: "English sekmesindeki metin, işverene gönderime uygundur.",
   example: "Günlük kullandığınız bir adres yazın; yanlış yazım başvuruyu boşa çıkarır.",

@@ -41,8 +41,12 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
   }, [email, validEmail]);
 
   const handleFullNameChange = (v: string) => {
-    const capped = capitalizeWords(v);
-    onChange({ full_name: capped || v });
+    onChange({ full_name: v });
+  };
+
+  const handleFullNameBlur = () => {
+    const raw = (answers.full_name ?? "").trim();
+    if (raw) onChange({ full_name: capitalizeWords(raw) });
   };
 
   const canNext = fullName.length > 0 && email.length > 0 && validEmail;
@@ -58,6 +62,7 @@ export function StepIdentity({ answers, onChange, onNext, onBack, loading }: Ste
             type="text"
             value={answers.full_name ?? ""}
             onChange={(e) => handleFullNameChange(e.target.value)}
+            onBlur={handleFullNameBlur}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
             placeholder={COVER_LETTER_STEP_2.placeholders.full_name}
           />
