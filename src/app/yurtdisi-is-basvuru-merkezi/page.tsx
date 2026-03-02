@@ -32,7 +32,10 @@ export const metadata: Metadata = {
 };
 
 export default async function YurtdisiIsBasvuruMerkeziPage() {
-  const { posts, tagsByPostId } = await getPublishedPostsForMerkeziLanding();
-
-  return <MerkezFeed posts={posts} tagsByPostId={tagsByPostId} />;
+  try {
+    const { posts, tagsByPostId } = await getPublishedPostsForMerkeziLanding();
+    return <MerkezFeed posts={posts} tagsByPostId={tagsByPostId} />;
+  } catch {
+    return <MerkezFeed posts={[]} tagsByPostId={{}} />;
+  }
 }

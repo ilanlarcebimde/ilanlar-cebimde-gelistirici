@@ -116,16 +116,22 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
     const { data: { user } } = await supabaseUser.auth.getUser();
     const isPremium = user ? await isPremiumSubscriptionActive(user.id) : false;
 
-    const supabaseAdmin = getSupabaseAdmin();
     const shouldIncludeContact =
       (!post.is_paid && post.show_contact_when_free) || (post.is_paid && isPremium);
-    const { data: contact } = shouldIncludeContact
-      ? await supabaseAdmin
+    const contact = await (async () => {
+      if (!shouldIncludeContact) return null;
+      try {
+        const supabaseAdmin = getSupabaseAdmin();
+        const { data } = await supabaseAdmin
           .from("merkezi_post_contact")
           .select("contact_email, contact_phone, apply_url")
           .eq("post_id", post.id)
-          .maybeSingle()
-      : { data: null };
+          .maybeSingle();
+        return data ?? null;
+      } catch {
+        return null;
+      }
+    })();
 
     return (
       <div className="min-h-screen bg-slate-50 py-8">

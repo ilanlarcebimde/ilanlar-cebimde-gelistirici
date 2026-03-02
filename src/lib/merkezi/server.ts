@@ -3,7 +3,7 @@
  * Premium iletişim burada okunmaz; ayrı API ile premium doğrulama sonrası verilir.
  */
 
-import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { getSupabaseAdmin, getSupabasePublic } from "@/lib/supabase/server";
 import type {
   MerkeziPost,
   MerkeziPostLandingItem,
@@ -28,7 +28,7 @@ async function getTaxonomyMaps(): Promise<{
   countryNameBySlug: Map<string, string>;
   sectorNameBySlug: Map<string, string>;
 }> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const [{ data: countries }, { data: sectors }] = await Promise.all([
     supabase.from("merkezi_countries").select("slug, name").eq("is_active", true),
     supabase.from("merkezi_sectors").select("slug, name").eq("is_active", true),
@@ -61,7 +61,7 @@ function enrichPostWithTaxonomyNames<T extends { country_slug?: string | null; s
 
 /** Yayındaki tek post (slug ile); tags ile birlikte. country_name, sector_name eklenir. */
 export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost | null> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const { data: post, error } = await supabase
     .from("merkezi_posts")
     .select("id, created_at, updated_at, published_at, status, title, slug, cover_image_url, content, content_html_raw, content_html_sanitized, country_slug, city, sector_slug, is_paid, show_contact_when_free, company_logo_url, company_name, company_short_description, content_type, summary")
@@ -93,7 +93,7 @@ export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost 
 
 /** Sektör landing: seo_page + o sektördeki yayındaki postlar. */
 export async function getSectorBySlug(sectorSlug: string): Promise<SegmentSector | null> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const { data: seoRow } = await supabase
     .from("merkezi_seo_pages")
     .select("*")
@@ -136,7 +136,7 @@ export async function getCountrySectorBySegment(
   const sectorSlug = segment.slice(lastDash + 1);
   if (!countrySlug || !sectorSlug) return null;
 
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const { data: seoRow } = await supabase
     .from("merkezi_seo_pages")
     .select("*")
@@ -174,7 +174,7 @@ export async function getCountrySectorBySegment(
 
 /** Tek post için görüntülenme ve beğeni sayısı (server-side; userLiked client'da güncellenir). */
 export async function getPostCounts(postId: string): Promise<{ viewCount: number; likeCount: number }> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const [viewsRes, likesRes] = await Promise.all([
     supabase.from("merkezi_post_views").select("id", { count: "exact", head: true }).eq("post_id", postId),
     supabase.from("merkezi_post_likes").select("id", { count: "exact", head: true }).eq("post_id", postId),
@@ -190,7 +190,7 @@ export async function getTagsByPostIds(
   postIds: string[]
 ): Promise<Record<string, MerkeziTag[]>> {
   if (postIds.length === 0) return {};
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const { data: rows } = await supabase
     .from("merkezi_post_tags")
     .select("post_id, tag_id")
@@ -228,7 +228,7 @@ export async function getPublishedPostsForMerkeziLanding(limit = 500): Promise<{
   posts: MerkeziPostLandingItem[];
   tagsByPostId: Record<string, MerkeziTag[]>;
 }> {
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabasePublic();
   const requestLimit = Math.min(limit + EXCLUDED_FROM_LANDING_TITLES.length * 2, 2000);
   const { data: rows } = await supabase
     .from("merkezi_posts")
