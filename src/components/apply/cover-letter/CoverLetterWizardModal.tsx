@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useCoverLetterWizard } from "./lib/useCoverLetterWizard";
 import { validateStepGeneric } from "./lib/coverLetterSchema";
@@ -97,10 +97,27 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
     if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4 | 5);
   };
 
+  // Body scroll lock when modal is open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const body = (
-    <div className="relative max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl md:max-w-[720px] md:p-8 lg:max-w-[840px] [@media(max-width:768px)]:min-h-[100svh] [@media(max-width:768px)]:rounded-none">
+    <div
+      className="relative z-10 flex max-h-[calc(100dvh-16px)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl md:max-w-[720px] lg:max-w-[840px] [@media(max-width:768px)]:max-h-[100dvh] [@media(max-width:768px)]:rounded-none"
+      style={{ ["--app-header-h" as string]: "56px" }}
+    >
+      <div
+        className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 md:px-8 md:pb-8"
+        style={{ paddingTop: "calc(var(--app-header-h, 56px) + env(safe-area-inset-top) + 12px)" }}
+      >
       {result ? (
         <StepResultTabs data={result} jobEmail={jobEmail} onClose={onClose} />
       ) : (
@@ -315,11 +332,17 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
           )}
         </>
       )}
+      </div>
     </div>
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
+    <div
+      className="cover-letter-wizard-overlay fixed inset-0 z-[10001] flex items-center justify-center p-0 md:p-4 md:[--app-header-h:64px]"
+      style={{ ["--app-header-h" as string]: "56px" }}
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="absolute inset-0 bg-slate-200/70" aria-hidden onClick={handleCloseRequest} />
       {body}
       {showCloseConfirm && (
