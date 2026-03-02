@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT_FULL = 549;
-const AMOUNT_WEEKLY = 89;
+const AMOUNT_WEEKLY = 99;
 const AMOUNT_CV_PACKAGE = 349;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
@@ -401,7 +401,7 @@ export default function OdemePage() {
               {(() => {
                 const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
                 const data = p ? (JSON.parse(p) as { plan?: string; cv79_discount?: boolean }) : null;
-                if (data?.plan === "weekly") return "89,00 TL";
+                if (data?.plan === "weekly") return "99,00 TL";
                 if (data?.plan === "cv_package") return data?.cv79_discount ? "270,00 TL" : "349,00 TL";
                 return "549,00 TL";
               })()}
