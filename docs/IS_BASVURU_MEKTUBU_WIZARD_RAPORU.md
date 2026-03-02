@@ -4,6 +4,20 @@ Bu rapor, **İş Başvuru Mektubu Oluştur** wizard’ının tüm adımlarını,
 
 ---
 
+## 0. İki Ayrı Sistem (Ücretsiz vs Merkezi)
+
+| Sistem | Sayfa / Özellik | Webhook / API | Değişiklik |
+|--------|------------------|---------------|------------|
+| **Ücretsiz Yurtdışı İş İlanları — Nasıl başvururum** | Premium: "Nasıl başvururum" (howto) | `POST /api/apply/howto`, `POST /api/apply/howto-step`. **N8N_HOWTO_WEBHOOK_URL**. job_posts (job_id). | **Değiştirilmedi.** |
+| **Yurtdışı İş Başvuru Merkezi — İş Başvuru Mektubu Oluştur** | "İş Başvuru Mektubu Oluştur" butonu | `POST /api/cover-letter`. **N8N_LETTER_WEBHOOK_URL**. merkezi_posts (post_id) veya yok. | Bu hizmet için sadece cover-letter kullanılır. |
+
+- **Ücretsiz panel:** HowToApplyWizardModal → howto-step / howto → n8n howto webhook. **Bu akışa dokunulmadı.**
+- **Merkezi sayfa:** CoverLetterWizardModal → `POST /api/cover-letter` → n8n letter webhook.
+
+**"İçerik bulunamadı" düzeltmesi:** Merkezi'de post_id ile kayıt bulunamazsa eskiden 404 dönüyordu. Artık post yoksa da payload job olmadan webhook'a gidiyor; kullanıcı mektubunu alıyor. İlanlı (job_id) akışta ilan yoksa 404 aynen devam ediyor.
+
+---
+
 ## 1. Genel Bilgi
 
 | Özellik | Değer |

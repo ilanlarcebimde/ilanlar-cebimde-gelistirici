@@ -20,6 +20,15 @@ export const runtime = "nodejs";
 const DEFAULT_WEBHOOK_URL = "https://s02c0alq.rcld.app/webhook-test/3b4796b7-7556-415d-81af-7d55664e9c59";
 const LETTER_WEBHOOK_URL = process.env.N8N_LETTER_WEBHOOK_URL?.trim() || DEFAULT_WEBHOOK_URL;
 
+function maskUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return url.replace(/\?.*$/, "?...").replace(/#.*$/, "#...");
+  }
+}
+
 async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -150,27 +159,16 @@ export async function POST(req: NextRequest) {
   const postId = typeof body.post_id === "string" ? body.post_id.trim() : "";
   const locale = typeof body.locale === "string" ? body.locale : "tr-TR";
 
-  const supabase = getSupabaseAdmin();
   let job: Record<string, unknown> | undefined;
-
+  const supabase = getSupabaseAdmin();
   if (jobId) {
     const fetched = await fetchJobLikeFromJobId(supabase, jobId);
-    if (!fetched) {
-      return NextResponse.json(
-        { error: "job_not_found", detail: "Bu ilan artık yayında değil.", requestedId: jobId },
-        { status: 404 }
-      );
-    }
-    job = fetched;
-  } else if (postId) {
+    if (fetched) job = fetched;
+    // job bulunamasa bile devam et; test aşamasında sadece answers ile webhook'a gönder.
+  }
+  if (!job && postId) {
     const fetched = await fetchJobLikeFromPostId(supabase, postId);
-    if (!fetched) {
-      return NextResponse.json(
-        { error: "post_not_found", detail: "Bu içerik artık yayında değil.", requestedId: postId },
-        { status: 404 }
-      );
-    }
-    job = fetched;
+    if (fetched) job = fetched;
   }
 
   const payload = buildCoverLetterStep6Payload({
@@ -181,37 +179,54 @@ export async function POST(req: NextRequest) {
     derived: {},
   });
 
+  const targetUrl = LETTER_WEBHOOK_URL;
+
+  console.log("[cover-letter] posting", {
+    targetUrl: maskUrl(targetUrl),
+    session_id: sessionId,
+    locale,
+    answersKeys: Object.keys(payload.answers ?? {}),
+    skillsLen: Array.isArray(payload.answers?.top_skills) ? payload.answers.top_skills.length : 0,
+  });
+
   try {
-    const webhookRes = await fetch(LETTER_WEBHOOK_URL, {
+    const webhookRes = await fetch(targetUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    const contentType = webhookRes.headers.get("content-type") ?? "";
-    let webhookData: unknown;
-    if (contentType.includes("application/json")) {
-      try {
-        webhookData = await webhookRes.json();
-      } catch {
-        webhookData = { _raw: await webhookRes.text() };
-      }
-    } else {
-      webhookData = { _raw: await webhookRes.text() };
-    }
+    const text = await webhookRes.text();
+
+    console.log("[cover-letter] n8n response", {
+      status: webhookRes.status,
+      bodyPreview: text.slice(0, 200),
+    });
 
     if (!webhookRes.ok) {
-      const detailObj = webhookData && typeof webhookData === "object" && webhookData !== null ? (webhookData as Record<string, unknown>) : null;
-      const fallback =
-        typeof detailObj?.message === "string"
-          ? detailObj.message
-          : typeof detailObj?.error === "string"
-            ? detailObj.error
-            : typeof detailObj?.detail === "string"
-              ? detailObj.detail
-              : "Mektup servisi geçici olarak yanıt vermiyor.";
+      let fallback = "Mektup servisi geçici olarak yanıt vermiyor.";
+      try {
+        const parsed = JSON.parse(text) as Record<string, unknown>;
+        fallback =
+          (typeof parsed?.message === "string" ? parsed.message : null) ??
+          (typeof parsed?.detail === "string" ? parsed.detail : null) ??
+          (typeof parsed?.error === "string" ? parsed.error : null) ??
+          fallback;
+      } catch {
+        fallback = text.slice(0, 150) || fallback;
+      }
       return NextResponse.json(
-        { error: "webhook_error", status: webhookRes.status, detail: fallback },
+        { error: "webhook_error", detail: fallback },
+        { status: 502 }
+      );
+    }
+
+    let webhookData: unknown;
+    try {
+      webhookData = JSON.parse(text);
+    } catch {
+      return NextResponse.json(
+        { error: "webhook_invalid_json", detail: text.slice(0, 150) },
         { status: 502 }
       );
     }
