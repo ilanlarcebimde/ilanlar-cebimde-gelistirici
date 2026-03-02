@@ -38,7 +38,8 @@ export function StepResultTabs({ data, jobEmail, onClose }: StepResultTabsProps)
 
   return (
     <div className="flex flex-col rounded-2xl bg-white">
-      <div className="flex w-full border-b border-slate-200">
+      {/* Tab başlıkları — sticky değil, normal akışta */}
+      <div className="flex w-full shrink-0 border-b border-slate-200">
         <button
           type="button"
           onClick={() => setActiveTab("tr")}
@@ -59,14 +60,12 @@ export function StepResultTabs({ data, jobEmail, onClose }: StepResultTabsProps)
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden p-4 md:p-5">
+      {/* İçerik: scrollable, alt boşluk + safe-area — header taşması ve footer çakışması engellendi */}
+      <div className="flex min-h-[calc(100vh-140px)] flex-1 flex-col overflow-y-auto p-4 pb-24 md:p-5 md:pb-24" style={{ paddingBottom: "max(5rem, env(safe-area-inset-bottom) + 4rem)" }}>
         {activeTab === "tr" && (
           <>
             <p className="mb-3 text-sm font-medium text-slate-600">{trNotice}</p>
-            <div
-              className="min-h-[52vh] max-h-[60vh] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap"
-              style={{ maxHeight: "60vh" }}
-            >
+            <div className="min-h-[40vh] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
               {trText || "—"}
             </div>
             <p className="mt-2 text-xs text-slate-500">{COVER_LETTER_RESULT_UI.noticeTrFooter}</p>
@@ -75,16 +74,14 @@ export function StepResultTabs({ data, jobEmail, onClose }: StepResultTabsProps)
         {activeTab === "en" && (
           <>
             <p className="mb-3 text-sm font-medium text-slate-600">{enNotice}</p>
-            <div
-              className="min-h-[52vh] max-h-[60vh] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap"
-              style={{ maxHeight: "60vh" }}
-            >
+            <div className="min-h-[40vh] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
               {enText || "—"}
             </div>
           </>
         )}
 
-        <div className="sticky bottom-0 z-10 mt-4 flex flex-col gap-2 border-t border-slate-100 bg-white pt-4 md:flex-row md:items-center md:gap-3">
+        {/* Footer sticky değil; yeterli pb ile çakışma yok */}
+        <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 bg-white pt-4 md:flex-row md:items-center md:gap-3">
           {activeTab === "tr" && (
             <button
               type="button"

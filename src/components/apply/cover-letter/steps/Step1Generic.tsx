@@ -3,7 +3,6 @@
 import type { CoverLetterAnswers } from "../lib/coverLetterSchema";
 import { COVER_LETTER_STEP_1_GENERIC } from "@/components/apply/coverLetterWizardContent";
 import { HintCard } from "../ui/HintCard";
-import { ExampleBlock } from "../ui/ExampleBlock";
 import { StickyActions } from "../ui/StickyActions";
 
 export interface Step1GenericProps {
@@ -21,6 +20,9 @@ export function Step1Generic({ answers, onChange, onNext, loading }: Step1Generi
   return (
     <div className="mt-6 space-y-6">
       <p className="text-sm text-slate-600">{COVER_LETTER_STEP_1_GENERIC.question}</p>
+      {COVER_LETTER_STEP_1_GENERIC.questionSub ? (
+        <p className="text-sm text-slate-500">{COVER_LETTER_STEP_1_GENERIC.questionSub}</p>
+      ) : null}
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -33,6 +35,9 @@ export function Step1Generic({ answers, onChange, onNext, loading }: Step1Generi
             placeholder={COVER_LETTER_STEP_1_GENERIC.rolePlaceholder}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
           />
+          <HintCard className="mt-2">
+            <span className="whitespace-pre-line">{COVER_LETTER_STEP_1_GENERIC.roleHint}</span>
+          </HintCard>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -45,11 +50,9 @@ export function Step1Generic({ answers, onChange, onNext, loading }: Step1Generi
             placeholder={COVER_LETTER_STEP_1_GENERIC.workAreaPlaceholder}
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
           />
+          <p className="mt-2 text-xs text-slate-500">{COVER_LETTER_STEP_1_GENERIC.workAreaHint}</p>
         </div>
       </div>
-
-      <ExampleBlock muted={!!role}>{COVER_LETTER_STEP_1_GENERIC.example}</ExampleBlock>
-      <HintCard>{COVER_LETTER_STEP_1_GENERIC.hint}</HintCard>
 
       <StickyActions>
         <button

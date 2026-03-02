@@ -219,7 +219,7 @@ export function StepLegalDocs({ answers, onChange, onNext, onBack, loading }: St
             onChange={(list) => onChange({ documents: list })}
             suggestions={COVER_LETTER_STEP_4.certificateSuggestions}
           />
-          <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_4.certificatesHint}</p>
+          <p className="mt-2 text-xs text-slate-500 whitespace-pre-line">{COVER_LETTER_STEP_4.certificatesHint}</p>
         </div>
 
         <div>

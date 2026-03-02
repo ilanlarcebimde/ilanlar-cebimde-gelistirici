@@ -11,32 +11,62 @@ import { StickyActions } from "../ui/StickyActions";
 const MAX_SKILLS = 5;
 const MIN_SKILLS = 2;
 
+/** Virgül ile ayrılabilir; Enter ile tam ifade tek etiket olur. Multi-word beceri destekler. */
 function SkillsChipInput({
   skills,
   onChange,
-  placeholder = "Beceri yazın ve Enter'a basın",
+  placeholder = "Virgül ile ayırın veya Enter ile tam ifadeyi ekleyin",
 }: {
   skills: string[];
   onChange: (list: string[]) => void;
   placeholder?: string;
 }) {
   const [input, setInput] = useState("");
-  const add = useCallback(() => {
-    const raw = input.trim().split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
-    for (const t of raw) {
-      if (skills.length >= MAX_SKILLS) break;
-      if (!skills.includes(t)) skills = [...skills, t];
+
+  const addOne = useCallback(
+    (raw: string) => {
+      const t = raw.trim();
+      if (!t || skills.includes(t) || skills.length >= MAX_SKILLS) return skills;
+      return [...skills, t];
+    },
+    [skills]
+  );
+
+  const addFromInput = useCallback(() => {
+    const text = input.trim();
+    if (!text) {
+      setInput("");
+      return;
     }
-    onChange(skills);
+    if (skills.length >= MAX_SKILLS) return;
+    const next = addOne(text);
+    if (next.length > skills.length) {
+      onChange(next);
+      setInput("");
+    }
+  }, [input, skills, onChange, addOne]);
+
+  const addCommaSplit = useCallback(() => {
+    const parts = input.split(",").map((s) => s.trim()).filter(Boolean);
+    let next = [...skills];
+    for (const t of parts) {
+      if (next.length >= MAX_SKILLS) break;
+      if (!next.includes(t)) next = [...next, t];
+    }
+    if (next.length > skills.length) onChange(next);
     setInput("");
   }, [input, skills, onChange]);
 
   const remove = useCallback((i: number) => onChange(skills.filter((_, j) => j !== i)), [skills, onChange]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
+    if (e.key === "Enter") {
       e.preventDefault();
-      add();
+      addFromInput();
+    }
+    if (e.key === ",") {
+      e.preventDefault();
+      addCommaSplit();
     }
     if (e.key === "Backspace" && !input && skills.length > 0) {
       e.preventDefault();
@@ -57,7 +87,7 @@ function SkillsChipInput({
         />
         <button
           type="button"
-          onClick={add}
+          onClick={addFromInput}
           disabled={skills.length >= MAX_SKILLS || !input.trim()}
           className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
@@ -123,6 +153,7 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
             placeholder={COVER_LETTER_STEP_3.placeholders.total_experience_years}
           />
+          <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_3.hints.total_experience_years}</p>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_3.fields.position_experience_years}</label>
@@ -139,6 +170,7 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
             placeholder={COVER_LETTER_STEP_3.placeholders.position_experience_years}
           />
+          <p className="mt-1 text-xs text-slate-500">{COVER_LETTER_STEP_3.hints.position_experience_years}</p>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_3.fields.last_company}</label>
@@ -149,6 +181,9 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
             placeholder={COVER_LETTER_STEP_3.placeholders.last_company}
           />
+          <HintCard className="mt-2">
+            <span className="whitespace-pre-line">{COVER_LETTER_STEP_3.hints.last_company}</span>
+          </HintCard>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_3.fields.top_skills}</label>
@@ -157,11 +192,13 @@ export function StepExperience({ answers, onChange, onNext, onBack, loading }: S
             onChange={(list) => onChange({ top_skills: list })}
             placeholder={COVER_LETTER_STEP_3.placeholders.top_skills}
           />
+          <HintCard className="mt-2">
+            <span className="whitespace-pre-line">{COVER_LETTER_STEP_3.hints.top_skills}</span>
+          </HintCard>
         </div>
       </div>
 
-      <HintCard>{COVER_LETTER_STEP_3.hint}</HintCard>
-      <ExampleBlock muted={hasContent}>{COVER_LETTER_STEP_3.example}</ExampleBlock>
+      <ExampleBlock muted={hasContent}>{COVER_LETTER_STEP_3.skillsExample}</ExampleBlock>
 
       <StickyActions>
         <div className="flex w-full gap-3">

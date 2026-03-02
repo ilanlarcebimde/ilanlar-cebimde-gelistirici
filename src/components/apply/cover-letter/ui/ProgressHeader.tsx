@@ -32,7 +32,7 @@ export function ProgressHeader({ currentStep, onClose, stepKey = 0, subtitle }: 
       >
         {COVER_LETTER_WIZARD_HEADING.title}
       </h2>
-      <p className="mt-1 text-sm text-slate-500">{subtext}</p>
+      {subtext ? <p className="mt-1 text-sm text-slate-500">{subtext}</p> : null}
 
       <div className="mt-6 flex items-center gap-1">
         {([1, 2, 3, 4, 5, 6] as const).map((s) => (

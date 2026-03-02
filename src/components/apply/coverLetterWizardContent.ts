@@ -5,13 +5,11 @@
 
 export type CoverLetterStepId = 1 | 2 | 3 | 4 | 5 | 6;
 
-/** Modal genel */
+/** Modal genel — alt başlık kaldırıldı (boş) */
 export const COVER_LETTER_WIZARD_HEADING = {
   title: "İş Başvuru Mektubu Oluştur",
-  /** job_id veya post_id varken (ilana göre) */
-  subtitle: "Bu mektup seçtiğiniz ilana göre hazırlanır.",
-  /** job/post yokken (generic) */
-  subtitleGeneric: "Bu mektup verdiğiniz bilgilere göre profesyonel şekilde hazırlanır.",
+  subtitle: "",
+  subtitleGeneric: "",
   buttonBack: "Geri",
 } as const;
 
@@ -19,12 +17,13 @@ export const COVER_LETTER_WIZARD_HEADING = {
 export const COVER_LETTER_STEP_1_GENERIC = {
   title: "Meslek / Rol",
   question: "Hangi meslek için başvuruyorsunuz?",
+  questionSub: "(İlanla birebir uyumlu rol yazmanız mektubun etkisini artırır.)",
   roleLabel: "Meslek / Rol (zorunlu)",
-  rolePlaceholder: "Örn: Kaynakçı / İnşaat Şoförü / Tesisatçı / Depo Personeli",
+  rolePlaceholder: "Örn: İnşaat Şoförü (C/CE) / TIG Kaynakçı / Endüstriyel Tesisatçı / Forklift Operatörü",
+  roleHint: "• Genel ifadeler (\"Usta\", \"İşçi\") yerine net teknik rol yazın.\n• Ehliyet veya uzmanlık varsa parantez içinde ekleyin.",
   workAreaLabel: "Çalışma alanı (opsiyonel)",
-  workAreaPlaceholder: "Örn: Şantiye / Atölye / Depo / Lojistik",
-  hint: "Meslek bilgisi, mektubun dilini ve vurgusunu belirler. \"Usta\" yazmak yerine net rol yazın.",
-  example: "Meslek/Rol: İnşaat Şoförü\nÇalışma alanı: Şantiye ve lojistik\nAçıklama: \"Ağır vasıta, şantiye sevkiyatı, zamanında teslim\" gibi ifadeler mektubu güçlendirir.",
+  workAreaPlaceholder: "Örn: Şantiye – Endüstriyel saha – Lojistik depo – Atölye üretim hattı",
+  workAreaHint: "Çalışma ortamını belirtmek işverenin sizi doğru konumlandırmasını sağlar.",
   button: "Devam Et",
   disabledTooltip: "Meslek / rol bilgisini girin.",
 } as const;
@@ -63,24 +62,29 @@ export const COVER_LETTER_STEP_2 = {
   button: "Devam Et",
 } as const;
 
-/** STEP 3 — Deneyim & Güçlü Yönler */
+/** STEP 3 — Deneyim & Beceriler */
 export const COVER_LETTER_STEP_3 = {
   title: "Deneyim & Güçlü Yönler",
-  question: "Deneyiminizi ve sizi öne çıkaran becerilerinizi yazın.",
+  question: "Deneyiminizi ve sizi öne çıkaran teknik becerilerinizi yazın.",
   fields: {
-    total_experience_years: "Toplam deneyim (yıl) (zorunlu)",
-    position_experience_years: "Bu rolde deneyim (yıl) (opsiyonel)",
-    last_company: "Son çalıştığınız firma / çalışma şekli (opsiyonel)",
+    total_experience_years: "Toplam deneyim (yıl)",
+    position_experience_years: "Bu rolde deneyim (yıl)",
+    last_company: "Son çalıştığınız firmalar / çalışma şekliniz",
     top_skills: "En güçlü beceriler (ideal 3–5, en az 2 zorunlu)",
   },
   placeholders: {
     total_experience_years: "Örn: 6",
     position_experience_years: "Örn: 4",
-    last_company: "Örn: Şantiye taşeronu / Atölye / Serbest",
-    top_skills: "Beceri yazın ve Enter'a basın",
+    last_company: "Örn: X İnşaat A.Ş. – Şantiye saha / Taşeron firma / Serbest çalışma / Yurt dışı proje",
+    top_skills: "Virgül ile ayırın veya Enter ile tam ifadeyi ekleyin",
   },
-  hint: "\"Çalışkanım\" gibi genel ifadeler yerine teknik ve ölçülebilir beceriler yazın.",
-  example: "İnşaat Şoförü için: Ağır vasıta (C/CE), Şantiye sevkiyat planlama, Güvenli sürüş & günlük kontrol, Zamanında teslim / disiplin",
+  hints: {
+    total_experience_years: "Toplam sektörel deneyiminizi yazın (örneğin 6).",
+    position_experience_years: "Başvurduğunuz pozisyondaki aktif çalışma süresi.",
+    last_company: "• Firma adı + sektör + çalışma modeli yazabilirsiniz.\n• Yurt dışı deneyimi varsa özellikle belirtin.",
+    top_skills: "• Genel ifadeler yerine teknik ve ölçülebilir beceri yazın.\n• Sertifika veya lisans varsa beceriye ekleyin.\n• En az 2 teknik beceri zorunludur.",
+  },
+  skillsExample: "Ağır vasıta (C/CE) · Şantiye sevkiyat planlama · TIG kaynak (argon) · Endüstriyel tesis montajı · Güvenli sürüş & günlük kontrol",
   button: "Devam Et",
   disabledTooltip: "En az 2 beceri ekleyin.",
 } as const;
@@ -88,7 +92,7 @@ export const COVER_LETTER_STEP_3 = {
 /** STEP 4 — Belgeler & Yasal Durum (revize: geçerlilik, vize türü, izin desteği) */
 export const COVER_LETTER_STEP_4 = {
   title: "Belgeler & Yasal Durum",
-  question: "Yurtdışı başvurularda en kritik konu: belgelerin ve yasal durumun netliği. Lütfen seçin.",
+  question: "Yurtdışı başvurularda en kritik konu: belgelerin ve yasal durumun netliği.",
   passportLabel: "Pasaport var mı? (zorunlu)",
   passportOptions: [
     { value: "var", label: "Var" },
@@ -132,8 +136,22 @@ export const COVER_LETTER_STEP_4 = {
   workPermitSupportHint: "İşverenin sponsorluğu gerekebilir; bu alan mektuptaki üslubu doğru kurar.",
   certificates: "Sertifikalar / Belgeler",
   certificatePlaceholder: "Sertifika adı",
-  certificateSuggestions: ["SRC", "Psikoteknik", "Forklift", "İş Güvenliği", "CE", "TIR", "Ustalık Belgesi"],
-  certificatesHint: "Sertifika yoksa boş bırakabilirsin; varsa eklemek mektubu ciddi güçlendirir.",
+  certificateSuggestions: [
+    "SRC (1–2–3–4)",
+    "Psikoteknik",
+    "Forklift Operatör Belgesi",
+    "İş Güvenliği Eğitimi",
+    "CE Sertifikası",
+    "TIR / C / CE Ehliyet",
+    "Ustalık Belgesi",
+    "MYK Belgesi",
+    "ISO Sertifikalı Eğitim",
+    "Vinç Operatör Belgesi",
+    "Kaynak Sertifikası (TIG/MIG/MAG)",
+    "Elektrik Yetki Belgesi",
+    "İlk Yardım Sertifikası",
+  ],
+  certificatesHint: "• Sertifikalar güven ve maaş seviyesini doğrudan etkiler.\n• Belgeniz varsa mutlaka ekleyin.\n• Yoksa boş bırakabilirsiniz.",
   availabilityLabel: "Ne zaman başlayabilirsiniz?",
   availabilityOptions: [
     { value: "hemen", label: "Hemen" },
@@ -146,17 +164,17 @@ export const COVER_LETTER_STEP_4 = {
   button: "Devam Et",
 } as const;
 
-/** STEP 5 — Motivasyon */
+/** STEP 5 — Motivasyon & Talepler */
 export const COVER_LETTER_STEP_5 = {
   title: "Motivasyon",
   question: "Neden bu işe uygunsunuz ve işverene ne katarsınız?",
+  questionSub: "(Ayrıca maaş, konaklama ve yasal durum beklentinizi net belirtin.)",
+  guidance: "2–4 cümle yazın. Aşağıdaki unsurlardan en az birini eklemeniz önerilir:\n• Maaş beklentisi\n• Konaklama talebi\n• Pasaport / vize durumu\n• Çalışma izni süreci\n• Başlangıç tarihi",
   charCount: "0 / 400",
-  /** İlanlı: pozisyon vurgusu */
   hint: "Pozisyonu 1–2 cümlede geçirmeniz mektubu güçlendirir.",
-  /** Genel/Merkez: şirket yok */
-  hintGeneric: "Kısa ve net: neden başvuruyorsunuz, ne katkı sunarsınız? 2–3 cümle yeter. \"Düzenli çalışma, güvenlik, ekip uyumu, sorumluluk\" gibi net ifadeler kullanın.",
-  example: "Mesleğimde disiplinli ve güvenli çalışma prensibiyle ilerliyorum. Deneyimim ve becerilerimle ekibe hızlı uyum sağlayıp işi zamanında ve düzgün şekilde tamamlamayı hedefliyorum. Uzun vadeli çalışma için uygunum.",
-  placeholder: "Neden bu işe uygunsunuz ve ne katkı sunarsınız? 2–3 cümle yazın.",
+  hintGeneric: "Kısa ve net: neden başvuruyorsunuz, ne katkı sunarsınız? 2–3 cümle yeter.",
+  example: "Mesleğimde disiplinli, güvenli ve planlı çalışma prensibiyle ilerliyorum. Deneyimim ve teknik becerilerim sayesinde projelere hızlı uyum sağlayarak işi zamanında ve eksiksiz tamamlamayı hedefliyorum. Geçerli pasaportum bulunmaktadır ve çalışma izni sürecine hazırım. Konaklama imkânı sunulan uzun vadeli bir pozisyonda görev almak istiyorum.",
+  placeholder: "Neden bu işe uygunsunuz ve ne katkı sunarsınız? 2–4 cümle yazın.",
   toneLabel: "Ton",
   toneOptions: [
     { value: "professional", label: "Profesyonel" },

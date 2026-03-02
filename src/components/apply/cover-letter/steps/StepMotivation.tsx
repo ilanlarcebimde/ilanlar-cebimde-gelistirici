@@ -56,6 +56,9 @@ export function StepMotivation({ answers, onChange, onNext, onBack, loading, has
     <div className="mt-6 space-y-6">
       <div>
         <label className="mb-1 block text-lg font-medium text-slate-800">{COVER_LETTER_STEP_5.question}</label>
+        {COVER_LETTER_STEP_5.questionSub ? (
+          <p className="mb-2 text-sm text-slate-600">{COVER_LETTER_STEP_5.questionSub}</p>
+        ) : null}
         <textarea
           ref={textareaRef}
           value={answers.motivation ?? ""}
@@ -78,7 +81,10 @@ export function StepMotivation({ answers, onChange, onNext, onBack, loading, has
           {showMaxMessage && isOver ? COVER_LETTER_STEP_5.maxCharsMessage : "\u00A0"}
         </div>
       </div>
-      <HintCard>{hasJobOrPost ? COVER_LETTER_STEP_5.hint : COVER_LETTER_STEP_5.hintGeneric}</HintCard>
+      <HintCard>
+        <span className="whitespace-pre-line">{COVER_LETTER_STEP_5.guidance}</span>
+      </HintCard>
+      <HintCard variant="amber">{hasJobOrPost ? COVER_LETTER_STEP_5.hint : COVER_LETTER_STEP_5.hintGeneric}</HintCard>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">{COVER_LETTER_STEP_5.toneLabel}</label>
         <div className="flex gap-2">
