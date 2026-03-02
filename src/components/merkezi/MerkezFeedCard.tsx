@@ -6,6 +6,8 @@ import Link from "next/link";
 import { JobActionsStack } from "./JobActionsStack";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
 import { supabase } from "@/lib/supabase";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
@@ -24,6 +26,8 @@ function isJobCard(post: MerkeziPostLandingItem): boolean {
 }
 
 export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
+  const { user } = useAuth();
+  const { active: isPremiumActive } = useSubscriptionActive(user?.id);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
 
@@ -145,6 +149,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             </Link>
             <JobActionsStack
               isPaid={post.is_paid}
+              isPremiumActive={isPremiumActive}
               onContactClick={handleContactClick}
               onLetterClick={handleLetterClick}
             />

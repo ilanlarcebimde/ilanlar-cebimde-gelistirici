@@ -212,19 +212,30 @@ export async function POST(req: NextRequest) {
   });
 
   const targetUrl = LETTER_WEBHOOK_URL;
+  const payloadStr = JSON.stringify(payload);
 
   console.log("[API] posting_n8n", {
     targetUrl: maskUrl(targetUrl),
     session_id: sessionId,
     step: 6,
+    payloadSize: payloadStr.length,
+    payloadPreview: payloadStr.slice(0, 300),
   });
 
+  const WEBHOOK_TIMEOUT_MS = 35_000;
+
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+
     const webhookRes = await fetch(targetUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: payloadStr,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const text = await webhookRes.text();
 
@@ -243,10 +254,15 @@ export async function POST(req: NextRequest) {
           (typeof parsed?.error === "string" ? parsed.error : null) ??
           fallback;
       } catch {
-        fallback = text.slice(0, 150) || fallback;
+        fallback = text.slice(0, 200).trim() || fallback;
       }
+      console.warn("[API] n8n non-OK", { status: webhookRes.status, bodyPreview: text.slice(0, 300) });
       return NextResponse.json(
-        { error: "webhook_error", detail: fallback },
+        {
+          error: "webhook_error",
+          detail: fallback,
+          webhook_status: webhookRes.status,
+        },
         { status: 502 }
       );
     }
@@ -265,9 +281,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(normalized);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[cover-letter] webhook error", msg);
+    const isAbort = err instanceof Error && err.name === "AbortError";
+    console.error("[cover-letter] webhook error", { message: msg, isAbort });
+    const detail =
+      isAbort
+        ? "Mektup servisi zaman aşımına uğradı. Lütfen tekrar deneyin."
+        : "Mektup servisi geçici olarak yanıt vermiyor. Lütfen tekrar deneyin.";
     return NextResponse.json(
-      { error: "webhook_error", detail: "Mektup servisi geçici olarak yanıt vermiyor." },
+      { error: "webhook_error", detail },
       { status: 502 }
     );
   }

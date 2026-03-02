@@ -275,20 +275,20 @@ export function useCoverLetterWizard(
           clearDraft();
         }
       } catch (err: unknown) {
-        const cast = err as { status?: number; data?: { error?: string; detail?: string; message?: string } };
+        const cast = err as { status?: number; data?: { error?: string; detail?: string; message?: string; webhook_status?: number } };
         const code =
           cast?.data?.error ??
           (cast?.status === 0 ? "network_error" : cast?.status === 403 ? "premium_plus_required" : cast?.status === 503 ? "webhook_not_configured" : "webhook_error");
+        const detailStr = typeof cast?.data?.detail === "string" ? cast.data.detail : "";
+        const messageStr = typeof cast?.data?.message === "string" ? cast.data.message : "";
         const message =
-          typeof cast?.data?.message === "string"
-            ? cast.data.message
-            : typeof cast?.data?.detail === "string"
-              ? cast.data.detail
-              : code === "network_error"
-                ? "Servise bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
-                : cast?.status === 502 || cast?.status === 503
-                  ? "Mektup servisi geçici olarak yanıt vermiyor. Lütfen tekrar deneyin."
-                  : "İstek başarısız.";
+          detailStr ||
+          messageStr ||
+          (code === "network_error"
+            ? "Servise bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
+            : cast?.status === 502 || cast?.status === 503
+              ? "Mektup servisi geçici olarak yanıt vermiyor. Lütfen tekrar deneyin."
+              : "İstek başarısız.");
         setError({ code, message });
         if ((code === "premium_plus_required" || code === "premium_required") && typeof window !== "undefined") {
           window.dispatchEvent(new Event("premium-subscription-invalidate"));

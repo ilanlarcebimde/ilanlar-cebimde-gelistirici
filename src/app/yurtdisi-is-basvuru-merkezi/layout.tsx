@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 
 export default function YurtdisiIsBasvuruMerkeziLayout({
@@ -9,9 +9,15 @@ export default function YurtdisiIsBasvuruMerkeziLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const currentUrl = pathname || "/yurtdisi-is-basvuru-merkezi";
   return (
     <>
-      <Header onLoginClick={() => router.push("/")} />
+      <Header
+        onLoginClick={() =>
+          router.push("/giris?next=" + encodeURIComponent(currentUrl))
+        }
+      />
       {children}
     </>
   );
