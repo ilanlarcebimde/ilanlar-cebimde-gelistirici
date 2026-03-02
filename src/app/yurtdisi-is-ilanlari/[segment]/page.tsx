@@ -181,7 +181,7 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
 
   const title =
     resolved.seoPage?.title ??
-    `${resolved.countrySlug} - ${resolved.sectorSlug}`;
+    (resolved.countrySlug ?? "") + " - " + (resolved.sectorSlug ?? "");
   const postTags = await getTagsByPostIds(resolved.posts.map((p) => p.id));
   return (
     <div className="min-h-screen bg-slate-50 py-8">
