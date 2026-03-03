@@ -1,16 +1,49 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { UcretsizPanelClient } from "./UcretsizPanelClient";
+import { DEFAULT_OG_IMAGE } from "@/lib/og";
 
 const CANONICAL = "https://www.ilanlarcebimde.com/ucretsiz-yurtdisi-is-ilanlari";
 const TITLE = "Ücretsiz Yurtdışı İş İlanları | İlanlar Cebimde";
 const DESCRIPTION = "En güncel ve ücretsiz yurtdışı iş ilanlarını keşfedin. Kariyer fırsatları cebinizde!";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: CANONICAL },
+// Ülke / kanal slug → OG görseli
+const COUNTRY_OG_IMAGES: Record<string, string> = {
+  estonya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/estonya_kanal_gorseli_ilanlar_cebimde.jpg",
 };
+
+interface PageProps {
+  params: Promise<Record<string, never>>;
+  searchParams: Promise<{ c?: string }>;
+}
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const { c } = await searchParams;
+  const slug = typeof c === "string" ? c.trim().toLowerCase() : "";
+  const hasCountry = !!slug && Object.prototype.hasOwnProperty.call(COUNTRY_OG_IMAGES, slug);
+  const imageUrl = hasCountry ? COUNTRY_OG_IMAGES[slug] : DEFAULT_OG_IMAGE;
+  const url = slug ? `${CANONICAL}?c=${encodeURIComponent(slug)}` : CANONICAL;
+
+  return {
+    title: TITLE,
+    description: DESCRIPTION,
+    alternates: { canonical: CANONICAL },
+    openGraph: {
+      title: TITLE,
+      description: DESCRIPTION,
+      url,
+      siteName: "İlanlar Cebimde",
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: hasCountry ? `Ücretsiz ${slug.toUpperCase()} iş ilanları` : "Ücretsiz Yurtdışı İş İlanları" }],
+      locale: "tr_TR",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: TITLE,
+      description: DESCRIPTION,
+      images: [imageUrl],
+    },
+  };
+}
 
 export default function UcretsizYurtdisiIsIlanlariPage() {
   return (
