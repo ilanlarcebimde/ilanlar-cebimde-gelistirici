@@ -10,6 +10,7 @@ const DESCRIPTION = "En güncel ve ücretsiz yurtdışı iş ilanlarını keşfe
 // Ülke / kanal slug → OG görseli
 const COUNTRY_OG_IMAGES: Record<string, string> = {
   estonya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/estonya_kanal_gorseli_ilanlar_cebimde.jpg",
+  finlandiya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/finlandiya_kapak_gorseli.jpg",
 };
 
 interface PageProps {
