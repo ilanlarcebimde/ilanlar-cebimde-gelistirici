@@ -7,10 +7,11 @@ const CANONICAL = "https://www.ilanlarcebimde.com/ucretsiz-yurtdisi-is-ilanlari"
 const TITLE = "Ücretsiz Yurtdışı İş İlanları | İlanlar Cebimde";
 const DESCRIPTION = "En güncel ve ücretsiz yurtdışı iş ilanlarını keşfedin. Kariyer fırsatları cebinizde!";
 
-// Ülke / kanal slug → OG görseli
+// Ülke / kanal slug → OG görseli (önerilen boyut: 1200×630)
 const COUNTRY_OG_IMAGES: Record<string, string> = {
   estonya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/estonya_kanal_gorseli_ilanlar_cebimde.jpg",
   finlandiya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/finlandiya_kapak_gorseli.jpg",
+  malta: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/MALTA%20SOSYAL%20PAYLASIM.jpg",
 };
 
 interface PageProps {
