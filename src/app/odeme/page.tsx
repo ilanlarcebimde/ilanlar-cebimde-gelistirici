@@ -296,7 +296,11 @@ export default function OdemePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 px-4">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="" className="h-12 w-12 shrink-0 rounded-lg object-contain" />
+          <p className="font-semibold text-slate-900">İlanlar Cebimde</p>
+        </div>
         <p className="text-slate-600">Ödeme sayfası hazırlanıyor…</p>
       </div>
     );
@@ -336,6 +340,35 @@ export default function OdemePage() {
         style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
       >
         <div className="mx-auto max-w-2xl">
+          {/* Logo + site adı + güven verici bilgiler */}
+          <header className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt=""
+                className="h-10 w-10 shrink-0 rounded-lg object-contain"
+              />
+              <div>
+                <p className="font-semibold text-slate-900">İlanlar Cebimde</p>
+                <p className="text-sm text-slate-500">Güvenli ödeme</p>
+              </div>
+            </div>
+            <ul className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-4 text-xs text-slate-600">
+              <li className="flex items-center gap-1.5">
+                <span className="text-emerald-600" aria-hidden>🔒</span>
+                <span>256-bit SSL ile güvenli</span>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="text-slate-500" aria-hidden>🛡️</span>
+                <span>3D Secure ödeme</span>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="text-slate-500" aria-hidden>↩️</span>
+                <span>İstediğin zaman iptal edebilirsin</span>
+              </li>
+            </ul>
+          </header>
+
           <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
 
           <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -369,6 +402,9 @@ export default function OdemePage() {
 
           {iframeUrl && (
             <div ref={paytrIframeRef} className="overflow-visible">
+              <p className="mb-2 text-sm text-slate-600">
+                <span className="font-medium text-slate-700">3D Secure</span> ile korunan ödeme sayfası. Aboneliklerde istediğin zaman iptal edebilirsin.
+              </p>
               <p className="mb-2 text-xs text-slate-500">
                 Formda &quot;Gerekli değerleri post ediniz&quot; uyarısı görürseniz kart numarası, son kullanma tarihi, CVC ve kart sahibi adını eksiksiz doldurun.
               </p>
