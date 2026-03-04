@@ -46,7 +46,7 @@ export default function PremiumJobGuidePage() {
     return <LoadingShell />;
   }
 
-  // Abonelik yok: 89 TL popup göster (layout bu sayfayı render etmeye izin veriyor)
+  // Abonelik yok: 89 TL haftalık popup göster (layout bu sayfayı render etmeye izin veriyor)
   if (!subscriptionActive) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">

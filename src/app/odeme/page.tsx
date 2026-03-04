@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT_FULL = 549;
-const AMOUNT_WEEKLY = 99;
+const AMOUNT_WEEKLY = 89;
 const AMOUNT_CV_PACKAGE = 349;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
@@ -432,16 +432,23 @@ export default function OdemePage() {
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
           <p className="text-sm font-medium text-slate-700">
-            Ödemeniz gereken tutar:{" "}
-            <span className="text-slate-900">
-              {(() => {
-                const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-                const data = p ? (JSON.parse(p) as { plan?: string; cv79_discount?: boolean }) : null;
-                if (data?.plan === "weekly") return "99,00 TL";
-                if (data?.plan === "cv_package") return data?.cv79_discount ? "270,00 TL" : "349,00 TL";
-                return "549,00 TL";
-              })()}
-            </span>
+            {(() => {
+              const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+              const data = p ? (JSON.parse(p) as { plan?: string; cv79_discount?: boolean }) : null;
+              if (data?.plan === "weekly") {
+                return (
+                  <>
+                    <span className="text-slate-500">Haftalık Premium — </span>
+                    <span className="text-slate-900">89,00 TL</span>
+                  </>
+                );
+              }
+              if (data?.plan === "cv_package") {
+                const amount = data?.cv79_discount ? "270,00 TL" : "349,00 TL";
+                return <>Ödemeniz gereken tutar: <span className="text-slate-900">{amount}</span></>;
+              }
+              return <>Ödemeniz gereken tutar: <span className="text-slate-900">549,00 TL</span></>;
+            })()}
           </p>
           <button
             type="button"
