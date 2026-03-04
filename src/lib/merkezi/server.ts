@@ -15,7 +15,10 @@ import type {
   MerkeziPage,
 } from "./types";
 
-const NOW = new Date().toISOString();
+/** İstek anındaki UTC ISO tarihi (RLS ve filtre ile uyum için). */
+function nowIso(): string {
+  return new Date().toISOString();
+}
 
 function stripHtmlToPlain(html: string | null | undefined, maxLen = 200): string {
   if (!html?.trim()) return "";
@@ -67,7 +70,7 @@ export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost 
     .select("id, created_at, updated_at, published_at, status, title, slug, cover_image_url, content, content_html_raw, content_html_sanitized, country_slug, city, sector_slug, is_paid, show_contact_when_free, company_logo_url, company_name, company_short_description, content_type, summary")
     .eq("slug", slug)
     .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${NOW}`)
+    .or(`published_at.is.null,published_at.lte.${nowIso()}`)
     .maybeSingle();
 
   if (error || !post) return null;
@@ -106,7 +109,7 @@ export async function getSectorBySlug(sectorSlug: string): Promise<SegmentSector
     .select("id, created_at, updated_at, published_at, status, title, slug, cover_image_url, content, content_html_raw, content_html_sanitized, country_slug, city, sector_slug, is_paid, show_contact_when_free, company_logo_url, company_name, company_short_description")
     .eq("sector_slug", sectorSlug)
     .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${NOW}`)
+    .or(`published_at.is.null,published_at.lte.${nowIso()}`)
     .order("published_at", { ascending: false, nullsFirst: false });
 
   const seoPage: MerkeziPage | null = seoRow
@@ -151,7 +154,7 @@ export async function getCountrySectorBySegment(
     .eq("country_slug", countrySlug)
     .eq("sector_slug", sectorSlug)
     .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${NOW}`)
+    .or(`published_at.is.null,published_at.lte.${nowIso()}`)
     .order("published_at", { ascending: false, nullsFirst: false });
 
   const seoPage: MerkeziPage | null = seoRow
@@ -234,7 +237,7 @@ export async function getPublishedPostsForMerkeziLanding(limit = 500): Promise<{
     .from("merkezi_posts")
     .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at, content_html_sanitized, application_deadline_date, application_deadline_text, content_type, summary")
     .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${NOW}`)
+    .or(`published_at.is.null,published_at.lte.${nowIso()}`)
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(requestLimit);
