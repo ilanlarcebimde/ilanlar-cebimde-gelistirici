@@ -7,19 +7,21 @@ const GA_ID = "G-NVM52S3EHT";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.ilanlarcebimde.com"),
-  title: "İlanlar Cebimde — Usta Başvuru Paketi | 549 TL",
+  title:
+    "Yurtdışı İş İlanları ve Başvuru Merkezi | CV Hazırla, Başvuru Mektubu Oluştur, Hemen Başvur",
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
   },
   description:
-    "Yurtiçi ve yurtdışı iş başvuruları için profesyonel CV, kişisel başvuru mektubu ve ilan analizi tek pakette. Ustalar için.",
+    "Yurtdışı iş ilanları, firma iletişim bilgileri, iş başvuru mektubu oluşturma, İngilizce CV hazırlama ve başvuru rehberi tek platformda. İlanlar Cebimde ile uluslararası kariyer fırsatlarına hızlı ve güvenilir erişim sağlayın.",
   keywords:
-    "yurtdışı iş, usta başvuru, CV hazırlama, ilan analizi, Almanya, Hollanda, inşaat, elektrik, seramik",
+    "yurtdışı iş ilanları, yurtdışı iş başvurusu, İngilizce CV hazırlama, başvuru mektubu oluşturma, yurtdışı kariyer, usta başvuru, ilan analizi, Almanya, Hollanda, inşaat, elektrik, seramik",
   openGraph: {
-    title: "İlanlar Cebimde — Usta Başvuru Paketi",
+    title:
+      "Yurtdışı İş İlanları ve Başvuru Merkezi | CV Hazırla, Başvuru Mektubu Oluştur, Hemen Başvur",
     description:
-      "Yurtdışında iş arayan ustalar için CV, başvuru mektubu ve ilan bülteni. Başvuruyu kolaylaştırır, süreci hızlandırır.",
+      "Yurtdışı iş ilanları, firma iletişim bilgileri, iş başvuru mektubu oluşturma, İngilizce CV hazırlama ve başvuru rehberi tek platformda. İlanlar Cebimde ile uluslararası kariyer fırsatlarına hızlı ve güvenilir erişim sağlayın.",
   },
 };
 
