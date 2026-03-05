@@ -12,6 +12,7 @@ const COUNTRY_OG_IMAGES: Record<string, string> = {
   estonya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/estonya_kanal_gorseli_ilanlar_cebimde.jpg",
   finlandiya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/finlandiya_kapak_gorseli.jpg",
   malta: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/MALTA%20SOSYAL%20PAYLASIM.jpg",
+  polonya: DEFAULT_OG_IMAGE,
 };
 
 interface PageProps {
