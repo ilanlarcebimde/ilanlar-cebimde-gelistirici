@@ -13,8 +13,7 @@ const extensions = [
     heading: { levels: [2, 3] },
     code: false,
     codeBlock: false,
-    // Paragraf ve liste varsayılan; Enter = yeni paragraf / yeni madde, boş maddede Enter = listeden çık
-    hardBreak: true, // Shift+Enter = <br>
+    // Paragraf, liste, HardBreak (Shift+Enter = <br>) varsayılan dahil
   }),
   Link.configure({
     HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
