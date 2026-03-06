@@ -20,6 +20,10 @@ const PREMIUM_COUPON_CODE = "ADMIN89";
 const CV_PACKAGE_DISCOUNT_CODE = "CV79";
 const CV_PACKAGE_DISCOUNT_AMOUNT = 79;
 const AMOUNT_CV_PACKAGE_DISCOUNTED = AMOUNT_CV_PACKAGE - CV_PACKAGE_DISCOUNT_AMOUNT;
+/** Merkez conversion popup kuponu: Usta Başvuru Paketi 129 TL indirim (549 - 129 = 420 TL) */
+const IYIUSTALAR_COUPON_CODE = "İYİUSTALAR";
+const IYIUSTALAR_DISCOUNT_AMOUNT = 129;
+const AMOUNT_FULL_IYIUSTALAR = AMOUNT_FULL - IYIUSTALAR_DISCOUNT_AMOUNT;
 
 function generateMerchantOid(): string {
   return "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
@@ -37,6 +41,7 @@ export default function OdemePage() {
   const [freeWithCoupon, setFreeWithCoupon] = useState(false);
   const [showPayHint, setShowPayHint] = useState(false);
   const [cv79Applied, setCv79Applied] = useState(false);
+  const [iyiustalarApplied, setIyiustalarApplied] = useState(false);
 
   const scrollToPayForm = useCallback(() => {
     paytrIframeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -48,6 +53,16 @@ export default function OdemePage() {
     const t = setTimeout(() => setShowPayHint(false), 5000);
     return () => clearTimeout(t);
   }, [showPayHint]);
+
+  /** Merkez conversion popup'tan gelindiğinde kupon alanını İYİUSTALAR ile doldur. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = sessionStorage.getItem("merkezi_popup_coupon");
+    if (stored?.trim().toUpperCase() === IYIUSTALAR_COUPON_CODE) {
+      setCouponCode(IYIUSTALAR_COUPON_CODE);
+      sessionStorage.removeItem("merkezi_popup_coupon");
+    }
+  }, []);
 
   const applyCoupon = useCallback(async () => {
     const code = couponCode.trim().toUpperCase();
@@ -163,6 +178,73 @@ export default function OdemePage() {
       }
       return;
     }
+    if (code === IYIUSTALAR_COUPON_CODE) {
+      const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+      const parsed = pending ? (JSON.parse(pending) as { plan?: string }) : null;
+      if (parsed?.plan === "weekly" || parsed?.plan === "cv_package") {
+        setCouponMessage({
+          type: "error",
+          text: "İYİUSTALAR kuponu sadece Usta Başvuru Paketi için geçerlidir.",
+        });
+        return;
+      }
+      setCouponMessage({
+        type: "success",
+        text: `${IYIUSTALAR_DISCOUNT_AMOUNT} TL indirim uygulandı. Ödemeniz: ${AMOUNT_FULL_IYIUSTALAR} TL.`,
+      });
+      try {
+        const full = JSON.parse(pending!) as Record<string, unknown>;
+        sessionStorage.setItem("paytr_pending", JSON.stringify({ ...full, iyiustalar_discount: true }));
+      } catch {
+        setCouponMessage({ type: "error", text: "Oturum güncellenemedi. Sayfayı yenileyip tekrar deneyin." });
+        return;
+      }
+      setIyiustalarApplied(true);
+      setIframeUrl(null);
+      setLoading(true);
+      try {
+        const full = JSON.parse(sessionStorage.getItem("paytr_pending")!) as {
+          email?: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string;
+          answers?: Record<string, unknown>; photo_url?: string | null; plan?: string; user_id?: string;
+        };
+        const email = full?.email?.trim();
+        if (!email) {
+          setError("E-posta bulunamadı.");
+          setLoading(false);
+          return;
+        }
+        const user_name = (full?.user_name && String(full.user_name).trim()) || email.split("@")[0] || "Müşteri";
+        const profile_snapshot = full?.method != null
+          ? { method: full.method, country: full.country ?? null, job_area: full.job_area ?? null, job_branch: full.job_branch ?? null, answers: full.answers ?? {}, photo_url: full.photo_url ?? null }
+          : undefined;
+        const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch("/api/paytr/initiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            merchant_oid: generateMerchantOid(),
+            email,
+            amount: AMOUNT_FULL_IYIUSTALAR,
+            user_name: user_name.slice(0, 60),
+            user_address: "Adres girilmedi",
+            user_phone: "5550000000",
+            merchant_ok_url: `${siteUrl}/odeme/basarili`,
+            merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
+            basket_description: BASKET_FULL,
+            profile_snapshot,
+            ...(full?.user_id && { user_id: full.user_id }),
+          }),
+        });
+        const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, { logPrefix: "[paytr/initiate]" });
+        if (data.success && data.iframe_url) setIframeUrl(data.iframe_url);
+        else setError(data.error || "Ödeme başlatılamadı");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ödeme yüklenemedi.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (code === FREE_COUPON_CODE) {
       setCouponMessage({ type: "success", text: "Kupon uygulandı. Sipariş tamamlanıyor…" });
       setFreeWithCoupon(true);
@@ -224,6 +306,7 @@ export default function OdemePage() {
           plan?: string;
           user_id?: string;
           cv79_discount?: boolean;
+          iyiustalar_discount?: boolean;
         })
       : null;
     const email = parsed?.email?.trim() ?? null;
@@ -235,9 +318,17 @@ export default function OdemePage() {
     const isWeekly = parsed?.plan === "weekly";
     const isCvPackage = parsed?.plan === "cv_package";
     const useCv79 = isCvPackage && !!parsed?.cv79_discount;
-    const amount = isWeekly ? AMOUNT_WEEKLY : isCvPackage ? (useCv79 ? AMOUNT_CV_PACKAGE_DISCOUNTED : AMOUNT_CV_PACKAGE) : AMOUNT_FULL;
+    const useIyiustalar = !isWeekly && !isCvPackage && !!parsed?.iyiustalar_discount;
+    const amount = isWeekly
+      ? AMOUNT_WEEKLY
+      : isCvPackage
+        ? (useCv79 ? AMOUNT_CV_PACKAGE_DISCOUNTED : AMOUNT_CV_PACKAGE)
+        : useIyiustalar
+          ? AMOUNT_FULL_IYIUSTALAR
+          : AMOUNT_FULL;
     const basketDescription = isWeekly ? BASKET_WEEKLY : isCvPackage ? BASKET_CV_PACKAGE : BASKET_FULL;
     setCv79Applied(!!useCv79);
+    setIyiustalarApplied(!!useIyiustalar);
 
     const user_name =
       (parsed?.user_name && String(parsed.user_name).trim()) ||

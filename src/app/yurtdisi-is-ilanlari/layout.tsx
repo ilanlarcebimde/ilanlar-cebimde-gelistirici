@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PremiumConversionPopup } from "@/components/merkezi/PremiumConversionPopup";
 
 export default function YurtdisiIsIlanlariLayout({
   children,
@@ -20,6 +21,7 @@ export default function YurtdisiIsIlanlariLayout({
         }
       />
       {children}
+      <PremiumConversionPopup />
       <Footer />
     </>
   );

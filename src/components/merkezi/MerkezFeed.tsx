@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MerkezFeedCard } from "./MerkezFeedCard";
+import { PremiumConversionPopup } from "./PremiumConversionPopup";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
 
 type FilterType = "all" | "premium" | "free";
@@ -42,6 +43,7 @@ export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <PremiumConversionPopup />
       <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <input
