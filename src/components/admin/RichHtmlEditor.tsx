@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import Underline from "@tiptap/extension-underline";
 import { Small } from "@/lib/tiptap-extensions/SmallMark";
 import type { Editor } from "@tiptap/core";
 
@@ -11,11 +13,14 @@ const extensions = [
     heading: { levels: [2, 3] },
     code: false,
     codeBlock: false,
-    link: {
-      HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
-      openOnClick: false,
-    },
+    // Paragraf ve liste varsayılan; Enter = yeni paragraf / yeni madde, boş maddede Enter = listeden çık
+    hardBreak: true, // Shift+Enter = <br>
   }),
+  Link.configure({
+    HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+    openOnClick: false,
+  }),
+  Underline,
   Small,
 ];
 
@@ -121,7 +126,12 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         “
       </button>
       <span className="mx-1 h-4 w-px bg-slate-300" />
-      <button type="button" onClick={setLink} className="rounded px-2 py-1 text-xs hover:bg-slate-100" title="Link">
+      <button
+        type="button"
+        onClick={setLink}
+        className={`rounded px-2 py-1 text-xs ${editor.isActive("link") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+        title="Link"
+      >
         Link
       </button>
       <span className="mx-1 h-4 w-px bg-slate-300" />
@@ -147,6 +157,12 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   );
 }
 
+const EDITOR_CLASS =
+  "prose prose-slate max-w-none min-h-[220px] px-3 py-3 focus:outline-none " +
+  "prose-p:mb-3 prose-p:leading-relaxed prose-p:first:mt-0 prose-headings:mt-4 prose-headings:mb-2 " +
+  "prose-ul:list-disc prose-ul:pl-6 prose-ul:my-2 prose-ol:list-decimal prose-ol:pl-6 prose-ol:my-2 prose-li:my-0.5 " +
+  "prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600";
+
 export function RichHtmlEditor({ value, onChange, placeholder }: RichHtmlEditorProps) {
   const lastEmitted = useRef<string>(value);
 
@@ -155,7 +171,13 @@ export function RichHtmlEditor({ value, onChange, placeholder }: RichHtmlEditorP
     content: value || "",
     editorProps: {
       attributes: {
-        class: "prose prose-slate max-w-none min-h-[220px] px-3 py-3 focus:outline-none",
+        class: EDITOR_CLASS,
+      },
+      handleKeyDown(_view, event) {
+        // Enter / Shift+Enter sadece editörde kalsın; form submit veya diğer handler'lar tetiklenmesin
+        if (event.key === "Enter") {
+          event.stopPropagation();
+        }
       },
     },
     onUpdate: ({ editor }) => {
@@ -175,12 +197,17 @@ export function RichHtmlEditor({ value, onChange, placeholder }: RichHtmlEditorP
     }
   }, [editor, value]);
 
+  const isEmpty =
+    !value?.trim() ||
+    value.trim() === "<p></p>" ||
+    value.trim() === "<p><br></p>";
+
   return (
     <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white">
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
-      {placeholder && !value?.trim() && (
-        <div className="pointer-events-none absolute left-4 top-14 text-sm text-slate-400">
+      {placeholder && isEmpty && (
+        <div className="pointer-events-none absolute left-4 top-14 text-sm leading-relaxed text-slate-400">
           {placeholder}
         </div>
       )}
