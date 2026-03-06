@@ -72,7 +72,8 @@ export async function POST(req: Request) {
       try {
         const stream = await convertWithVoice(elevenlabs, voiceId, trimmedText);
         const audioBuffer = await streamToBuffer(stream);
-        return new NextResponse(audioBuffer, {
+        const body = new Uint8Array(audioBuffer);
+        return new NextResponse(body, {
           status: 200,
           headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
         });
@@ -88,7 +89,8 @@ export async function POST(req: Request) {
       try {
         const stream = await convertWithVoice(elevenlabs, fromApi, trimmedText);
         const audioBuffer = await streamToBuffer(stream);
-        return new NextResponse(audioBuffer, {
+        const body = new Uint8Array(audioBuffer);
+        return new NextResponse(body, {
           status: 200,
           headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
         });
