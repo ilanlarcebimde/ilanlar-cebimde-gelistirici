@@ -2,18 +2,12 @@ import { NextResponse } from "next/server";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 /**
- * TTS: Metni ElevenLabs ile sese çevirir (resmi SDK ile; header/401 sorunları önlenir).
+ * TTS: Metni ElevenLabs ile sese çevirir.
  * ELEVENLABS_API_KEY server env'de olmalı.
- * ELEVENLABS_VOICE_ID opsiyonel; yoksa sırayla default/fallback sesler denenir.
- * Kontrat: 200 → audio/mpeg (binary) | 400 → text_required | 503 → tts_unavailable | 500 → internal_error
+ * ELEVENLABS_VOICE_ID opsiyonel; yoksa veya 404 alınırsa API'den hesabınızdaki sesler alınır, ilki kullanılır.
  */
 export const runtime = "nodejs";
 
-/** Eski varsayılan (Rachel — legacy, bazı hesaplarda 404 verebiliyor). */
-const LEGACY_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
-/** Dokümantasyon örneğinde kullanılan ses; 404 durumunda fallback. */
-const FALLBACK_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
-/** Varsayılan model: API default, çok dilli ve uyumlu. */
 const DEFAULT_MODEL_ID = "eleven_multilingual_v2";
 
 async function convertWithVoice(
@@ -38,6 +32,22 @@ function is404(e: unknown): boolean {
   return msg.includes("404") || msg.includes("not_found");
 }
 
+/** Hesaptaki ilk sesin ID'sini GET /v1/voices ile al (legacy dahil). */
+async function getFirstAvailableVoiceId(apiKey: string): Promise<string | null> {
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/voices?show_legacy=true", {
+      headers: { "xi-api-key": apiKey, Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { voices?: { voice_id?: string; id?: string }[] };
+    const first = data?.voices?.[0];
+    const id = first?.voice_id ?? first?.id;
+    return id && typeof id === "string" ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { text } = (await req.json()) as { text?: string };
@@ -53,38 +63,41 @@ export async function POST(req: Request) {
     const elevenlabs = new ElevenLabsClient({ apiKey });
     const trimmedText = text.trim();
 
-    const voiceIdsToTry: string[] = process.env.ELEVENLABS_VOICE_ID
-      ? [process.env.ELEVENLABS_VOICE_ID]
-      : [LEGACY_VOICE_ID, FALLBACK_VOICE_ID];
+    const envVoiceId = process.env.ELEVENLABS_VOICE_ID?.trim();
+    const voiceIdsToTry: string[] = envVoiceId ? [envVoiceId] : [];
 
     let lastError: unknown = null;
+
     for (const voiceId of voiceIdsToTry) {
       try {
         const stream = await convertWithVoice(elevenlabs, voiceId, trimmedText);
-        const reader = stream.getReader();
-        const chunks: Uint8Array[] = [];
-        let done = false;
-        while (!done) {
-          const result = await reader.read();
-          done = result.done;
-          if (result.value) chunks.push(result.value);
-        }
-        const audioBuffer = Buffer.concat(chunks);
+        const audioBuffer = await streamToBuffer(stream);
         return new NextResponse(audioBuffer, {
           status: 200,
-          headers: {
-            "Content-Type": "audio/mpeg",
-            "Cache-Control": "no-store",
-          },
+          headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
         });
       } catch (e) {
         lastError = e;
-        if (is404(e) && voiceIdsToTry.length > 1) continue;
+        if (is404(e)) continue;
         throw e;
       }
     }
 
-    throw lastError;
+    const fromApi = await getFirstAvailableVoiceId(apiKey);
+    if (fromApi) {
+      try {
+        const stream = await convertWithVoice(elevenlabs, fromApi, trimmedText);
+        const audioBuffer = await streamToBuffer(stream);
+        return new NextResponse(audioBuffer, {
+          status: 200,
+          headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
+        });
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    throw lastError ?? new Error("No voice available");
   } catch (e: unknown) {
     console.error("TTS error", e);
     const status = e && typeof e === "object" && "status" in e ? (e as { status: number }).status : 503;
@@ -99,10 +112,22 @@ export async function POST(req: Request) {
         status: status || 503,
         detail: detail.slice(0, 500),
         ...(isVoice404 && {
-          hint: "ELEVENLABS_VOICE_ID ortam değişkenine ElevenLabs panelinden (Default Voices) kopyaladığınız bir ses ID'si atayın.",
+          hint: "ElevenLabs panelinde Default Voices sayfasından bir ses seçip ELEVENLABS_VOICE_ID olarak ekleyin.",
         }),
       },
       { status: 503 }
     );
   }
+}
+
+async function streamToBuffer(stream: ReadableStream<Uint8Array>): Promise<Buffer> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let done = false;
+  while (!done) {
+    const result = await reader.read();
+    done = result.done;
+    if (result.value) chunks.push(result.value);
+  }
+  return Buffer.concat(chunks);
 }
