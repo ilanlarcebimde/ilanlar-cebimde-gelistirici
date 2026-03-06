@@ -173,50 +173,56 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     );
   }
 
-  // Bilgilendirme yazısı kartı (kompakt blog) — tek kolon
+  // Bilgilendirme yazısı kartı (blog) — mobil: tek kolon; masaüstü: iki kolon (görsel sol, içerik sağ)
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md md:p-5">
-      <div className="relative h-[200px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 md:h-[220px]">
-        {post.cover_image_url ? (
-          <Image
-            src={post.cover_image_url}
-            alt={post.title}
-            fill
-            className="object-contain"
-            sizes="(max-width: 768px) 100vw, 1024px"
-            unoptimized={post.cover_image_url.includes("supabase")}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-            <span className="text-3xl text-slate-400" aria-hidden>📄</span>
-          </div>
-        )}
-        <span className="absolute right-3 top-3 rounded-full bg-slate-700/90 px-2 py-1 text-xs font-medium text-white shadow-sm">
-          Yazı
-        </span>
-      </div>
-      <div className="mt-4 space-y-2">
-        <h2 className="text-lg font-semibold leading-tight text-slate-900 md:text-xl">{post.title}</h2>
-        {post.summary && <p className="line-clamp-2 text-sm text-slate-700">{post.summary}</p>}
-        {displayTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {displayTags.map((t) => (
-              <span key={t.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                {t.name}
-              </span>
-            ))}
-            {extraTags > 0 && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">+{extraTags}</span>
-            )}
-          </div>
-        )}
-        <Link
-          href={`${BASE}/${post.slug}`}
-          className="inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700"
-        >
-          Devamını Oku
-          <span aria-hidden>→</span>
-        </Link>
+    <article className="group overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md md:p-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[420px_1fr] md:gap-6 md:items-center">
+        {/* Sol: kapak görseli — masaüstünde sabit genişlik, mobilde üstte */}
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 md:min-h-0">
+          {post.cover_image_url ? (
+            <Image
+              src={post.cover_image_url}
+              alt={post.title}
+              fill
+              className="object-cover transition duration-300 group-hover:scale-[1.02]"
+              sizes="(max-width: 768px) 100vw, 420px"
+              unoptimized={post.cover_image_url.includes("supabase")}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+              <span className="text-3xl text-slate-400" aria-hidden>📄</span>
+            </div>
+          )}
+          <span className="absolute right-3 top-3 rounded-full bg-slate-700/90 px-2 py-1 text-xs font-medium text-white shadow-sm">
+            Yazı
+          </span>
+        </div>
+        {/* Sağ: başlık, açıklama, etiketler, Devamını Oku */}
+        <div className="flex min-w-0 flex-col justify-center space-y-3">
+          <h2 className="text-xl font-semibold leading-tight text-slate-900">{post.title}</h2>
+          {post.summary && (
+            <p className="text-sm text-slate-600 line-clamp-2">{post.summary}</p>
+          )}
+          {displayTags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {displayTags.map((t) => (
+                <span key={t.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  {t.name}
+                </span>
+              ))}
+              {extraTags > 0 && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">+{extraTags}</span>
+              )}
+            </div>
+          )}
+          <Link
+            href={`${BASE}/${post.slug}`}
+            className="inline-flex w-fit items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700"
+          >
+            Devamını Oku
+            <span aria-hidden>→</span>
+          </Link>
+        </div>
       </div>
     </article>
   );
