@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 
+/** Ana sayfa hero bölümüne scroll için hash (Hero bileşeninde id="hero" tanımlı). */
+const HOME_HERO_HREF = "/#hero";
+
 const INTERNAL_LINKS = [
-  { href: "/usta-basvuru-paketi", label: "Usta Başvuru Paketi" },
+  { href: HOME_HERO_HREF, label: "Usta Başvuru Paketi" },
   { href: "/yurtdisi-cv-paketi", label: "Yurtdışı CV Paketi" },
   { href: "/ucretsiz-yurtdisi-is-ilanlari", label: "Ücretsiz Yurtdışı İş İlanları" },
 ];
-
-/** Ana sayfa hero bölümüne scroll için hash (Hero bileşeninde id="hero" tanımlı). */
-const HOME_HERO_HREF = "/#hero";
 
 const buttonClass =
   "inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors";
