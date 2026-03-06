@@ -32,15 +32,32 @@ function is404(e: unknown): boolean {
   return msg.includes("404") || msg.includes("not_found");
 }
 
-/** Hesaptaki ilk sesin ID'sini GET /v1/voices ile al (legacy dahil). */
-async function getFirstAvailableVoiceId(apiKey: string): Promise<string | null> {
+type VoiceItem = {
+  voice_id?: string;
+  id?: string;
+  labels?: { gender?: string };
+};
+
+/** Hesaptaki seslerden birini seç (kadın sesi tercih edilir). */
+async function getFirstAvailableVoiceId(
+  apiKey: string,
+  preferFemale = true
+): Promise<string | null> {
   try {
     const res = await fetch("https://api.elevenlabs.io/v1/voices?show_legacy=true", {
       headers: { "xi-api-key": apiKey, Accept: "application/json" },
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { voices?: { voice_id?: string; id?: string }[] };
-    const first = data?.voices?.[0];
+    const data = (await res.json()) as { voices?: VoiceItem[] };
+    const voices = data?.voices ?? [];
+    if (preferFemale) {
+      const female = voices.find(
+        (v) => (v.labels?.gender ?? "").toLowerCase() === "female"
+      );
+      const id = female?.voice_id ?? female?.id;
+      if (id && typeof id === "string") return id;
+    }
+    const first = voices[0];
     const id = first?.voice_id ?? first?.id;
     return id && typeof id === "string" ? id : null;
   } catch {
