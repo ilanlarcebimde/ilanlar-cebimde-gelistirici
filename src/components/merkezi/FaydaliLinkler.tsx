@@ -1,9 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { SafeExternalLink } from "@/components/common/SafeExternalLink";
-
-const EXTERNAL_SERVICES_URL = "https://linktr.ee/yurtdisieleman.net";
 
 const INTERNAL_LINKS = [
   { href: "/usta-basvuru-paketi", label: "Usta Başvuru Paketi" },
@@ -11,11 +8,14 @@ const INTERNAL_LINKS = [
   { href: "/ucretsiz-yurtdisi-is-ilanlari", label: "Ücretsiz Yurtdışı İş İlanları" },
 ];
 
+/** Ana sayfa hero bölümüne scroll için hash (Hero bileşeninde id="hero" tanımlı). */
+const HOME_HERO_HREF = "/#hero";
+
 const buttonClass =
   "inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors";
 
 /**
- * Ücretsiz içerikte (is_paid=false) gösterilir. 4 buton: 3 internal + 1 external (SafeExternalLink).
+ * Ücretsiz içerikte (is_paid=false) gösterilir. 4 buton: 3 servis sayfası + ana sayfa hero'ya giden link.
  */
 export function FaydaliLinkler() {
   return (
@@ -30,14 +30,14 @@ export function FaydaliLinkler() {
             {label}
           </Link>
         ))}
-        <SafeExternalLink
-          href={EXTERNAL_SERVICES_URL}
+        <Link
+          href={HOME_HERO_HREF}
           className={buttonClass}
-          aria-label="Tüm Hizmetleri Görüntüle (yeni sekmede açılır)"
+          aria-label="Tüm Hizmetleri Görüntüle — ana sayfa hero bölümüne gider"
         >
           Tüm Hizmetleri Görüntüle
           <span className="text-slate-400" aria-hidden>↗</span>
-        </SafeExternalLink>
+        </Link>
       </div>
     </aside>
   );
