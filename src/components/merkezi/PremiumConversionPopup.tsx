@@ -55,38 +55,39 @@ export function PremiumConversionPopup() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-end md:items-center md:justify-center"
+      className="fixed inset-0 z-[9999] flex items-end justify-center pb-0 md:pb-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="popup-title"
     >
-      {/* Overlay — blur + koyu opak */}
+      {/* Overlay — hafif koyu, blur yok */}
       <div
-        className={`absolute inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity duration-300 ${entered ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 bg-black/15 transition-opacity duration-300 md:bg-black/10 ${entered ? "opacity-100" : "opacity-0"}`}
         onClick={handleClose}
         aria-hidden
       />
 
-      {/* Mobil: alttan sheet • Masaüstü: ortalanmış kart */}
+      {/* Mobil: alttan sheet (y: 80 → 0) • Masaüstü: alt orta panel (y: 48 → 0) */}
       <div
-        className={`relative z-[10000] w-full overflow-hidden bg-slate-900 shadow-2xl transition-all duration-300 ease-out md:max-h-[90vh] md:overflow-y-auto
-          md:max-w-[480px] md:rounded-2xl md:border md:border-white/10
-          max-h-[46vh] rounded-t-3xl border-t border-x border-white/10
-          ${entered ? "translate-y-0 md:scale-100 md:opacity-100" : "translate-y-full md:translate-y-0 md:scale-95 md:opacity-0"}`}
+        className={`relative z-[10000] w-full overflow-hidden shadow-2xl transition-all duration-300 ease-out
+          max-h-[48vh] rounded-t-3xl border-t border-x border-white/10
+          md:max-h-[85vh] md:w-full md:max-w-[580px] md:rounded-2xl md:border md:border-white/10
+          ${entered ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 md:translate-y-12 md:opacity-0"}`}
         style={{ backgroundColor: "#0f172a" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Mobil: üst çizgi (drag handle hissi) */}
-        <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-slate-500/60 md:hidden" />
+        {/* Mobil: üst çizgi */}
+        <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-slate-500/50 md:hidden" />
 
+        {/* Kapat — belirgin, büyük tıklanabilir alan */}
         <button
           type="button"
           onClick={handleClose}
-          className="absolute right-3 top-3 z-10 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white md:top-4 md:right-4"
+          className="absolute right-3 top-3 z-10 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/90 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30 md:right-4 md:top-4 md:h-11 md:w-11"
           aria-label="Kapat"
         >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg className="h-7 w-7 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
@@ -107,19 +108,19 @@ export function PremiumConversionPopup() {
             Türkçe CV, İngilizce CV ve kişiselleştirilmiş başvuru mektubu ile profesyonel başvuru altyapınızı hazırlayın.
           </p>
 
-          {/* Fayda satırları — kompakt */}
+          {/* Fayda satırları */}
           <ul className="mb-3 space-y-1 text-xs text-slate-200 md:mb-4 md:text-sm">
             <li className="flex items-center gap-2">
-              <span className="text-emerald-400">✔</span>
+              <span className="shrink-0 text-emerald-400">✔</span>
               Türkçe CV + İngilizce CV + Başvuru Mektubu
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-emerald-400">✔</span>
-              1 haftalık iş ilanı araştırması + profil fotoğrafı düzenleme
+              <span className="shrink-0 text-emerald-400">✔</span>
+              Seçtiğiniz ülkeye ve mesleğinize göre güncel iş ilanları araştırması + profil fotoğrafı düzenleme
             </li>
           </ul>
 
-          {/* Kupon — kompakt */}
+          {/* Kupon */}
           <div className="merkezi-popup-pulse mb-4 rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 md:mb-5 md:px-4 md:py-3">
             <p className="text-[10px] font-medium uppercase tracking-wider text-amber-400 md:text-xs">
               Sadece bu sayfaya özel
@@ -133,7 +134,7 @@ export function PremiumConversionPopup() {
             <p className="mt-0.5 text-center text-[10px] text-slate-400">Sınırlı sayıda kullanım hakkı</p>
           </div>
 
-          {/* CTA — fold üstünde */}
+          {/* CTA */}
           <Link
             href={CTA_HREF}
             onClick={handleCta}
@@ -168,7 +169,7 @@ export function PremiumConversionPopup() {
               <div className="mt-3 space-y-1.5 rounded-lg bg-slate-800/50 px-3 py-2 text-xs text-slate-300">
                 <p>• ATS uyumlu CV formatı, İngilizce başvuru altyapısı</p>
                 <p>• Kişiselleştirilmiş başvuru mektubu</p>
-                <p>• Seçilen ülke ve meslek için 1 haftalık iş ilanları tarafınıza iletilir</p>
+                <p>• Seçtiğiniz ülkeye ve mesleğinize göre güncel iş ilanları araştırması</p>
                 <p>• Gelişmiş profil fotoğrafı düzenleme, ek ücret talep edilmez</p>
               </div>
             )}
