@@ -126,47 +126,47 @@ export function PremiumConversionPopup() {
         {/* Mobil: üst çizgi */}
         <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-slate-500/50 md:hidden" />
 
-        {/* Kapat — belirgin, büyük tıklanabilir alan */}
-        <button
-          type="button"
-          onClick={handleClose}
-          className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/85 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/25 md:right-4 md:top-4 md:h-10 md:w-10"
-          aria-label="Kapat"
-        >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
         <div
-          className="p-4 pb-5 pt-4 pr-14 md:p-6 md:pb-5 md:pt-5 md:pr-16"
+          className="p-4 pb-5 pt-4 md:p-6 md:pb-5 md:pt-5"
           style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
         >
-          {/* Badge */}
-          <div
-            className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-amber-100/35 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#1f2937] md:mb-3 md:px-3 md:py-1.5 md:text-[11px]"
-            style={{
-              background:
-                "linear-gradient(135deg, #fcd34d 0%, #f59e0b 58%, #d97706 100%)",
-              boxShadow: "0 10px 24px rgba(245, 158, 11, 0.18)",
-            }}
-          >
-            <svg
-              className="h-3.5 w-3.5"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden
+          <div className="mb-3 flex items-start justify-between gap-3 md:mb-4">
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-100/35 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#1f2937] md:px-3 md:py-1.5 md:text-[11px]"
+              style={{
+                background:
+                  "linear-gradient(135deg, #fcd34d 0%, #f59e0b 58%, #d97706 100%)",
+                boxShadow: "0 10px 24px rgba(245, 158, 11, 0.18)",
+              }}
             >
-              <path
-                d="M4.16675 10H15.8334M15.8334 10L10.8334 5M15.8334 10L10.8334 15"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            ANINDA BAŞVURU İMKANI
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M4.16675 10H15.8334M15.8334 10L10.8334 5M15.8334 10L10.8334 15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              ANINDA BAŞVURU İMKANI
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/25"
+              aria-label="Kapat"
+            >
+              <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
           <h2
