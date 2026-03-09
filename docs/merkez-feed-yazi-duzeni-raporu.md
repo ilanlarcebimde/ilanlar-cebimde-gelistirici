@@ -226,3 +226,100 @@ Yani:
 - İletişim API: `src/app/api/merkezi/post/[id]/contact/route.ts` (premium doğrulama sonrası iletişim döner)
 
 Bu rapor, liste sayfasındaki yazı düzenini ve yazı (detay) sayfasındaki ücretli/ücretsiz düzenini özetler.
+
+---
+
+# Popup raporu — Son durum
+
+**Bileşen:** `src/components/merkezi/PremiumConversionPopup.tsx`  
+**Gösterildiği yerler:**  
+- `src/components/merkezi/MerkezFeed.tsx` üzerinden `/yurtdisi-is-basvuru-merkezi`
+- `src/app/yurtdisi-is-ilanlari/layout.tsx` üzerinden yazı/detay sayfaları
+
+## 10. Popup gösterim mantığı
+
+- Popup sadece client-side açılır.
+- İlk mount sonrası yaklaşık `2 saniye` beklenir.
+- Kullanıcı popup’ı kapattıysa `sessionStorage` içindeki `merkezi_conversion_popup_dismissed = "1"` nedeniyle aynı oturumda tekrar çıkmaz.
+- Kullanıcının aktif haftalık premium aboneliği varsa popup hiç gösterilmez.
+- Abonelik aktifleştiğinde dismiss kaydı temizlenir; bu nedenle abonelik süresi bittiğinde popup yeniden gösterilebilir.
+
+## 11. Popup CTA ve ödeme akışı
+
+- Ana CTA: **"Başvuruyu Hemen Hazırla"**
+- CTA tıklanınca kullanıcı giriş yapmışsa `sessionStorage.paytr_pending` içine haftalık plan yazılır:
+  - `plan: "weekly"`
+  - `email`
+  - `user_name`
+  - `user_id` (varsa)
+- Sonrasında kullanıcı `/odeme` sayfasına yönlendirilir ve PayTR iframe akışı başlar.
+- Giriş yoksa önce `/giris`, ardından ödeme akışına dönüş yapılır.
+
+## 12. Popup metin hiyerarşisi
+
+### Üst badge
+
+- **ANINDA BAŞVURU İMKANI**
+
+### Ana başlık
+
+- **İŞVERENLE HEMEN İLETİŞİME GEÇ**
+
+### Açıklama blokları
+
+- Yurtdışında çalışmak isteyen ustalar için hazırlanan bu araçlarla işverenlere daha hızlı, daha düzenli ve daha profesyonel şekilde ulaşın.
+- Firma iletişim bilgilerine erişin veya profesyonel İngilizce iş başvuru mektubu oluşturarak başvurunuzu dakikalar içinde gönderin.
+
+### Fayda maddeleri
+
+- İşe Hemen Başvur: Firma İletişim Bilgileri
+- Profesyonel İş Başvuru Mektubu Oluştur
+
+### Bilgilendirme kutusu
+
+- Mesleğinizi, iş tecrübenizi, pasaport / vize durumunuzu, maaş beklentinizi ve konaklama taleplerinizi yazın.
+- Gelişmiş sistem başvuru bilgilerinizi profesyonel İngilizce mektuba dönüştürür.
+- Vurgu cümlesi: **Daha düzenli başvurular, işverenin dikkatini çekme olasılığını artırır.**
+
+### Fiyat kutusu
+
+- Üst küçük başlık: **SADECE BU SAYFAYA ÖZEL**
+- Paket adı: **HAFTALIK ABONELİK**
+- Fiyat: **99 TL / hafta**
+- Alt metin: **Başvuru araçlarına sınırsız erişim**
+
+### Alt küçük satır
+
+- Firma iletişim bilgilerine erişim • Profesyonel İngilizce başvuru mektubu • Kolay başvuru
+
+## 13. Görsel stil ve ton
+
+- Genel arka plan: `linear-gradient(180deg, #0f172a 0%, #1b2b45 55%, #223554 100%)`
+- Overlay: hafif koyu, blur yok
+- Badge: amber gradient, yıldız emojisi kaldırılmış, yerine yön duygusu veren sade ikon eklenmiş
+- CTA: yeşil gradient, güçlü gölge, yüksek kontrast
+- İç bilgi kutuları:
+  - bilgi kutusu: `#1a2c47`
+  - fiyat kutusu: `#14263f`
+
+## 14. Mobil davranış
+
+- Mobilde popup alttan çıkan bottom sheet olarak açılır.
+- Yükseklik güvenli şekilde sınırlandırılmıştır: `max-h-[88dvh]`
+- Popup dış kabuğu sabit kalır, scroll popup içeriğinde çalışır.
+- Alt safe-area desteği vardır: `env(safe-area-inset-bottom)`
+- Kapatma butonu sağ üstte sabit ve görünür kalır.
+- Amaç: içerik yarım görünmesin, fiyat kutusu ve CTA erişilebilir olsun.
+
+## 15. Masaüstü davranış
+
+- Masaüstünde popup alt-orta konumlu kompakt panel olarak görünür.
+- Maksimum yükseklik `85vh`, maksimum genişlik `580px`
+- Desktop yerleşimi korunur; son düzenlemeler esas olarak ton, tipografi ve mobil okunabilirlik üzerinedir.
+
+## 16. Teknik referanslar
+
+- Popup bileşeni: `src/components/merkezi/PremiumConversionPopup.tsx`
+- Abonelik kontrolü: `src/hooks/useSubscriptionActive.ts`
+- Ödeme sayfası: `src/app/odeme/page.tsx`
+- PayTR callback: `src/app/api/paytr/callback/route.ts`

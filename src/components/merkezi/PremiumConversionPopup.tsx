@@ -16,7 +16,6 @@ export function PremiumConversionPopup() {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -113,8 +112,8 @@ export function PremiumConversionPopup() {
       {/* Mobil: alttan sheet (y: 80 → 0) • Masaüstü: alt orta panel (y: 48 → 0) */}
       <div
         className={`relative z-[10000] w-full overflow-hidden shadow-2xl transition-all duration-300 ease-out
-          max-h-[88dvh] rounded-t-3xl border-t border-x border-[#9fb0c7]/12
-          md:max-h-[85vh] md:w-full md:max-w-[580px] md:rounded-2xl md:border md:border-[#9fb0c7]/12
+          rounded-t-3xl border-t border-x border-[#9fb0c7]/12
+          md:w-full md:max-w-[580px] md:rounded-2xl md:border md:border-[#9fb0c7]/12
           ${entered ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 md:translate-y-12 md:opacity-0"}`}
         style={{
           background:
@@ -131,21 +130,18 @@ export function PremiumConversionPopup() {
         <button
           type="button"
           onClick={handleClose}
-          className="absolute right-3 top-3 z-10 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/90 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30 md:right-4 md:top-4 md:h-11 md:w-11"
+          className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/85 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/25 md:right-4 md:top-4 md:h-10 md:w-10"
           aria-label="Kapat"
         >
-          <svg className="h-7 w-7 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
         <div
-          className="max-h-[88dvh] overflow-y-auto overscroll-contain touch-pan-y md:max-h-[85vh]"
-          style={{
-            paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-          }}
+          className="p-4 pb-5 pt-4 pr-14 md:p-6 md:pb-5 md:pt-5 md:pr-16"
+          style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
         >
-        <div className="p-4 pb-6 pt-5 pr-16 md:p-6 md:pb-6 md:pt-6 md:pr-16">
           {/* Badge */}
           <div
             className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-amber-100/35 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#1f2937] md:mb-3 md:px-3 md:py-1.5 md:text-[11px]"
@@ -175,43 +171,37 @@ export function PremiumConversionPopup() {
 
           <h2
             id="popup-title"
-            className="mb-2 text-[20px] font-extrabold leading-7 tracking-[-0.02em] text-slate-50 md:mb-2.5 md:text-[22px] md:leading-8"
+            className="mb-2 text-[19px] font-extrabold leading-7 tracking-[-0.02em] text-slate-50 md:mb-2 md:text-[22px] md:leading-8"
           >
             İŞVERENLE HEMEN İLETİŞİME GEÇ
           </h2>
-          <p className="mb-2 text-[13px] leading-6 text-[#dbe4f0] md:text-[15px] md:leading-7">
-            Yurtdışında çalışmak isteyen ustalar için hazırlanan bu araçlarla işverenlere daha hızlı, daha düzenli ve daha profesyonel şekilde ulaşın.
-          </p>
-          <p className="mb-3 text-[13px] leading-6 text-[#dbe4f0] md:mb-4 md:text-[15px] md:leading-7">
-            Firma iletişim bilgilerine erişin veya profesyonel İngilizce iş başvuru mektubu oluşturarak başvurunuzu dakikalar içinde gönderin.
+          <p className="mb-3 text-[13px] leading-5 text-[#dbe4f0] md:mb-3 md:text-[14px] md:leading-6">
+            Firma iletişim bilgilerine ulaşın veya profesyonel İngilizce başvuru mektubu hazırlayıp başvurunuzu dakikalar içinde gönderin.
           </p>
 
           {/* Fayda satırları */}
-          <ul className="mb-4 space-y-1.5 text-[13px] text-slate-50 md:mb-4 md:text-[15px]">
-            <li className="flex items-center gap-2.5 font-medium leading-6">
+          <ul className="mb-3 space-y-1.5 text-[13px] text-slate-50 md:mb-3 md:text-[14px]">
+            <li className="flex items-center gap-2.5 font-medium leading-5 md:leading-6">
               <span className="shrink-0 text-[#6ee7b7]">✔</span>
               İşe Hemen Başvur: Firma İletişim Bilgileri
             </li>
-            <li className="flex items-center gap-2.5 font-medium leading-6">
+            <li className="flex items-center gap-2.5 font-medium leading-5 md:leading-6">
               <span className="shrink-0 text-[#6ee7b7]">✔</span>
               Profesyonel İş Başvuru Mektubu Oluştur
             </li>
           </ul>
 
-          <div className="mb-4 rounded-xl border border-white/10 bg-[#1a2c47] px-3 py-2.5 md:mb-5 md:px-4 md:py-3.5">
-            <p className="text-center text-[12px] leading-6 text-[#dbe4f0] md:text-[14px] md:leading-7">
-              Mesleğinizi, iş tecrübenizi, pasaport / vize durumunuzu, maaş beklentinizi ve konaklama taleplerinizi yazın.
+          <div className="mb-3 rounded-xl border border-white/10 bg-[#1a2c47] px-3 py-2.5 md:mb-4 md:px-4 md:py-3">
+            <p className="text-center text-[12px] leading-5 text-[#dbe4f0] md:text-[13px] md:leading-6">
+              Mesleğinizi, tecrübenizi ve beklentilerinizi yazın. Sisteminiz bunları profesyonel İngilizce başvuru mektubuna dönüştürsün.
             </p>
-            <p className="mt-1.5 text-center text-[12px] leading-6 text-[#dbe4f0] md:text-[14px] md:leading-7">
-              Gelişmiş sistem başvuru bilgilerinizi profesyonel İngilizce mektuba dönüştürür.
-            </p>
-            <p className="mt-2 text-center text-[11px] font-medium leading-5 text-[#a7f3d0] md:text-[12px]">
-              Daha düzenli başvurular, işverenin dikkatini çekme olasılığını artırır.
+            <p className="mt-1.5 text-center text-[11px] font-medium leading-5 text-[#a7f3d0] md:text-[12px]">
+              Daha düzenli başvurular, işverenin dikkatini çekme şansını artırır.
             </p>
           </div>
 
           {/* Fiyat alanı */}
-          <div className="merkezi-popup-pulse mb-4 rounded-xl border border-[rgba(245,158,11,0.6)] bg-[#14263f] px-3 py-2.5 md:mb-5 md:px-4 md:py-3">
+          <div className="merkezi-popup-pulse mb-3 rounded-xl border border-[rgba(245,158,11,0.6)] bg-[#14263f] px-3 py-2.5 md:mb-4 md:px-4 md:py-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300 md:text-[11px]">
               SADECE BU SAYFAYA ÖZEL
             </p>
@@ -233,37 +223,9 @@ export function PremiumConversionPopup() {
           >
             Başvuruyu Hemen Hazırla
           </button>
-          <p className="mt-2 text-center text-[11px] leading-5 text-[#9fb0c7] md:text-[13px]">
-            Firma iletişim bilgilerine erişim • Profesyonel İngilizce başvuru mektubu • Kolay başvuru
+          <p className="mt-1.5 text-center text-[11px] leading-5 text-[#9fb0c7] md:text-[12px]">
+            Firma iletişim bilgileri • İngilizce başvuru mektubu • Kolay başvuru
           </p>
-
-          {/* Açılır detay */}
-          <div className="mt-4 border-t border-slate-600/70 pt-3 md:mt-5">
-            <button
-              type="button"
-              onClick={() => setDetailsOpen((o) => !o)}
-              className="flex w-full items-center justify-center gap-1.5 text-[12px] text-[#9fb0c7] transition hover:text-slate-200"
-              aria-expanded={detailsOpen}
-            >
-              Paket detaylarını {detailsOpen ? "gizle" : "göster"}
-              <svg
-                className={`h-4 w-4 transition-transform ${detailsOpen ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {detailsOpen && (
-              <div className="mt-3 space-y-1.5 rounded-lg border border-white/8 bg-[#1a2c47] px-3 py-2 text-[12px] leading-5 text-[#dbe4f0]">
-                <p>• Oluşturulan mektubu ilan içindeki firma iletişim bilgileri üzerinden gönderin.</p>
-                <p>• Telefon varsa WhatsApp ile başvurunuzu iletebilirsiniz.</p>
-                <p>• E-posta varsa Gmail / Outlook ile başvurunuzu iletebilirsiniz.</p>
-              </div>
-            )}
-          </div>
-        </div>
         </div>
       </div>
     </div>,
