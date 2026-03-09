@@ -101,5 +101,30 @@ export function useSubscriptionActive(userId: string | undefined): {
     return () => window.removeEventListener("premium-subscription-invalidate", onInvalidate);
   }, [userId, refetch]);
 
+  // Ödeme akışından geri dönüldüğünde (focus/pageshow/visible) abonelik durumunu tazele.
+  useEffect(() => {
+    if (!userId) return;
+
+    const refreshIfNeeded = () => {
+      void refetch();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshIfNeeded();
+      }
+    };
+
+    window.addEventListener("focus", refreshIfNeeded);
+    window.addEventListener("pageshow", refreshIfNeeded);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refreshIfNeeded);
+      window.removeEventListener("pageshow", refreshIfNeeded);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [userId, refetch]);
+
   return { active, loading, refetch };
 }

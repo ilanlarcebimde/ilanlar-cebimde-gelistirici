@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT_FULL = 549;
-const AMOUNT_WEEKLY = 89;
+const AMOUNT_WEEKLY = 99;
 const AMOUNT_CV_PACKAGE = 349;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
@@ -530,7 +530,7 @@ export default function OdemePage() {
                 return (
                   <>
                     <span className="text-slate-500">Haftalık Premium — </span>
-                    <span className="text-slate-900">89,00 TL</span>
+                    <span className="text-slate-900">99,00 TL</span>
                   </>
                 );
               }
