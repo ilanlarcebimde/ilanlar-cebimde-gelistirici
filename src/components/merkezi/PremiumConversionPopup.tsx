@@ -113,7 +113,7 @@ export function PremiumConversionPopup() {
       {/* Mobil: alttan sheet (y: 80 → 0) • Masaüstü: alt orta panel (y: 48 → 0) */}
       <div
         className={`relative z-[10000] w-full overflow-hidden shadow-2xl transition-all duration-300 ease-out
-          max-h-[48vh] rounded-t-3xl border-t border-x border-[#9fb0c7]/12
+          max-h-[88dvh] rounded-t-3xl border-t border-x border-[#9fb0c7]/12
           md:max-h-[85vh] md:w-full md:max-w-[580px] md:rounded-2xl md:border md:border-[#9fb0c7]/12
           ${entered ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 md:translate-y-12 md:opacity-0"}`}
         style={{
@@ -139,7 +139,13 @@ export function PremiumConversionPopup() {
           </svg>
         </button>
 
-        <div className="p-4 pb-6 pt-5 md:p-6 md:pb-6 md:pt-6">
+        <div
+          className="max-h-[88dvh] overflow-y-auto overscroll-contain touch-pan-y md:max-h-[85vh]"
+          style={{
+            paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+          }}
+        >
+        <div className="p-4 pb-6 pt-5 pr-16 md:p-6 md:pb-6 md:pt-6 md:pr-16">
           {/* Badge */}
           <div
             className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-amber-100/35 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#1f2937] md:mb-3 md:px-3 md:py-1.5 md:text-[11px]"
@@ -257,6 +263,7 @@ export function PremiumConversionPopup() {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>,
