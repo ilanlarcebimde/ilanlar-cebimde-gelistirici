@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.ilanlarcebimde.com"),
   title:
     "Yurtdışı İş İlanları ve Başvuru Merkezi | CV Hazırla, Başvuru Mektubu Oluştur, Hemen Başvur",
+  verification: {
+    google: "X2phO_avup8oTuO-zNe9REuy7ZVfOXktMsaPJ2mOitA",
+  },
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
