@@ -29,6 +29,42 @@ interface RichHtmlEditorProps {
   placeholder?: string;
 }
 
+interface ToolbarButtonProps {
+  active?: boolean;
+  disabled?: boolean;
+  title: string;
+  className?: string;
+  onAction: () => void;
+  children: React.ReactNode;
+}
+
+function ToolbarButton({
+  active = false,
+  disabled = false,
+  title,
+  className = "",
+  onAction,
+  children,
+}: ToolbarButtonProps) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={active}
+      disabled={disabled}
+      onMouseDown={(event) => {
+        event.preventDefault();
+        if (!disabled) onAction();
+      }}
+      className={`rounded transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? "bg-slate-200 text-slate-900" : "hover:bg-slate-100"
+      } ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function Toolbar({ editor }: { editor: Editor | null }) {
   const setLink = useCallback(() => {
     if (!editor) return;
@@ -42,125 +78,123 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 p-2">
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        className={`rounded p-1.5 text-sm font-semibold ${editor.isActive("bold") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      <ToolbarButton
+        active={editor.isActive("bold")}
+        onAction={() => editor.chain().focus().toggleBold().run()}
+        className="p-1.5 text-sm font-semibold"
         title="Kalın"
       >
         B
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={`rounded p-1.5 text-sm italic ${editor.isActive("italic") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("italic")}
+        onAction={() => editor.chain().focus().toggleItalic().run()}
+        className="p-1.5 text-sm italic"
         title="İtalik"
       >
         I
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        className={`rounded p-1.5 text-sm underline ${editor.isActive("underline") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("underline")}
+        onAction={() => editor.chain().focus().toggleUnderline().run()}
+        className="p-1.5 text-sm underline"
         title="Altı çizili"
       >
         U
-      </button>
+      </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-slate-300" />
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().setParagraph().run()}
-        className={`rounded px-2 py-1 text-xs ${editor.isActive("paragraph") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      <ToolbarButton
+        active={editor.isActive("paragraph")}
+        onAction={() => editor.chain().focus().setParagraph().run()}
+        className="px-2 py-1 text-xs"
         title="Paragraf"
       >
         P
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        className={`rounded px-2 py-1 text-xs font-semibold ${editor.isActive("heading", { level: 2 }) ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("heading", { level: 2 })}
+        onAction={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        className="px-2 py-1 text-xs font-semibold"
         title="Başlık 2"
       >
         H2
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        className={`rounded px-2 py-1 text-xs font-semibold ${editor.isActive("heading", { level: 3 }) ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("heading", { level: 3 })}
+        onAction={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        className="px-2 py-1 text-xs font-semibold"
         title="Başlık 3"
       >
         H3
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleMark("small").run()}
-        className={`rounded px-2 py-1 text-xs ${editor.isActive("small") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("small")}
+        onAction={() => editor.chain().focus().toggleMark("small").run()}
+        className="px-2 py-1 text-xs"
         title="Küçük metin"
       >
         Küçük
-      </button>
+      </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-slate-300" />
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={`rounded p-1.5 text-sm ${editor.isActive("bulletList") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      <ToolbarButton
+        active={editor.isActive("bulletList")}
+        onAction={() => editor.chain().focus().toggleBulletList().run()}
+        className="p-1.5 text-sm"
         title="Madde listesi"
       >
         •
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={`rounded px-2 py-1 text-sm ${editor.isActive("orderedList") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("orderedList")}
+        onAction={() => editor.chain().focus().toggleOrderedList().run()}
+        className="px-2 py-1 text-sm"
         title="Numaralı liste"
       >
         1.
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={`rounded p-1.5 text-sm ${editor.isActive("blockquote") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      </ToolbarButton>
+      <ToolbarButton
+        active={editor.isActive("blockquote")}
+        onAction={() => editor.chain().focus().toggleBlockquote().run()}
+        className="p-1.5 text-sm"
         title="Alıntı"
       >
         “
-      </button>
+      </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-slate-300" />
-      <button
-        type="button"
-        onClick={setLink}
-        className={`rounded px-2 py-1 text-xs ${editor.isActive("link") ? "bg-slate-200" : "hover:bg-slate-100"}`}
+      <ToolbarButton
+        active={editor.isActive("link")}
+        onAction={setLink}
+        className="px-2 py-1 text-xs"
         title="Link"
       >
         Link
-      </button>
+      </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-slate-300" />
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().undo().run()}
+      <ToolbarButton
         disabled={!editor.can().undo()}
-        className="rounded px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-40"
+        onAction={() => editor.chain().focus().undo().run()}
+        className="px-2 py-1 text-xs"
         title="Geri al"
       >
         ↶
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().redo().run()}
+      </ToolbarButton>
+      <ToolbarButton
         disabled={!editor.can().redo()}
-        className="rounded px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-40"
+        onAction={() => editor.chain().focus().redo().run()}
+        className="px-2 py-1 text-xs"
         title="Yinele"
       >
         ↷
-      </button>
+      </ToolbarButton>
     </div>
   );
 }
 
 const EDITOR_CLASS =
-  "prose prose-slate max-w-none min-h-[220px] px-3 py-3 focus:outline-none " +
-  "prose-p:mb-3 prose-p:leading-relaxed prose-p:first:mt-0 prose-headings:mt-4 prose-headings:mb-2 " +
-  "prose-ul:list-disc prose-ul:pl-6 prose-ul:my-2 prose-ol:list-decimal prose-ol:pl-6 prose-ol:my-2 prose-li:my-0.5 " +
-  "prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600";
+  "prose prose-slate max-w-none min-h-[220px] px-4 py-3 text-[15px] leading-7 focus:outline-none " +
+  "prose-p:my-4 prose-p:first:mt-0 prose-p:last:mb-0 prose-headings:mt-5 prose-headings:mb-3 " +
+  "prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6 " +
+  "prose-li:my-1 prose-li:leading-7 prose-blockquote:my-4 prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600";
 
 export function RichHtmlEditor({ value, onChange, placeholder }: RichHtmlEditorProps) {
   const lastEmitted = useRef<string>(value);
@@ -177,6 +211,7 @@ export function RichHtmlEditor({ value, onChange, placeholder }: RichHtmlEditorP
         if (event.key === "Enter") {
           event.stopPropagation();
         }
+        return false;
       },
     },
     onUpdate: ({ editor }) => {
