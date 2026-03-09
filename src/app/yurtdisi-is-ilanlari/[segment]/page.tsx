@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { resolveSegment, getPostCounts, getTagsByPostIds } from "@/lib/merkezi/server";
+import { resolveSegment, getTagsByPostIds } from "@/lib/merkezi/server";
 import { absoluteOgImageUrl, SITE_ORIGIN } from "@/lib/og";
-import { MerkeziPostView } from "./MerkeziPostView";
 import { MerkeziListView } from "./MerkeziListView";
+import { InfinitePostFlow } from "./InfinitePostFlow";
 import Link from "next/link";
-import { getSupabaseServerClient } from "@/lib/supabase/ssr";
-import { isPremiumSubscriptionActive } from "@/lib/premiumSubscription";
-import { getSupabaseAdmin } from "@/lib/supabase/server";
+import {
+  buildInitialPostFlowQueue,
+  preparePostFlowItem,
+} from "@/lib/merkezi/postFlow";
 
 const BASE = "/yurtdisi-is-ilanlari";
 const BACK_HREF = "/yurtdisi-is-basvuru-merkezi";
@@ -110,28 +111,10 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
 
   if (resolved.kind === "post") {
     const { post, tags } = resolved;
-    const counts = await getPostCounts(post.id);
-
-    const supabaseUser = await getSupabaseServerClient();
-    const { data: { user } } = await supabaseUser.auth.getUser();
-    const isPremium = user ? await isPremiumSubscriptionActive(user.id) : false;
-
-    const shouldIncludeContact =
-      (!post.is_paid && post.show_contact_when_free) || (post.is_paid && isPremium);
-    const contact = await (async () => {
-      if (!shouldIncludeContact) return null;
-      try {
-        const supabaseAdmin = getSupabaseAdmin();
-        const { data } = await supabaseAdmin
-          .from("merkezi_post_contact")
-          .select("contact_email, contact_phone, apply_url")
-          .eq("post_id", post.id)
-          .maybeSingle();
-        return data ?? null;
-      } catch {
-        return null;
-      }
-    })();
+    const [initialPack, initialQueue] = await Promise.all([
+      preparePostFlowItem({ post, tags }),
+      buildInitialPostFlowQueue(post),
+    ]);
 
     return (
       <div className="min-h-screen bg-slate-50 py-8">
@@ -144,15 +127,10 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
               ← Geri
             </Link>
           </nav>
-          <MerkeziPostView
-            post={post}
-            tags={tags}
-            viewCount={counts.viewCount}
-            likeCount={counts.likeCount}
-            userLiked={false}
-            etiket={etiket ?? null}
-            isPremium={isPremium}
-            contact={contact ?? null}
+          <InfinitePostFlow
+            initial={initialPack}
+            queue={initialQueue}
+            initialEtiket={etiket ?? null}
           />
         </div>
       </div>
