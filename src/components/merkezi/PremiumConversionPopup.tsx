@@ -221,7 +221,7 @@ export function PremiumConversionPopup() {
             className="block w-full rounded-xl py-3.5 text-center text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(22,163,74,0.22)] transition-all hover:shadow-[0_14px_28px_rgba(34,197,94,0.26)] md:py-4 md:text-[15px]"
             style={{ background: "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)" }}
           >
-            Başvuruyu Hemen Hazırla
+            İşverenle İletişime Geç
           </button>
           <p className="mt-1.5 text-center text-[11px] leading-5 text-[#9fb0c7] md:text-[12px]">
             Firma iletişim bilgileri • İngilizce başvuru mektubu • Kolay başvuru
