@@ -27,9 +27,9 @@ export function useInfinitePosts(
     nextIndex < queue.length &&
     attemptsRef.current < MAX_INITIAL_QUEUE_FETCHES;
 
-  const loadNext = useCallback(async () => {
-    if (loadingNext) return;
-    if (nextIndex >= queue.length) return;
+  const loadNext = useCallback(async (): Promise<MerkeziPostFlowItem | null> => {
+    if (loadingNext) return null;
+    if (nextIndex >= queue.length) return null;
 
     setLoadingNext(true);
     try {
@@ -61,8 +61,9 @@ export function useInfinitePosts(
           }
           return [...prev, data];
         });
-        break;
+        return data;
       }
+      return null;
     } finally {
       setLoadingNext(false);
     }

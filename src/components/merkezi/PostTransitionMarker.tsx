@@ -4,51 +4,31 @@ import { useEffect, useRef } from "react";
 
 interface PostTransitionMarkerProps {
   loading?: boolean;
-  onVisible?: () => void;
+  onVisibilityChange?: (visible: boolean) => void;
 }
 
 export function PostTransitionMarker({
   loading = false,
-  onVisible,
+  onVisibilityChange,
 }: PostTransitionMarkerProps) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const hasTriggeredRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!ref.current || !onVisible || hasTriggeredRef.current) return;
+    if (!ref.current || !onVisibilityChange) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (!entry) return;
-
-        if (entry.isIntersecting && !hasTriggeredRef.current) {
-          if (!timerRef.current) {
-            timerRef.current = setTimeout(() => {
-              hasTriggeredRef.current = true;
-              timerRef.current = null;
-              onVisible();
-            }, 1500);
-          }
-          return;
-        }
-
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
+        onVisibilityChange(entry.isIntersecting);
       },
       { rootMargin: "0px 0px -10% 0px", threshold: 0.9 }
     );
     observer.observe(ref.current);
     return () => {
       observer.disconnect();
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
+      onVisibilityChange(false);
     };
-  }, [onVisible]);
+  }, [onVisibilityChange]);
 
   return (
     <div ref={ref} className="my-8 flex items-center justify-center">
