@@ -6,7 +6,7 @@ import { MerkeziListView } from "./MerkeziListView";
 import { InfinitePostFlow } from "./InfinitePostFlow";
 import Link from "next/link";
 import {
-  buildInitialPostFlowQueue,
+  buildLandingOrder,
   preparePostFlowItem,
 } from "@/lib/merkezi/postFlow";
 
@@ -111,9 +111,9 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
 
   if (resolved.kind === "post") {
     const { post, tags } = resolved;
-    const [initialPack, initialQueue] = await Promise.all([
+    const [initialPack, landingOrder] = await Promise.all([
       preparePostFlowItem({ post, tags }),
-      buildInitialPostFlowQueue(post),
+      buildLandingOrder(post),
     ]);
 
     return (
@@ -129,7 +129,7 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
           </nav>
           <InfinitePostFlow
             initial={initialPack}
-            queue={initialQueue}
+            landingOrder={landingOrder}
             initialEtiket={etiket ?? null}
           />
         </div>

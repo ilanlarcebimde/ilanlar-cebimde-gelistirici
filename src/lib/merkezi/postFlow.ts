@@ -10,7 +10,6 @@ import type {
   MerkeziPost,
   MerkeziPostContact,
   MerkeziPostFlowItem,
-  MerkeziPostFlowQueueItem,
   MerkeziTag,
 } from "./types";
 
@@ -90,16 +89,16 @@ function getRecencyValue(post: {
   );
 }
 
-export async function buildInitialPostFlowQueue(
+export async function buildLandingOrder(
   currentPost: MerkeziPost,
   limit = 60
-): Promise<MerkeziPostFlowQueueItem[]> {
+): Promise<string[]> {
   const { posts } = await getPublishedPostsForMerkeziLanding(
     Math.min(limit + 20, 120)
   );
+  const seen = new Set<string>();
 
-  return posts
-    .filter((post) => post.slug !== currentPost.slug)
+  const ordered = posts
     .sort((a, b) => {
       const aCountry = a.country_slug === currentPost.country_slug ? 0 : 1;
       const bCountry = b.country_slug === currentPost.country_slug ? 0 : 1;
@@ -111,6 +110,17 @@ export async function buildInitialPostFlowQueue(
 
       return getRecencyValue(b) - getRecencyValue(a);
     })
+    .filter((post) => {
+      if (!post.slug || seen.has(post.slug)) return false;
+      seen.add(post.slug);
+      return true;
+    })
     .slice(0, limit)
-    .map((post) => ({ slug: post.slug }));
+    .map((post) => post.slug);
+
+  if (!ordered.includes(currentPost.slug)) {
+    ordered.unshift(currentPost.slug);
+  }
+
+  return ordered;
 }

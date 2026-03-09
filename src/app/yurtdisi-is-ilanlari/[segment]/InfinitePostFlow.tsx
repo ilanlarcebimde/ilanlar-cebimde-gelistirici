@@ -9,7 +9,6 @@ import { useInfinitePosts } from "@/lib/merkezi/useInfinitePosts";
 import { useActivePostOnScroll } from "@/lib/merkezi/useActivePostOnScroll";
 import type {
   MerkeziPostFlowItem,
-  MerkeziPostFlowQueueItem,
 } from "@/lib/merkezi/types";
 
 function FlowSection({
@@ -43,32 +42,28 @@ function FlowSection({
 
 interface InfinitePostFlowProps {
   initial: MerkeziPostFlowItem;
-  queue: MerkeziPostFlowQueueItem[];
+  landingOrder: string[];
   initialEtiket: string | null;
 }
 
 export function InfinitePostFlow({
   initial,
-  queue,
+  landingOrder,
   initialEtiket,
 }: InfinitePostFlowProps) {
   const router = useRouter();
-  const { posts, hasMore, loadingNext, loadNext } = useInfinitePosts(
-    initial,
-    queue
-  );
+  const { posts, loadingNext, appendPostBySlug, loadedSlugs } =
+    useInfinitePosts(initial);
   const { activeSlug, registerSectionRef } = useActivePostOnScroll(posts);
   const sectionElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const requestedNextBySlugRef = useRef<Record<string, boolean>>({});
-  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [bottomMarkerVisible, setBottomMarkerVisible] = useState(false);
-  const [lastScrollTs, setLastScrollTs] = useState(Date.now());
-  const [isScrollIdle, setIsScrollIdle] = useState(false);
-  const [autoLoadLocked, setAutoLoadLocked] = useState(false);
-  const [lastLoadedSlug, setLastLoadedSlug] = useState<string | null>(null);
-  const [readingProgressBySlug, setReadingProgressBySlug] = useState<
-    Record<string, number>
-  >({ [initial.post.slug]: 0 });
+  const pendingScrollSlugRef = useRef<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    const index = landingOrder.indexOf(initial.post.slug);
+    return index >= 0 ? index : 0;
+  });
+  const [hasMore, setHasMore] = useState(
+    currentIndex < landingOrder.length - 1
+  );
 
   const titleBySlug = useMemo(
     () =>
@@ -92,18 +87,6 @@ export function InfinitePostFlow({
     if (nextTitle) document.title = nextTitle;
   }, [activeSlug, router, titleBySlug]);
 
-  useEffect(() => {
-    const onScroll = () => setLastScrollTs(Date.now());
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    setIsScrollIdle(false);
-    const timer = setTimeout(() => setIsScrollIdle(true), 900);
-    return () => clearTimeout(timer);
-  }, [lastScrollTs]);
-
   const registerItemRef = useCallback(
     (slug: string, el: HTMLDivElement | null) => {
       registerSectionRef(slug, el);
@@ -118,95 +101,45 @@ export function InfinitePostFlow({
   );
 
   useEffect(() => {
-    if (!activeSlug) return;
+    const targetSlug = pendingScrollSlugRef.current;
+    if (!targetSlug) return;
+    const el = sectionElementsRef.current.get(targetSlug);
+    if (!el) return;
+    pendingScrollSlugRef.current = null;
+    const top =
+      el.getBoundingClientRect().top + window.scrollY - 16;
+    window.scrollTo({ top, behavior: "smooth" });
+  }, [posts]);
 
-    const updateProgress = () => {
-      const el = sectionElementsRef.current.get(activeSlug);
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const viewportHeight = window.innerHeight || 1;
-      const total = rect.height + viewportHeight;
-      const progressed = viewportHeight - rect.top;
-      const nextProgress = Math.max(0, Math.min(1, progressed / total));
-      setReadingProgressBySlug((prev) => {
-        const rounded = Number(nextProgress.toFixed(3));
-        if (prev[activeSlug] === rounded) return prev;
-        return { ...prev, [activeSlug]: rounded };
-      });
-    };
+  const handleLoadMore = useCallback(async () => {
+    if (loadingNext || !hasMore) return;
+    let nextIndex = currentIndex + 1;
 
-    updateProgress();
-    window.addEventListener("scroll", updateProgress, { passive: true });
-    window.addEventListener("resize", updateProgress);
-    return () => {
-      window.removeEventListener("scroll", updateProgress);
-      window.removeEventListener("resize", updateProgress);
-    };
-  }, [activeSlug]);
-
-  useEffect(() => {
-    if (!autoLoadLocked || !lastLoadedSlug) return;
-    const progress = readingProgressBySlug[lastLoadedSlug] ?? 0;
-    if (progress >= 0.4) {
-      setAutoLoadLocked(false);
-    }
-  }, [autoLoadLocked, lastLoadedSlug, readingProgressBySlug]);
-
-  useEffect(() => {
-    const currentSlug = posts[posts.length - 1]?.post.slug;
-    if (!currentSlug || !bottomMarkerVisible || !isScrollIdle) {
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current);
-        loadTimerRef.current = null;
+    while (nextIndex < landingOrder.length) {
+      const nextSlug = landingOrder[nextIndex];
+      if (!nextSlug || loadedSlugs.has(nextSlug)) {
+        nextIndex += 1;
+        continue;
       }
-      return;
-    }
-    if (autoLoadLocked || loadingNext || !hasMore) return;
-    if (requestedNextBySlugRef.current[currentSlug]) return;
-    if (activeSlug !== currentSlug) return;
 
-    if (!loadTimerRef.current) {
-      loadTimerRef.current = setTimeout(async () => {
-        loadTimerRef.current = null;
-        if (
-          autoLoadLocked ||
-          loadingNext ||
-          !hasMore ||
-          !bottomMarkerVisible ||
-          !isScrollIdle
-        ) {
-          return;
-        }
-        requestedNextBySlugRef.current[currentSlug] = true;
-        const loaded = await loadNext();
-        if (loaded?.post?.slug) {
-          setAutoLoadLocked(true);
-          setLastLoadedSlug(loaded.post.slug);
-          setReadingProgressBySlug((prev) => ({
-            ...prev,
-            [loaded.post.slug]: 0,
-          }));
-        } else {
-          requestedNextBySlugRef.current[currentSlug] = false;
-        }
-      }, 1500);
-    }
-
-    return () => {
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current);
-        loadTimerRef.current = null;
+      const loaded = await appendPostBySlug(nextSlug);
+      if (loaded?.post?.slug && !loadedSlugs.has(loaded.post.slug)) {
+        setCurrentIndex(nextIndex);
+        setHasMore(nextIndex < landingOrder.length - 1);
+        pendingScrollSlugRef.current = loaded.post.slug;
+        return;
       }
-    };
+      nextIndex += 1;
+    }
+
+    setHasMore(false);
   }, [
-    activeSlug,
-    autoLoadLocked,
-    bottomMarkerVisible,
+    appendPostBySlug,
+    currentIndex,
     hasMore,
-    isScrollIdle,
-    loadNext,
+    landingOrder,
+    loadedSlugs,
     loadingNext,
-    posts,
   ]);
 
   return (
@@ -217,7 +150,6 @@ export function InfinitePostFlow({
           ref={(el) => registerItemRef(item.post.slug, el)}
           className="mb-10 last:mb-0"
         >
-          {index > 0 && <PostTransitionMarker />}
           <FlowSection slug={item.post.slug}>
             <MerkeziPostView
               post={item.post}
@@ -229,16 +161,16 @@ export function InfinitePostFlow({
               isPremium={item.isPremium}
               contact={item.contact}
             />
+            {index === posts.length - 1 && (
+              <PostTransitionMarker
+                loading={loadingNext}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+              />
+            )}
           </FlowSection>
         </div>
       ))}
-
-      {hasMore && (
-        <PostTransitionMarker
-          loading={loadingNext}
-          onVisibilityChange={setBottomMarkerVisible}
-        />
-      )}
     </div>
   );
 }
