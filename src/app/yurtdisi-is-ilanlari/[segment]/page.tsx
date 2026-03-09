@@ -117,6 +117,8 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
       getLandingOrder(),
     ]);
     const currentIndex = landingOrder.indexOf(post.slug);
+    const previousSlug =
+      currentIndex > 0 ? landingOrder[currentIndex - 1] ?? null : null;
     const nextSlug =
       currentIndex >= 0 ? landingOrder[currentIndex + 1] ?? null : null;
 
@@ -141,7 +143,10 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
             isPremium={postDetail.isPremium}
             contact={postDetail.contact}
           />
-          <PostNextNavigation nextSlug={nextSlug} />
+          <PostNextNavigation
+            previousSlug={previousSlug}
+            nextSlug={nextSlug}
+          />
         </div>
       </div>
     );
