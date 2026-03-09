@@ -128,9 +128,7 @@ export function MerkeziPostView({
         />
       </div>
 
-      <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-p:text-slate-700">
-        <RichContent html={post.content_html_sanitized ?? post.content} />
-      </div>
+      <RichContent html={post.content_html_sanitized ?? post.content} />
 
       <TagChips tags={tags} currentEtiket={etiket ?? null} baseSegment={post.slug} />
 
