@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       .eq("provider_ref", merchant_oid)
       .eq("provider", "paytr")
       .eq("status", "started")
-      .select("id, profile_id, profile_snapshot, user_id");
+      .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code");
 
     if (!updatedRows || updatedRows.length === 0) {
       console.log("[PAYTR] already processed, skip webhook", merchant_oid);
@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
         profile_id: profileId,
         payment_id: paymentId,
         ends_at: endsAt,
+        payment_type: payment?.payment_type ?? "standard",
+        coupon_code: payment?.coupon_code ?? null,
       });
     }
 
@@ -98,6 +100,13 @@ export async function POST(request: NextRequest) {
       profileId = newProfile?.id ?? null;
       if (profileId) {
         await supabase.from("payments").update({ profile_id: profileId }).eq("provider_ref", merchant_oid).eq("provider", "paytr");
+        if (userId && paymentId) {
+          await supabase
+            .from("premium_subscriptions")
+            .update({ profile_id: profileId })
+            .eq("user_id", userId)
+            .eq("payment_id", paymentId);
+        }
       }
     } else if (profileId) {
       await supabase.from("profiles").update({ status: "paid", updated_at: new Date().toISOString() }).eq("id", profileId);

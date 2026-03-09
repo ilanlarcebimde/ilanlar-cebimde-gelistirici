@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
       basket_description,
       profile_snapshot,
       user_id: body_user_id,
+      payment_type,
+      coupon_code,
     } = body as {
       merchant_oid?: string;
       email?: string;
@@ -44,6 +46,8 @@ export async function POST(request: NextRequest) {
         photo_url?: string | null;
       };
       user_id?: string;
+      payment_type?: string;
+      coupon_code?: string;
     };
 
     const emailTrimmed = typeof email === "string" ? email.trim() : "";
@@ -81,6 +85,8 @@ export async function POST(request: NextRequest) {
       currency: "TRY",
       provider_ref: merchant_oid,
       profile_snapshot: snapshot,
+      payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
+      coupon_code: typeof coupon_code === "string" && coupon_code.trim() ? coupon_code.trim().toUpperCase() : null,
     });
 
     const token = await getPaytrToken(

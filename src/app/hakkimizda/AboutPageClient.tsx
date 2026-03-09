@@ -25,7 +25,7 @@ export function AboutPageClient() {
   const router = useRouter();
 
   const handleLoginClick = () => {
-    router.push("/");
+    router.push("/giris?next=" + encodeURIComponent("/hakkimizda"));
   };
 
   return (

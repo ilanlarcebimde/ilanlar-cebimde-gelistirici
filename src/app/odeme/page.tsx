@@ -165,6 +165,8 @@ export default function OdemePage() {
             merchant_fail_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarisiz`,
             basket_description: BASKET_CV_PACKAGE,
             profile_snapshot,
+            payment_type: "discounted",
+            coupon_code: CV_PACKAGE_DISCOUNT_CODE,
             ...(full?.user_id && { user_id: full.user_id }),
           }),
         });
@@ -232,6 +234,8 @@ export default function OdemePage() {
             merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
             basket_description: BASKET_FULL,
             profile_snapshot,
+            payment_type: "discounted",
+            coupon_code: IYIUSTALAR_COUPON_CODE,
             ...(full?.user_id && { user_id: full.user_id }),
           }),
         });
@@ -271,6 +275,7 @@ export default function OdemePage() {
           job_branch: parsed.job_branch ?? null,
           answers: typeof parsed.answers === "object" && parsed.answers !== null ? parsed.answers : {},
           photo_url: parsed.photo_url ?? null,
+          coupon_code: FREE_COUPON_CODE,
           ...(user?.id && { user_id: user.id }),
         };
         const res = await fetch("/api/profile/complete-coupon", {
@@ -360,6 +365,12 @@ export default function OdemePage() {
       merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
       basket_description: basketDescription,
       profile_snapshot,
+      payment_type: isWeekly ? "weekly" : useCv79 || useIyiustalar ? "discounted" : "standard",
+      coupon_code: useCv79
+        ? CV_PACKAGE_DISCOUNT_CODE
+        : useIyiustalar
+          ? IYIUSTALAR_COUPON_CODE
+          : null,
       ...(parsed?.user_id && { user_id: parsed.user_id }),
     };
 

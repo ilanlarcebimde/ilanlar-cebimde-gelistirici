@@ -20,7 +20,7 @@ export function SorumlulukReddiBeyaniClient() {
 
   return (
     <>
-      <Header onLoginClick={() => router.push("/")} />
+      <Header onLoginClick={() => router.push("/giris?next=" + encodeURIComponent("/sorumluluk-reddi-beyani"))} />
       <main className="min-h-screen bg-[#f8fafc]">
         <div className="mx-auto max-w-4xl px-4 pt-6 pb-10 md:px-6 md:py-16">
           <section className="mb-6 md:mb-10">

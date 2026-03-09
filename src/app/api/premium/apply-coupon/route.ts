@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
       profile_id: null,
       payment_id: null,
       ends_at: endsAt,
+      payment_type: "coupon",
+      coupon_code: code,
     });
 
     return NextResponse.json({ success: true, ends_at: endsAt });

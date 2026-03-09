@@ -15,6 +15,9 @@ export async function POST(req: Request) {
     const answers = body?.answers && typeof body.answers === "object" ? body.answers : {};
     const photo_url = body?.photo_url ?? null;
     const userId = typeof body?.user_id === "string" && body.user_id.trim() ? body.user_id.trim() : null;
+    const couponCode = typeof body?.coupon_code === "string" && body.coupon_code.trim()
+      ? body.coupon_code.trim().toUpperCase()
+      : null;
 
     const supabase = getSupabaseAdmin();
     const { data: newProfile, error: insertError } = await supabase
@@ -94,6 +97,8 @@ export async function POST(req: Request) {
         profile_id: profileId,
         payment_id: null,
         ends_at: endsAt,
+        payment_type: "coupon",
+        coupon_code: couponCode,
       });
     }
 

@@ -18,7 +18,7 @@ export function KullanimKosullariClient() {
 
   return (
     <>
-      <Header onLoginClick={() => router.push("/")} />
+      <Header onLoginClick={() => router.push("/giris?next=" + encodeURIComponent("/kullanim-kosullari"))} />
       <main className="min-h-screen bg-[#f8fafc]">
         <div className="mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-16">
           <section className="mb-10">

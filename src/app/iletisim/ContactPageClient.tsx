@@ -63,7 +63,7 @@ export function ContactPageClient() {
 
   return (
     <>
-      <Header onLoginClick={() => router.push("/")} />
+      <Header onLoginClick={() => router.push("/giris?next=" + encodeURIComponent("/iletisim"))} />
       <main className="min-h-screen bg-[#f8fafc]">
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 md:py-16">
           {/* Hero */}

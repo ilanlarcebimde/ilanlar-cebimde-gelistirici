@@ -25,6 +25,17 @@ type PaymentRow = {
   amount: number;
   currency: string;
   created_at: string;
+  payment_type?: string | null;
+  coupon_code?: string | null;
+};
+type PremiumSubscriptionRow = {
+  id: string;
+  payment_id: string | null;
+  ends_at: string;
+  created_at: string;
+  payment_type?: string | null;
+  coupon_code?: string | null;
+  payments?: PaymentRow | PaymentRow[] | null;
 };
 type SessionRow = {
   session_id: string;
@@ -53,6 +64,13 @@ const METHOD_LABELS: Record<string, string> = {
   voice: "Sesli",
   chat: "Sohbet",
   form: "Form",
+};
+
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  weekly: "Haftalık",
+  coupon: "Kupon",
+  discounted: "İndirimli",
+  standard: "Standart",
 };
 
 function formatDate(iso: string) {
@@ -100,6 +118,7 @@ export default function PanelPage() {
   const { user, loading: authLoading } = useAuth();
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [premiumSubscriptions, setPremiumSubscriptions] = useState<PremiumSubscriptionRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubWithChannel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,9 +141,16 @@ export default function PanelPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("payments")
-        .select("id, status, amount, currency, created_at")
+        .select("id, status, amount, currency, created_at, payment_type, coupon_code")
         .eq("user_id", uid)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("premium_subscriptions")
+        .select(
+          "id, payment_id, ends_at, created_at, payment_type, coupon_code, payments(id, status, amount, currency, created_at, payment_type, coupon_code)"
+        )
+        .eq("user_id", uid)
+        .order("ends_at", { ascending: false }),
       supabase
         .from("assistant_sessions")
         .select("session_id, completed, updated_at")
@@ -136,10 +162,15 @@ export default function PanelPage() {
         .eq("user_id", uid)
         .order("created_at", { ascending: false }),
     ])
-      .then(([p, pay, s, sub]) => {
+      .then(([p, pay, premium, s, sub]) => {
         const rows = (p.data as ProfileRow[]) ?? [];
         setProfiles(rows.map((r) => normalizeProfileRow(r) ?? r));
         setPayments((pay.data as PaymentRow[]) ?? []);
+        const premiumRows = ((premium.data as PremiumSubscriptionRow[]) ?? []).map((item) => ({
+          ...item,
+          payments: Array.isArray(item.payments) ? item.payments[0] ?? null : item.payments ?? null,
+        }));
+        setPremiumSubscriptions(premiumRows);
         setSessions((s.data as SessionRow[]) ?? []);
         const subData = (sub.data ?? []).map((item: any) => ({
           id: item.id,
@@ -157,6 +188,27 @@ export default function PanelPage() {
     if (!user) return;
     fetchData();
   }, [user, fetchData]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refresh = () => fetchData();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    window.addEventListener("premium-subscription-invalidate", refresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      window.removeEventListener("premium-subscription-invalidate", refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [fetchData, user]);
 
   useEffect(() => {
     if (!sessionInfoOpen) return;
@@ -199,6 +251,9 @@ export default function PanelPage() {
 
   const lastProfile = profiles[0];
   const lastPayment = payments[0];
+  const activePremium = premiumSubscriptions.find(
+    (sub) => new Date(sub.ends_at).getTime() > Date.now()
+  ) ?? null;
   const sessionsOngoing = sessions.filter((s) => !s.completed).length;
   const sessionsDone = sessions.filter((s) => s.completed).length;
 
@@ -272,7 +327,7 @@ export default function PanelPage() {
         ) : (
           <div className="mt-6 space-y-6">
             {/* Özet şeridi */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-medium text-slate-500">Başvurular</p>
                 <p className="mt-1 text-xl font-semibold text-slate-900">{profiles.length}</p>
@@ -298,7 +353,74 @@ export default function PanelPage() {
                   </p>
                 )}
               </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">Premium Durumu</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900">
+                  {activePremium ? "Aktif" : "Pasif"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {activePremium
+                    ? `Bitiş: ${formatDate(activePremium.ends_at)}`
+                    : "Aktif premium bulunmuyor"}
+                </p>
+              </div>
             </div>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-slate-900">Premium Aboneliğim</h2>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  activePremium ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
+                }`}>
+                  {activePremium ? "Aktif" : "Pasif"}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Haftalık premium durumunuz, bitiş tarihiniz ve ödeme/kupon kaydınız burada hesabınızla senkronize şekilde gösterilir.
+              </p>
+              {premiumSubscriptions.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="font-medium text-slate-700">Henüz premium abonelik kaydınız yok</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Haftalık premium veya kupon kullandığınızda burada görünecek.
+                  </p>
+                </div>
+              ) : (
+                <ul className="mt-4 space-y-0 divide-y divide-slate-100">
+                  {premiumSubscriptions.map((sub) => {
+                    const paymentRow = Array.isArray(sub.payments) ? sub.payments[0] ?? null : sub.payments ?? null;
+                    const type = sub.payment_type ?? paymentRow?.payment_type ?? "standard";
+                    const coupon = sub.coupon_code ?? paymentRow?.coupon_code ?? null;
+                    const active = new Date(sub.ends_at).getTime() > Date.now();
+
+                    return (
+                      <li
+                        key={sub.id}
+                        className="flex min-w-0 flex-wrap items-center gap-3 py-4 first:pt-0 sm:flex-nowrap"
+                      >
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
+                        }`}>
+                          {active ? "Aktif" : "Süresi doldu"}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-800">
+                            {PAYMENT_TYPE_LABELS[type] ?? "Standart"} premium
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Başlangıç: {formatDate(sub.created_at)} · Bitiş: {formatDate(sub.ends_at)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {paymentRow ? `Ödeme: ${paymentRow.amount} ${paymentRow.currency}` : "Ödeme: kupon ile aktif edildi"}
+                            {coupon ? ` · Kupon: ${coupon}` : ""}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
 
             {/* Aboneliklerim */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -444,7 +566,11 @@ export default function PanelPage() {
                         {pay.status === "success" ? "Başarılı" : pay.status === "fail" ? "Başarısız" : "İşlemde"}
                       </span>
                       <span className="min-w-0 flex-1 text-sm text-slate-700">
-                        {pay.amount} {pay.currency}
+                        <span className="font-medium text-slate-800">{pay.amount} {pay.currency}</span>
+                        <span className="ml-2 text-xs text-slate-500">
+                          · {PAYMENT_TYPE_LABELS[pay.payment_type ?? "standard"] ?? "Standart"}
+                          {pay.coupon_code ? ` · Kupon: ${pay.coupon_code}` : ""}
+                        </span>
                       </span>
                       <span className="shrink-0 text-xs text-slate-500">{formatDate(pay.created_at)}</span>
                     </li>
