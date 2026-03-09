@@ -63,7 +63,7 @@ export interface MerkeziPostContact {
   apply_url: string | null;
 }
 
-export interface MerkeziPostFlowItem {
+export interface MerkeziPostDetailData {
   post: MerkeziPost;
   tags: MerkeziTag[];
   contact: MerkeziPostContact | null;
@@ -71,10 +71,6 @@ export interface MerkeziPostFlowItem {
   viewCount: number;
   likeCount: number;
   userLiked: boolean;
-}
-
-export interface MerkeziPostFlowQueueItem {
-  slug: string;
 }
 
 export interface MerkeziTag {

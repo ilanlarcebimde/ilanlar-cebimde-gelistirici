@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import { resolveSegment, getTagsByPostIds } from "@/lib/merkezi/server";
 import { absoluteOgImageUrl, SITE_ORIGIN } from "@/lib/og";
 import { MerkeziListView } from "./MerkeziListView";
-import { InfinitePostFlow } from "./InfinitePostFlow";
 import Link from "next/link";
 import {
-  buildLandingOrder,
-  preparePostFlowItem,
-} from "@/lib/merkezi/postFlow";
+  getLandingOrder,
+  prepareMerkeziPostDetail,
+} from "@/lib/merkezi/postNavigation";
+import { MerkeziPostView } from "./MerkeziPostView";
+import { PostNextNavigation } from "@/components/merkezi/PostNextNavigation";
 
 const BASE = "/yurtdisi-is-ilanlari";
 const BACK_HREF = "/yurtdisi-is-basvuru-merkezi";
@@ -111,10 +112,13 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
 
   if (resolved.kind === "post") {
     const { post, tags } = resolved;
-    const [initialPack, landingOrder] = await Promise.all([
-      preparePostFlowItem({ post, tags }),
-      buildLandingOrder(post),
+    const [postDetail, landingOrder] = await Promise.all([
+      prepareMerkeziPostDetail({ post, tags }),
+      getLandingOrder(),
     ]);
+    const currentIndex = landingOrder.indexOf(post.slug);
+    const nextSlug =
+      currentIndex >= 0 ? landingOrder[currentIndex + 1] ?? null : null;
 
     return (
       <div className="min-h-screen bg-slate-50 py-8">
@@ -127,11 +131,17 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
               ← Geri
             </Link>
           </nav>
-          <InfinitePostFlow
-            initial={initialPack}
-            landingOrder={landingOrder}
-            initialEtiket={etiket ?? null}
+          <MerkeziPostView
+            post={postDetail.post}
+            tags={postDetail.tags}
+            viewCount={postDetail.viewCount}
+            likeCount={postDetail.likeCount}
+            userLiked={postDetail.userLiked}
+            etiket={etiket ?? null}
+            isPremium={postDetail.isPremium}
+            contact={postDetail.contact}
           />
+          <PostNextNavigation nextSlug={nextSlug} />
         </div>
       </div>
     );
