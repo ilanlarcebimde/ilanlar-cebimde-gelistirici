@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
@@ -14,8 +16,8 @@ const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
 const BASKET_CV_PACKAGE = "Yurtdışı CV Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
-/** Haftalık premium test kuponu (7 gün abonelik, giriş gerekli) */
-const PREMIUM_COUPON_CODE = "ADMIN89";
+/** Haftalık premium kuponları (7 gün abonelik, giriş gerekli) */
+const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
 /** Yurtdışı CV Paketi 79 TL indirim (349 - 79 = 270 TL) */
 const CV_PACKAGE_DISCOUNT_CODE = "CV79";
 const CV_PACKAGE_DISCOUNT_AMOUNT = 79;
@@ -29,9 +31,14 @@ function generateMerchantOid(): string {
   return "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
 }
 
+function formatSubscriptionEndDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 export default function OdemePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { active: subscriptionActive, loading: subscriptionLoading, subscription } = useSubscriptionActive(user?.id);
   const paytrIframeRef = useRef<HTMLDivElement>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +77,7 @@ export default function OdemePage() {
       setCouponMessage({ type: "error", text: "Kupon kodu girin." });
       return;
     }
-    if (code === PREMIUM_COUPON_CODE) {
+    if (PREMIUM_COUPON_CODES.includes(code)) {
       setCouponMessage({ type: "success", text: "Kupon uygulanıyor…" });
       if (!user) {
         setCouponMessage({ type: "error", text: "Haftalık premium kuponu için giriş yapmanız gerekir." });
@@ -86,7 +93,7 @@ export default function OdemePage() {
         const res = await fetch("/api/premium/apply-coupon", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ code: PREMIUM_COUPON_CODE }),
+          body: JSON.stringify({ code }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -470,6 +477,26 @@ export default function OdemePage() {
               </li>
             </ul>
           </header>
+
+          {/* Abonelik / kupon / ödeme hatırlaması: hesaba bağlı, tüm cihazlarda geçerli */}
+          {user && !subscriptionLoading && subscriptionActive && subscription && (
+            <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+              <p className="text-sm font-medium text-emerald-900">Aktif aboneliğiniz var</p>
+              <p className="mt-1 text-sm text-emerald-800">
+                Bitiş tarihi: {formatSubscriptionEndDate(subscription.ends_at)}
+                {subscription.coupon_code && ` · Kupon: ${subscription.coupon_code}`}
+              </p>
+              <p className="mt-1 text-xs text-emerald-700">
+                Abonelik, ödeme ve kupon bilgileriniz giriş yaptığınız tüm cihazlarda aynı hesapla geçerlidir.
+              </p>
+              <Link
+                href="/panel"
+                className="mt-3 inline-block text-sm font-medium text-emerald-800 underline hover:text-emerald-900"
+              >
+                Hesabım → Ödemeler ve abonelik detayı
+              </Link>
+            </div>
+          )}
 
           <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
 

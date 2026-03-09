@@ -378,6 +378,9 @@ export default function PanelPage() {
               <p className="mt-1 text-sm text-slate-500">
                 Haftalık premium durumunuz, bitiş tarihiniz ve ödeme/kupon kaydınız burada hesabınızla senkronize şekilde gösterilir.
               </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Abonelik, ödeme ve kupon hatırlamaları giriş yaptığınız tüm cihazlarda aynı hesapla geçerlidir.
+              </p>
               {premiumSubscriptions.length === 0 ? (
                 <div className="py-6 text-center">
                   <p className="font-medium text-slate-700">Henüz premium abonelik kaydınız yok</p>

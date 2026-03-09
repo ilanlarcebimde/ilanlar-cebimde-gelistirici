@@ -3,15 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
+export type SubscriptionDetail = {
+  ends_at: string;
+  payment_type: string | null;
+  coupon_code: string | null;
+};
+
 /**
  * Panel erişimi SADECE premium_subscriptions (kupon veya haftalık ödeme başarılı).
  * ends_at > now() → aktif. order + limit ile en güncel kayıt.
+ * Abonelik/kupon/ödeme hatırlaması tek kaynak: bu tablo; tüm cihazlarda hesaba bağlı.
  */
-async function fetchSubscriptionActive(userId: string): Promise<boolean> {
+async function fetchSubscriptionActive(userId: string): Promise<{ active: boolean; subscription: SubscriptionDetail | null }> {
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("premium_subscriptions")
-    .select("id, ends_at")
+    .select("id, ends_at, payment_type, coupon_code")
     .eq("user_id", userId)
     .gt("ends_at", nowIso)
     .order("ends_at", { ascending: false })
@@ -19,30 +26,29 @@ async function fetchSubscriptionActive(userId: string): Promise<boolean> {
 
   const row = data?.[0] ?? null;
   const active = !error && !!row;
-  console.log("[SUBSCRIPTION RESULT]", {
-    userId,
-    nowIso,
-    row: row ? { id: row.id, ends_at: row.ends_at } : null,
-    error: error?.message ?? null,
-    active,
-  });
   if (error) {
     console.error("[useSubscriptionActive] premium_subscriptions query error", error.message, { userId });
-    return false;
+    return { active: false, subscription: null };
   }
-  return active;
+  const subscription: SubscriptionDetail | null = row
+    ? { ends_at: row.ends_at ?? "", payment_type: row.payment_type ?? null, coupon_code: row.coupon_code ?? null }
+    : null;
+  return { active, subscription };
 }
 
 /**
  * Kullanıcı Nasıl Başvururum paneline erişebilir mi?
  * Sadece premium_subscriptions (kupon kodu veya haftalık ödeme başarılı) → aktif.
+ * subscription: aktif abonelik varsa bitiş tarihi, ödeme tipi ve kupon kodu (tüm cihazlarda aynı hesaba bağlı).
  */
 export function useSubscriptionActive(userId: string | undefined): {
   active: boolean;
   loading: boolean;
   refetch: () => Promise<boolean>;
+  subscription: SubscriptionDetail | null;
 } {
   const [active, setActive] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionDetail | null>(null);
   const [loading, setLoading] = useState(!!userId);
 
   const refetch = useCallback(async (): Promise<boolean> => {
@@ -50,11 +56,13 @@ export function useSubscriptionActive(userId: string | undefined): {
     setLoading(true);
     try {
       const result = await fetchSubscriptionActive(userId);
-      setActive(result);
-      return result;
+      setActive(result.active);
+      setSubscription(result.subscription);
+      return result.active;
     } catch (e) {
       console.error("[useSubscriptionActive] refetch error", e);
       setActive(false);
+      setSubscription(null);
       return false;
     } finally {
       setLoading(false);
@@ -64,6 +72,7 @@ export function useSubscriptionActive(userId: string | undefined): {
   useEffect(() => {
     if (!userId) {
       setActive(false);
+      setSubscription(null);
       setLoading(false);
       return;
     }
@@ -75,13 +84,15 @@ export function useSubscriptionActive(userId: string | undefined): {
       try {
         const result = await fetchSubscriptionActive(userId);
         if (!cancelled) {
-          setActive(result);
+          setActive(result.active);
+          setSubscription(result.subscription);
           setLoading(false);
         }
       } catch (e) {
         if (!cancelled) {
           console.error("[useSubscriptionActive] initial fetch error", e);
           setActive(false);
+          setSubscription(null);
           setLoading(false);
         }
       }
@@ -126,5 +137,5 @@ export function useSubscriptionActive(userId: string | undefined): {
     };
   }, [userId, refetch]);
 
-  return { active, loading, refetch };
+  return { active, loading, refetch, subscription };
 }
