@@ -14,7 +14,7 @@ const COUNTRY_OG_IMAGES: Record<string, string> = {
   malta: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/MALTA%20SOSYAL%20PAYLASIM.jpg",
   polonya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/polonya%20kapak.jpg",
   dubai: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/dubai%20sosyal%20paylasim.jpg",
-  yunanistan: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/YUNANISTAN%20KAPAK.jpg",
+  yunanistan: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/yunanistan%20kapak%20gorsel.jpg",
 };
 
 interface PageProps {
