@@ -113,3 +113,15 @@ body {
     box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
   }
 }
+
+/* Yayınlanan zengin içerik: paragraf arası boşluk her zaman görünsün (editörde Enter ile bölünen paragraflar). */
+.merkezi-rich-content p {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+.merkezi-rich-content p:first-child {
+  margin-top: 0;
+}
+.merkezi-rich-content p:last-child {
+  margin-bottom: 0;
+}
