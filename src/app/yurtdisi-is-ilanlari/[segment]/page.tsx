@@ -104,57 +104,84 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 }
 
 export default async function SegmentPage({ params, searchParams }: PageProps) {
-  const { segment } = await params;
-  const { etiket } = await searchParams;
+  try {
+    const { segment } = await params;
+    const { etiket } = await searchParams;
 
-  const resolved = await resolveSegment(segment);
-  if (!resolved) notFound();
+    const resolved = await resolveSegment(segment);
+    if (!resolved) notFound();
 
-  if (resolved.kind === "post") {
-    const { post, tags } = resolved;
-    const [postDetail, landingOrder] = await Promise.all([
-      prepareMerkeziPostDetail({ post, tags }),
-      getLandingOrder(),
-    ]);
-    const currentIndex = landingOrder.indexOf(post.slug);
-    const previousSlug =
-      currentIndex > 0 ? landingOrder[currentIndex - 1] ?? null : null;
-    const nextSlug =
-      currentIndex >= 0 ? landingOrder[currentIndex + 1] ?? null : null;
+    if (resolved.kind === "post") {
+      const { post, tags } = resolved;
+      const [postDetail, landingOrder] = await Promise.all([
+        prepareMerkeziPostDetail({ post, tags }),
+        getLandingOrder(),
+      ]);
+      const currentIndex = landingOrder.indexOf(post.slug);
+      const previousSlug =
+        currentIndex > 0 ? landingOrder[currentIndex - 1] ?? null : null;
+      const nextSlug =
+        currentIndex >= 0 ? landingOrder[currentIndex + 1] ?? null : null;
 
-    return (
-      <div className="min-h-screen bg-slate-50 py-8">
-        <div className="mx-auto max-w-4xl px-4">
-          <nav className="mb-6">
-            <Link
-              href={BACK_HREF}
-              className="text-sm text-slate-600 hover:text-slate-900"
-            >
-              ← Geri
-            </Link>
-          </nav>
-          <MerkeziPostView
-            post={postDetail.post}
-            tags={postDetail.tags}
-            viewCount={postDetail.viewCount}
-            likeCount={postDetail.likeCount}
-            userLiked={postDetail.userLiked}
-            etiket={etiket ?? null}
-            isPremium={postDetail.isPremium}
-            contact={postDetail.contact}
-          />
-          <PostNextNavigation
-            previousSlug={previousSlug}
-            nextSlug={nextSlug}
-          />
+      return (
+        <div className="min-h-screen bg-slate-50 py-8">
+          <div className="mx-auto max-w-4xl px-4">
+            <nav className="mb-6">
+              <Link
+                href={BACK_HREF}
+                className="text-sm text-slate-600 hover:text-slate-900"
+              >
+                ← Geri
+              </Link>
+            </nav>
+            <MerkeziPostView
+              post={postDetail.post}
+              tags={postDetail.tags}
+              viewCount={postDetail.viewCount}
+              likeCount={postDetail.likeCount}
+              userLiked={postDetail.userLiked}
+              etiket={etiket ?? null}
+              isPremium={postDetail.isPremium}
+              contact={postDetail.contact}
+            />
+            <PostNextNavigation
+              previousSlug={previousSlug}
+              nextSlug={nextSlug}
+            />
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (resolved.kind === "sector") {
+    if (resolved.kind === "sector") {
+      const title =
+        resolved.seoPage?.title ?? resolved.sectorSlug;
+      const postTags = await getTagsByPostIds(resolved.posts.map((p) => p.id));
+      return (
+        <div className="min-h-screen bg-slate-50 py-8">
+          <div className="mx-auto max-w-4xl px-4">
+            <nav className="mb-6">
+              <Link
+                href={BACK_HREF}
+                className="text-sm text-slate-600 hover:text-slate-900"
+              >
+                ← Geri
+              </Link>
+            </nav>
+            <MerkeziListView
+              title={title}
+              seoPage={resolved.seoPage}
+              posts={resolved.posts}
+              postTags={postTags}
+            />
+          </div>
+        </div>
+      );
+    }
+
     const title =
-      resolved.seoPage?.title ?? resolved.sectorSlug;
+      resolved.seoPage?.title ??
+      (resolved.countrySlug ?? "") + " - " + (resolved.sectorSlug ?? "");
     const postTags = await getTagsByPostIds(resolved.posts.map((p) => p.id));
     return (
       <div className="min-h-screen bg-slate-50 py-8">
@@ -176,30 +203,8 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
         </div>
       </div>
     );
+  } catch (e) {
+    console.error("[yurtdisi-is-ilanlari/segment]", e);
+    notFound();
   }
-
-  const title =
-    resolved.seoPage?.title ??
-    (resolved.countrySlug ?? "") + " - " + (resolved.sectorSlug ?? "");
-  const postTags = await getTagsByPostIds(resolved.posts.map((p) => p.id));
-  return (
-    <div className="min-h-screen bg-slate-50 py-8">
-      <div className="mx-auto max-w-4xl px-4">
-        <nav className="mb-6">
-          <Link
-            href={BACK_HREF}
-            className="text-sm text-slate-600 hover:text-slate-900"
-          >
-            ← Geri
-          </Link>
-        </nav>
-        <MerkeziListView
-          title={title}
-          seoPage={resolved.seoPage}
-          posts={resolved.posts}
-          postTags={postTags}
-        />
-      </div>
-    </div>
-  );
 }

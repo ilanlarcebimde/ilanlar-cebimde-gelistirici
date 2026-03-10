@@ -34,11 +34,15 @@ async function getPostDetailContact(
 }
 
 export async function getCurrentUserPremiumState(): Promise<boolean> {
-  const supabaseUser = await getSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabaseUser.auth.getUser();
-  return user ? await isPremiumSubscriptionActive(user.id) : false;
+  try {
+    const supabaseUser = await getSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabaseUser.auth.getUser();
+    return user ? await isPremiumSubscriptionActive(user.id) : false;
+  } catch {
+    return false;
+  }
 }
 
 export async function prepareMerkeziPostDetail(input: {
@@ -46,35 +50,56 @@ export async function prepareMerkeziPostDetail(input: {
   tags: MerkeziTag[];
   isPremium?: boolean;
 }): Promise<MerkeziPostDetailData> {
-  const isPremium =
-    typeof input.isPremium === "boolean"
-      ? input.isPremium
-      : await getCurrentUserPremiumState();
-  const [counts, contact] = await Promise.all([
-    getPostCounts(input.post.id),
-    getPostDetailContact(input.post, isPremium),
-  ]);
+  let isPremium: boolean;
+  let viewCount = 0;
+  let likeCount = 0;
+  let contact: MerkeziPostContact | null = null;
+
+  try {
+    isPremium =
+      typeof input.isPremium === "boolean"
+        ? input.isPremium
+        : await getCurrentUserPremiumState();
+  } catch {
+    isPremium = false;
+  }
+
+  try {
+    const [countsResult, contactResult] = await Promise.all([
+      getPostCounts(input.post.id),
+      getPostDetailContact(input.post, isPremium),
+    ]);
+    viewCount = countsResult.viewCount ?? 0;
+    likeCount = countsResult.likeCount ?? 0;
+    contact = contactResult;
+  } catch {
+    // keep defaults
+  }
 
   return {
     post: input.post,
     tags: input.tags,
     contact,
     isPremium,
-    viewCount: counts.viewCount,
-    likeCount: counts.likeCount,
+    viewCount,
+    likeCount,
     userLiked: false,
   };
 }
 
 export async function getLandingOrder(limit = 500): Promise<string[]> {
-  const { posts } = await getPublishedPostsForMerkeziLanding(limit);
-  const seen = new Set<string>();
+  try {
+    const { posts } = await getPublishedPostsForMerkeziLanding(limit);
+    const seen = new Set<string>();
 
-  return posts
-    .map((post) => post.slug?.trim())
-    .filter((slug): slug is string => {
-      if (!slug || seen.has(slug)) return false;
-      seen.add(slug);
-      return true;
-    });
+    return posts
+      .map((post) => post.slug?.trim())
+      .filter((slug): slug is string => {
+        if (!slug || seen.has(slug)) return false;
+        seen.add(slug);
+        return true;
+      });
+  } catch {
+    return [];
+  }
 }
