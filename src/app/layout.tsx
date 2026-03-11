@@ -89,9 +89,9 @@ export default function RootLayout({
                       platform: "ilanlar-cebimde"
                     },
                     initialMessages: [
-                      "Merhaba efendim, müşteri hizmetlerinden Jülide ben.",
-                      "İlanlar Cebimde platformu ile ilgili merak ettiğiniz konularda size yardımcı olmak için buradayım.",
-                      "Size daha doğru hitap edebilmem için isminizi öğrenebilir miyim?"
+                      "İlanlar Cebimde, yurtdışında iş bulmak isteyenler için araştırmalar yapan ve başvuru süreçlerinde yardımcı çözümler sunan bir platformdur.",
+                      "Platform hizmetleri, premium özellikler, iş başvuruları, CV hazırlama veya başvuru süreçleri hakkında merak ettiğiniz konularda size yardımcı olabiliriz.",
+                      "Sorunuzu yazabilirsiniz. Canlı destek üzerinden size yardımcı olmaktan memnuniyet duyarız."
                     ],
                     i18n: {
                       tr: {
