@@ -37,6 +37,10 @@ export default function RootLayout({
     <html lang="tr">
       <head>
         <meta name="google-adsense-account" content="ca-pub-3494435772981222" />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css"
+        />
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3494435772981222"
           strategy="beforeInteractive"
@@ -59,6 +63,96 @@ export default function RootLayout({
       <body className="antialiased font-sans bg-[var(--background)] text-[var(--foreground)] overflow-x-hidden">
         <AuthHashHandler />
         {children}
+        <div id="n8n-chat" />
+        <Script id="n8n-chat-init" strategy="afterInteractive" type="module">
+          {`
+            if (!window.__ilanlarCebimdeN8nChatInitialized) {
+              window.__ilanlarCebimdeN8nChatInitialized = true;
+
+              var LOGO_URL = "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/logo21.jpg";
+
+              import("https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js")
+                .then(({ createChat }) => {
+                  createChat({
+                    webhookUrl: "https://s02c0alq.rcld.app/webhook/8cdedc3b-fbaa-47f3-b118-76e0c3da64f0/chat",
+                    target: "#n8n-chat",
+                    mode: "window",
+                    chatInputKey: "chatInput",
+                    chatSessionKey: "sessionId",
+                    loadPreviousSession: true,
+                    showWelcomeScreen: true,
+                    defaultLanguage: "tr",
+                    enableStreaming: true,
+                    metadata: {
+                      source: "ilanlar-cebimde-web",
+                      locale: "tr",
+                      platform: "ilanlar-cebimde"
+                    },
+                    initialMessages: [
+                      "Merhaba efendim, müşteri hizmetlerinden Jülide ben.",
+                      "İlanlar Cebimde platformu ile ilgili merak ettiğiniz konularda size yardımcı olmak için buradayım.",
+                      "Size daha doğru hitap edebilmem için isminizi öğrenebilir miyim?"
+                    ],
+                    i18n: {
+                      tr: {
+                        title: "İlanlar Cebimde Destek",
+                        subtitle: "Başvuru araçları, premium özellikler ve platform kullanımı hakkında hızlı yardım alın.",
+                        footer: "",
+                        getStarted: "Yeni Sohbet Başlat",
+                        inputPlaceholder: "Sorunuzu buraya yazın..."
+                      }
+                    }
+                  });
+
+                  function injectCustomHeader() {
+                    var root = document.querySelector("#n8n-chat");
+                    if (!root) return;
+                    var header = root.querySelector(".chat-header");
+                    if (!header) return;
+                    if (header.querySelector(".ilanlar-header-row")) return;
+                    var wrapper = document.createElement("div");
+                    wrapper.className = "ilanlar-header-row";
+                    wrapper.innerHTML = "<div class=\\"ilanlar-logo-wrap\\"><img class=\\"ilanlar-logo\\" src=\\"\" + LOGO_URL + "\\" alt=\\"İlanlar Cebimde Logo\\" /></div><div class=\\"ilanlar-header-text\\"><strong>İlanlar Cebimde Destek</strong><span>Başvuru araçları, premium özellikler ve platform kullanımı hakkında hızlı yardım alın.</span></div>";
+                    header.prepend(wrapper);
+                  }
+
+                  var root = document.querySelector("#n8n-chat");
+                  var observer = new MutationObserver(function () { injectCustomHeader(); });
+                  if (root) observer.observe(root, { childList: true, subtree: true });
+                  requestAnimationFrame(function () { injectCustomHeader(); });
+                  setTimeout(function () { injectCustomHeader(); }, 300);
+                  setTimeout(function () { injectCustomHeader(); }, 1000);
+                })
+                .catch((error) => {
+                  console.error("n8n chat widget could not be initialized", error);
+                });
+            }
+          `}
+        </Script>
+        <Script id="ilanlar-chat-fixes" strategy="afterInteractive">
+          {`
+            (function() {
+              function cleanWrongToggleClass() {
+                document.querySelectorAll(".chat-input-send-button.ilanlar-custom-toggle").forEach(function(btn) {
+                  btn.classList.remove("ilanlar-custom-toggle");
+                  btn.removeAttribute("style");
+                });
+              }
+
+              function runFixes() {
+                cleanWrongToggleClass();
+              }
+
+              var observer = new MutationObserver(function() { runFixes(); });
+              observer.observe(document.body, { childList: true, subtree: true });
+              if (document.readyState === "complete") runFixes();
+              else window.addEventListener("load", runFixes);
+              setTimeout(runFixes, 300);
+              setTimeout(runFixes, 1000);
+              setTimeout(runFixes, 2000);
+            })();
+          `}
+        </Script>
       </body>
     </html>
   );
