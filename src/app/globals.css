@@ -326,6 +326,14 @@ body {
   color: #64748b;
 }
 
+/* n8n varsayılan typing indicator'larını gizle */
+.n8n-chat .chat-message-typing,
+.n8n-chat .chat-typing-indicator,
+.n8n-chat .chat-message-typing-indicator,
+.n8n-chat [class*="-typing-"]:not(.julide-typing) {
+  display: none !important;
+}
+
 /* Jülide yazıyor — typing göstergesi */
 .julide-typing {
   display: flex;
@@ -500,7 +508,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/chat%20logo23.png");
+  background-image: url("https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/chat%20logo235.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
