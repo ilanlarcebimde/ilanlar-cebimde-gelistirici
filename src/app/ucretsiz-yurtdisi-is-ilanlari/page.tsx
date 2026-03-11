@@ -9,6 +9,7 @@ const DESCRIPTION = "En güncel ve ücretsiz yurtdışı iş ilanlarını keşfe
 
 // Ülke / kanal slug → OG görseli (önerilen boyut: 1200×630)
 const COUNTRY_OG_IMAGES: Record<string, string> = {
+  belcika: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/belcika%20kapak-%20fotografi.jpg",
   estonya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/estonya_kanal_gorseli_ilanlar_cebimde.jpg",
   finlandiya: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/finlandiya_kapak_gorseli.jpg",
   malta: "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/MALTA%20SOSYAL%20PAYLASIM.jpg",
