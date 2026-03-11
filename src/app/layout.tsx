@@ -189,19 +189,16 @@ export default function RootLayout({
                 }
               });
 
-              /* Harf harf yazma efekti — textContent ile (DOM değişikliği tetiklemez) */
+              /* Harf harf yazma efekti — setInterval tabanlı, stabil */
               function typeWriter(element, text, speed) {
-                speed = speed || 22;
-                element.textContent = "";
+                speed = speed || 20;
                 var i = 0;
-                function tick() {
-                  if (i < text.length) {
-                    element.textContent += text.charAt(i);
-                    i++;
-                    setTimeout(tick, speed);
-                  }
-                }
-                tick();
+                element.textContent = "";
+                var timer = setInterval(function() {
+                  element.textContent += text.charAt(i);
+                  i++;
+                  if (i >= text.length) clearInterval(timer);
+                }, speed);
               }
 
               /* WeakSet ile her mesaj sadece bir kez işlenir → double-trigger yok */
