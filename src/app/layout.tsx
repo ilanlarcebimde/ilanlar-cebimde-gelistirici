@@ -152,6 +152,78 @@ export default function RootLayout({
                 syncChatToggleState();
               }
 
+              /* Jülide yazıyor — typing göstergesi */
+              function showTyping() {
+                var list = document.querySelector(".n8n-chat .chat-messages-list");
+                if (!list) return;
+                if (document.querySelector(".julide-typing")) return;
+                var typing = document.createElement("div");
+                typing.className = "chat-message chat-message-from-bot julide-typing";
+                typing.innerHTML = "<span>Jülide yazıyor</span><div class=\\"typing-dots\\"><div></div><div></div><div></div></div>";
+                list.appendChild(typing);
+              }
+
+              function removeTyping() {
+                var typing = document.querySelector(".julide-typing");
+                if (typing) typing.remove();
+              }
+
+              /* Sadece kullanıcı gönderdikten sonra gelen mesaja animasyon uygula */
+              var userJustSent = false;
+
+              document.addEventListener("click", function(e) {
+                if (e.target.closest(".chat-input-send-button")) {
+                  userJustSent = true;
+                  showTyping();
+                }
+              });
+
+              /* Enter tuşu ile gönderim */
+              document.addEventListener("keydown", function(e) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  var textarea = document.querySelector(".n8n-chat .chat-input textarea");
+                  if (document.activeElement === textarea && textarea.value.trim()) {
+                    userJustSent = true;
+                    showTyping();
+                  }
+                }
+              });
+
+              /* Harf harf yazma efekti — textContent ile (DOM değişikliği tetiklemez) */
+              function typeWriter(element, text, speed) {
+                speed = speed || 22;
+                element.textContent = "";
+                var i = 0;
+                function tick() {
+                  if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(tick, speed);
+                  }
+                }
+                tick();
+              }
+
+              /* WeakSet ile her mesaj sadece bir kez işlenir → double-trigger yok */
+              var processedMessages = new WeakSet();
+
+              var typingObserver = new MutationObserver(function() {
+                document.querySelectorAll(".n8n-chat .chat-message-from-bot").forEach(function(msg) {
+                  if (msg.classList.contains("julide-typing")) return;
+                  if (processedMessages.has(msg)) return;
+                  processedMessages.add(msg);
+                  /* initialMessages animasyonsuz geçsin */
+                  if (!userJustSent) return;
+                  var text = msg.innerText;
+                  removeTyping();
+                  setTimeout(function() {
+                    typeWriter(msg, text, 22);
+                    userJustSent = false;
+                  }, 700);
+                });
+              });
+              typingObserver.observe(document.body, { childList: true, subtree: true });
+
               var observer = new MutationObserver(function() { runFixes(); });
               observer.observe(document.body, {
                 childList: true,
