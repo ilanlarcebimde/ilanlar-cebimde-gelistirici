@@ -139,12 +139,26 @@ export default function RootLayout({
                 });
               }
 
+              function syncChatToggleState() {
+                var wrapper = document.querySelector(".n8n-chat .chat-window-wrapper");
+                var chatWindow = document.querySelector(".n8n-chat .chat-window");
+                if (!wrapper || !chatWindow) return;
+                var isOpen = window.getComputedStyle(chatWindow).display !== "none";
+                wrapper.classList.toggle("ilanlar-chat-open", isOpen);
+              }
+
               function runFixes() {
                 cleanWrongToggleClass();
+                syncChatToggleState();
               }
 
               var observer = new MutationObserver(function() { runFixes(); });
-              observer.observe(document.body, { childList: true, subtree: true });
+              observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ["style", "class"]
+              });
               if (document.readyState === "complete") runFixes();
               else window.addEventListener("load", runFixes);
               setTimeout(runFixes, 300);
