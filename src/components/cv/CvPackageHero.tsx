@@ -7,7 +7,11 @@ const PRICE = 349;
 export function CvPackageHero() {
   const scrollToWizard = useCallback(() => {
     if (typeof document === "undefined") return;
-    document.getElementById("cv-wizard-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const target = document.getElementById("cv-wizard-start");
+    if (!target) return;
+    const headerOffset = 72; // sticky header + küçük güvenli boşluk
+    const top = target.getBoundingClientRect().top + window.scrollY - headerOffset;
+    window.scrollTo({ top, behavior: "smooth" });
   }, []);
 
   return (
