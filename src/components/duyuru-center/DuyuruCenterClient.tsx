@@ -85,19 +85,13 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
 
   const featuredPost = useMemo(() => {
     if (filtered.length === 0) return null;
-    const firstImportant = filtered.find((post) => isImportantPost(post));
-    return firstImportant ?? filtered[0];
+    return filtered[0];
   }, [filtered]);
 
   const restPosts = useMemo(() => {
     if (!featuredPost) return filtered;
     return filtered.filter((post) => post.id !== featuredPost.id);
   }, [filtered, featuredPost]);
-  const restGridClass = useMemo(() => {
-    if (restPosts.length <= 1) return "grid grid-cols-1 gap-4";
-    if (restPosts.length === 2) return "grid grid-cols-1 gap-4 md:grid-cols-2";
-    return "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3";
-  }, [restPosts.length]);
 
   const clearFilters = () => {
     setSelectedCountry("");
@@ -159,7 +153,7 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
             />
 
             {restPosts.length > 0 ? (
-              <section className={restGridClass}>
+              <section className="space-y-4">
                 {restPosts.map((post) => (
                   <DuyuruGridCard
                     key={post.id}
