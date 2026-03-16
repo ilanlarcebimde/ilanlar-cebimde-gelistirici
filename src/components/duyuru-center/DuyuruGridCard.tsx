@@ -13,11 +13,7 @@ type DuyuruGridCardProps = {
 
 export function DuyuruGridCard({ post, countryLabel, featured = false }: DuyuruGridCardProps) {
   return (
-    <article
-      className={`group overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
-        featured ? "border-slate-300 ring-1 ring-slate-200/70" : "border-slate-200"
-      }`}
-    >
+    <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       <div className="relative aspect-[16/10] overflow-hidden border-b border-slate-100 bg-slate-50">
         {post.cover_image_url ? (
           <Image
