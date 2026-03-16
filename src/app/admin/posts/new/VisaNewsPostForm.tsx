@@ -388,10 +388,6 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
       setError("Duyuru turu zorunlu.");
       return;
     }
-    if (!country) {
-      setError("Ulke secimi zorunlu.");
-      return;
-    }
     if (summary.trim().length < META_MIN || summary.trim().length > META_MAX) {
       setError(`Meta aciklama ${META_MIN}-${META_MAX} karakter araliginda olmali.`);
       return;

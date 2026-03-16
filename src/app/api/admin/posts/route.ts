@@ -142,9 +142,6 @@ export async function POST(req: NextRequest) {
     if (!body.news_type?.trim()) {
       return NextResponse.json({ error: "Duyuru türü zorunludur." }, { status: 400 });
     }
-    if (!body.country_slug?.trim()) {
-      return NextResponse.json({ error: "Ülke zorunludur." }, { status: 400 });
-    }
     if (body.priority_level && !["low", "normal", "important", "critical"].includes(body.priority_level)) {
       return NextResponse.json({ error: "Önem seviyesi geçersiz." }, { status: 400 });
     }

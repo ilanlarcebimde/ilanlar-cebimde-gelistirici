@@ -56,11 +56,11 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
           scrolled ? "border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "border-transparent"
         }`}
       >
-        <div className="mx-auto flex h-14 min-h-14 max-h-14 flex-nowrap items-center gap-2 px-3 sm:gap-3 sm:px-4 md:px-5 max-w-[1200px]">
+        <div className="mx-auto flex h-14 min-h-14 max-h-14 flex-nowrap items-center gap-2 px-3 sm:gap-3 sm:px-4 md:px-5 max-w-[1360px]">
           {/* Sol: Logo + Başlık — mobilde oturum kapalıyken büyük, açıkken kompakt */}
           <Link
             href="/"
-            className="flex min-w-0 shrink items-center gap-2 text-slate-900"
+            className="flex shrink-0 items-center gap-2 text-slate-900"
             aria-label="İlanlar Cebimde - Ana Sayfa"
           >
             <Image
@@ -73,43 +73,43 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               }`}
               priority
             />
-            <span className="hidden truncate text-base font-bold tracking-tight sm:block sm:text-lg min-w-0">
+            <span className="hidden whitespace-nowrap text-base font-bold tracking-tight sm:block sm:text-lg">
               İlanlar Cebimde
             </span>
-            <span className="truncate text-base font-bold tracking-tight min-w-0 sm:hidden">
+            <span className="whitespace-nowrap text-base font-bold tracking-tight sm:hidden">
               İlanlar Cebimde
             </span>
           </Link>
 
           {/* Masaüstü: menü butonları sırayla (popup yok) */}
-          <nav className="hidden md:flex items-center gap-1 shrink-0" aria-label="Ana menü">
+          <nav className="hidden md:flex items-center gap-0.5 shrink-0" aria-label="Ana menü">
             <Link
               href="/"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               Usta Başvuru Paketi
             </Link>
             <Link
               href="/yurtdisi-cv-paketi"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               Yurtdışı CV Paketi
             </Link>
             <Link
               href="/yurtdisi-is-basvuru-merkezi"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               Yurtdışı İş Başvuru Merkezi
             </Link>
             <Link
               href={FEED_PATH}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               Ücretsiz Yurtdışı İş İlanları
             </Link>
             <Link
               href={NEWS_HUB_PATH}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               Yurtdışı Çalışma & Vize Duyuruları
             </Link>
