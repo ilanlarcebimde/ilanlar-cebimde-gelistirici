@@ -145,13 +145,13 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
           {/* Sağ: kompakt aksiyon paneli */}
           <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Hızlı Başvuru Araçları</p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={handleContactClick}
-                className="flex h-[64px] items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[12px] leading-tight transition hover:border-slate-300 hover:bg-slate-50"
+                className="flex h-[64px] items-start justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50"
               >
-                <span className="flex flex-col">
+                <span className="flex w-full flex-col">
                   <span className="text-[11px] font-semibold leading-4 text-slate-900">İşe Hemen Başvur</span>
                   <span className="text-[11px] leading-4 text-slate-600">Firma İletişim Bilgileri</span>
                 </span>
@@ -159,28 +159,34 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
               <button
                 type="button"
                 onClick={handleLetterClick}
-                className="flex h-[64px] items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[12px] leading-tight transition hover:border-slate-300 hover:bg-slate-50"
+                className="flex h-[64px] items-start justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50"
               >
-                <span className="text-[11px] font-semibold leading-4 text-slate-900 whitespace-nowrap">İş Başvuru Mektubu Oluştur</span>
+                <span className="flex w-full flex-col">
+                  <span className="text-[11px] font-semibold leading-4 text-slate-900">İş Başvuru Mektubu</span>
+                  <span className="text-[11px] leading-4 text-slate-600">Oluştur</span>
+                </span>
               </button>
             </div>
 
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Hizmetlerimiz</p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               <Link
                 href="/yurtdisi-cv-paketi"
-                className="flex h-[64px] items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[12px] leading-tight transition hover:border-slate-300 hover:bg-slate-50"
+                className="flex h-[64px] items-start justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50"
               >
-                <span className="flex flex-col">
+                <span className="flex w-full flex-col">
                   <span className="text-[11px] font-semibold leading-4 text-slate-900">Yurtdışı CV Paketi</span>
                   <span className="text-[11px] leading-4 text-slate-600">İngilizce CV</span>
                 </span>
               </Link>
               <Link
                 href="/"
-                className="flex h-[64px] items-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left text-[12px] leading-tight transition hover:border-orange-300 hover:bg-orange-100/70"
+                className="flex h-[64px] items-start justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left leading-tight transition hover:border-orange-300 hover:bg-orange-100/70"
               >
-                <span className="block text-[11px] font-medium leading-4 text-slate-900">Ücretsiz Vize Danışmanlığı · 24 Saatte Danışman Atanır</span>
+                <span className="flex w-full flex-col">
+                  <span className="text-[11px] font-semibold leading-4 text-slate-900">Ücretsiz Vize Danışmanlığı</span>
+                  <span className="text-[11px] leading-4 text-slate-700">24 Saatte Danışman Atanır</span>
+                </span>
               </Link>
             </div>
           </div>
