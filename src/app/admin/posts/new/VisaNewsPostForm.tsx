@@ -113,6 +113,27 @@ function buildTemplate() {
   ].join("\n");
 }
 
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      const width = image.naturalWidth;
+      const height = image.naturalHeight;
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width, height });
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Gorsel boyutu okunamadi."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
 export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
@@ -268,6 +289,12 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
     }
     setError(null);
     try {
+      const { width, height } = await readImageDimensions(file);
+      if (width !== 1200 || height !== 630) {
+        setError("Kapak gorseli tam olarak 1200x630 olmalidir (sosyal paylasim formati).");
+        return;
+      }
+
       const signedRes = await fetch("/api/admin/uploads/cover/signed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -516,6 +543,9 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
                 />
                 {slugStatus && <p className="mt-1 text-xs text-slate-500">{slugStatus}</p>}
+                <p className="mt-1 text-xs text-slate-500">
+                  Slug sadece latin URL formatiyla kaydedilir (Turkce karakterler otomatik donusturulur).
+                </p>
                 <p className="mt-1 text-xs text-slate-500">Onizleme: /yurtdisi-calisma-ve-vize-duyurulari/{slugForCheck || "slug"}</p>
               </div>
               <div>
@@ -718,6 +748,9 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Kapak ve Etiketler</h2>
             <input type="file" accept="image/*" onChange={handleUploadCover} />
+            <p className="mt-2 text-xs text-slate-500">
+              Kapak gorseli 1200x630 olmali (sosyal medya paylasim karti). Baslik/icerikte Turkce karakter kullanabilirsiniz.
+            </p>
             {coverUrl && <p className="mt-2 break-all text-xs text-slate-600">URL: {coverUrl}</p>}
             <div className="mt-3">
               <label className="block text-xs font-medium text-slate-600">Etiketler (virgulle)</label>

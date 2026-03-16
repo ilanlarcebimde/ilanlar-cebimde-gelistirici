@@ -9,6 +9,7 @@ import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { supabase } from "@/lib/supabase";
 
 const FEED_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
+const NEWS_HUB_PATH = "/yurtdisi-calisma-ve-vize-duyurulari";
 
 export function Header({ onLoginClick }: { onLoginClick: () => void }) {
   const [scrolled, setScrolled] = useState(false);
@@ -105,6 +106,12 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               Ücretsiz Yurtdışı İş İlanları
+            </Link>
+            <Link
+              href={NEWS_HUB_PATH}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              Yurtdışı Çalışma & Vize Duyuruları
             </Link>
           </nav>
 
@@ -207,6 +214,13 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
                       onClick={() => setMenuOpen(false)}
                     >
                       Ücretsiz Yurtdışı İş İlanları
+                    </Link>
+                    <Link
+                      href={NEWS_HUB_PATH}
+                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Yurtdışı Çalışma & Vize Duyuruları
                     </Link>
                     {loggedIn ? (
                       <>

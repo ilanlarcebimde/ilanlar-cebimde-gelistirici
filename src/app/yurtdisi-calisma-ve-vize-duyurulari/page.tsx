@@ -3,9 +3,9 @@ import Link from "next/link";
 import { getSupabasePublic } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Yurtdisi Calisma ve Vize Duyurulari | Ilanlar Cebimde",
+  title: "Yurtdışı Çalışma & Vize Duyuruları | İlanlar Cebimde",
   description:
-    "Vize, pasaport, calisma izni ve resmi kurum kaynakli yurtdisi calisma duyurularini ulke ve tur bazli takip edin.",
+    "Vize, pasaport, çalışma izni ve resmi kurum kaynaklı yurtdışı çalışma duyurularını ülke ve tür bazlı takip edin.",
 };
 
 function nowIso() {
@@ -64,9 +64,9 @@ export default async function InternationalNewsHubPage({ searchParams }: PagePro
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="mx-auto max-w-5xl space-y-6 px-4">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-900">Yurtdisi Calisma ve Vize Duyurulari</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Yurtdışı Çalışma &amp; Vize Duyuruları</h1>
           <p className="text-sm text-slate-600">
-            Resmi kaynakli guncellemeleri ulke ve duyuru turune gore filtreleyerek takip edin.
+            Resmi kaynaklı güncellemeleri ülke ve duyuru türüne göre filtreleyerek takip edin.
           </p>
         </div>
 
