@@ -51,3 +51,13 @@ export function formatDateTR(isoLike: string | null): string {
     year: "numeric",
   }).format(date);
 }
+
+export function formatCountryLabel(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "AB Geneli";
+  const value = raw.trim();
+  if (!value.includes("-") && !value.includes("_")) return value;
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toLocaleUpperCase("tr-TR"))
+    .trim();
+}

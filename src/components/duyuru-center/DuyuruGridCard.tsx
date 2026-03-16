@@ -23,7 +23,7 @@ export function DuyuruGridCard({ post, countryLabel, featured = false }: DuyuruG
               src={post.cover_image_url}
               alt={post.title}
               fill
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.015]"
+              className="object-contain md:object-cover transition-transform duration-300 group-hover:scale-[1.015]"
               sizes="(max-width: 768px) 100vw, 48vw"
               unoptimized={post.cover_image_url.includes("supabase")}
             />

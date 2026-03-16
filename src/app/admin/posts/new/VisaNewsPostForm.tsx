@@ -601,8 +601,7 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
                   list="duyuru-country-list"
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  onBlur={(e) => setCountry(slugifyTR(e.target.value))}
-                  placeholder="Ulke slug'i girin (ornek: almanya, belcika, ab-geneli)"
+                  placeholder="Ulke adini normal yazin (ornek: Almanya, Belcika, AB Geneli)"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 >
                 </input>
@@ -612,7 +611,7 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
                   ))}
                 </datalist>
                 <p className="mt-1 text-xs text-slate-500">
-                  Bu alan manuel girilebilir. Sistem kaydederken URL uyumlu slug formatina cevirir.
+                  Bu alan manuel girilebilir. Slug formatina zorlanmaz, yazdiginiz gibi kaydedilir.
                 </p>
               </div>
               <div>

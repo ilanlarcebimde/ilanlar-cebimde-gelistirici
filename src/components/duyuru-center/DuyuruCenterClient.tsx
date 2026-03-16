@@ -5,7 +5,7 @@ import { DuyuruEmptyState } from "./DuyuruEmptyState";
 import { DuyuruFeaturedCard } from "./DuyuruFeaturedCard";
 import { DuyuruGridCard } from "./DuyuruGridCard";
 import { DuyuruFilterBar } from "./DuyuruFilterBar";
-import { isBreakingPost, isImportantPost } from "./helpers";
+import { formatCountryLabel, isBreakingPost, isImportantPost } from "./helpers";
 import { DuyuruCountry, DuyuruPost, DuyuruSort, DuyuruStatusFilter } from "./types";
 
 type DuyuruCenterClientProps = {
@@ -149,7 +149,7 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
           <>
             <DuyuruFeaturedCard
               post={featuredPost}
-              countryLabel={featuredPost.country_slug ? countryMap.get(featuredPost.country_slug) ?? null : null}
+              countryLabel={featuredPost.country_slug ? countryMap.get(featuredPost.country_slug) ?? formatCountryLabel(featuredPost.country_slug) : null}
             />
 
             {restPosts.length > 0 ? (
@@ -158,7 +158,7 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
                   <DuyuruGridCard
                     key={post.id}
                     post={post}
-                    countryLabel={post.country_slug ? countryMap.get(post.country_slug) ?? null : null}
+                    countryLabel={post.country_slug ? countryMap.get(post.country_slug) ?? formatCountryLabel(post.country_slug) : null}
                   />
                 ))}
               </section>

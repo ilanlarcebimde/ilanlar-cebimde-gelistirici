@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatDateTR } from "./helpers";
-import { NEWS_TYPE_LABELS } from "../helpers";
+import { formatCountryLabel, NEWS_TYPE_LABELS } from "../helpers";
 import { RelatedDuyuruItem } from "./types";
 
 type RelatedDuyurularProps = {
@@ -16,7 +16,7 @@ export function RelatedDuyurular({ items, countryMap }: RelatedDuyurularProps) {
       <h3 className="text-base font-semibold text-slate-900">Benzer Duyurular</h3>
       <div className="space-y-2">
         {items.map((item) => {
-          const country = item.country_slug ? countryMap.get(item.country_slug) ?? item.country_slug : "AB Geneli";
+          const country = item.country_slug ? countryMap.get(item.country_slug) ?? formatCountryLabel(item.country_slug) : "AB Geneli";
           const type = item.news_type ? NEWS_TYPE_LABELS[item.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
           return (
             <Link

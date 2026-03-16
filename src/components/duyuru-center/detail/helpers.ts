@@ -1,11 +1,11 @@
-import { NEWS_TYPE_LABELS, formatDateTR, toTurkishBadgeText } from "../helpers";
+import { NEWS_TYPE_LABELS, formatCountryLabel, formatDateTR, toTurkishBadgeText } from "../helpers";
 import { DuyuruDetailData } from "./types";
 
 export { formatDateTR };
 
 export function getCountryLabel(countrySlug: string | null, countryMap: Map<string, string>): string {
   if (!countrySlug) return "AB Geneli";
-  return countryMap.get(countrySlug) ?? countrySlug;
+  return countryMap.get(countrySlug) ?? formatCountryLabel(countrySlug);
 }
 
 export function getDetailBadges(post: DuyuruDetailData, countryMap: Map<string, string>): string[] {
