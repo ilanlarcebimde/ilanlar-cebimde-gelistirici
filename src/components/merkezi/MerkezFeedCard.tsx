@@ -145,7 +145,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
           {/* Sağ: kompakt aksiyon paneli */}
           <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Hızlı Başvuru Araçları</p>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 onClick={handleContactClick}
@@ -169,7 +169,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             </div>
 
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Hizmetlerimiz</p>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <Link
                 href="/yurtdisi-cv-paketi"
                 className="flex h-[64px] items-start justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50"
