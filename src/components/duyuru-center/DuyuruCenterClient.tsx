@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DuyuruCard } from "./DuyuruCard";
 import { DuyuruEmptyState } from "./DuyuruEmptyState";
 import { DuyuruFeaturedCard } from "./DuyuruFeaturedCard";
+import { DuyuruGridCard } from "./DuyuruGridCard";
 import { DuyuruFilterBar } from "./DuyuruFilterBar";
 import { isBreakingPost, isImportantPost } from "./helpers";
 import { DuyuruCountry, DuyuruPost, DuyuruSort, DuyuruStatusFilter } from "./types";
@@ -93,6 +93,11 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
     if (!featuredPost) return filtered;
     return filtered.filter((post) => post.id !== featuredPost.id);
   }, [filtered, featuredPost]);
+  const restGridClass = useMemo(() => {
+    if (restPosts.length <= 1) return "grid grid-cols-1 gap-4";
+    if (restPosts.length === 2) return "grid grid-cols-1 gap-4 md:grid-cols-2";
+    return "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3";
+  }, [restPosts.length]);
 
   const clearFilters = () => {
     setSelectedCountry("");
@@ -154,9 +159,9 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
             />
 
             {restPosts.length > 0 ? (
-              <section className="grid grid-cols-1 gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <section className={restGridClass}>
                 {restPosts.map((post) => (
-                  <DuyuruCard
+                  <DuyuruGridCard
                     key={post.id}
                     post={post}
                     countryLabel={post.country_slug ? countryMap.get(post.country_slug) ?? null : null}
