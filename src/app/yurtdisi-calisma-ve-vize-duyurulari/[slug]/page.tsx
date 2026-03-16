@@ -10,8 +10,26 @@ import { DuyuruTags } from "@/components/duyuru-center/detail/DuyuruTags";
 import { DuyuruFooterActions } from "@/components/duyuru-center/detail/DuyuruFooterActions";
 import { DuyuruDetailData, DuyuruTag, PrevNextItem } from "@/components/duyuru-center/detail/types";
 
-function nowIso() {
-  return new Date().toISOString();
+function toMs(value: string | null | undefined): number {
+  if (!value) return Number.NaN;
+  return new Date(value).getTime();
+}
+
+function isLiveNewsPost(
+  status: string | null | undefined,
+  publishedAt: string | null | undefined,
+  scheduledAt: string | null | undefined,
+  nowMs: number
+): boolean {
+  if (status === "published") {
+    const publishedMs = toMs(publishedAt);
+    return Number.isNaN(publishedMs) || publishedMs <= nowMs;
+  }
+  if (status === "scheduled") {
+    const scheduledMs = toMs(scheduledAt);
+    return !Number.isNaN(scheduledMs) && scheduledMs <= nowMs;
+  }
+  return false;
 }
 
 type Props = {
@@ -21,16 +39,26 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const supabase = getSupabasePublic();
+  const nowMs = Date.now();
   const { data: post } = await supabase
     .from("merkezi_posts")
-    .select("title, summary, seo_title, og_title, og_description, og_image, canonical_url")
+    .select("title, summary, seo_title, og_title, og_description, og_image, canonical_url, status, published_at, scheduled_at")
     .eq("slug", slug)
     .eq("content_type", "international_work_visa_news")
-    .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${nowIso()}`)
+    .in("status", ["published", "scheduled"])
     .maybeSingle();
 
-  if (!post) return { title: "Bulunamadi | Ilanlar Cebimde" };
+  if (
+    !post ||
+    !isLiveNewsPost(
+      (post as { status?: string | null }).status,
+      (post as { published_at?: string | null }).published_at,
+      (post as { scheduled_at?: string | null }).scheduled_at,
+      nowMs
+    )
+  ) {
+    return { title: "Bulunamadi | Ilanlar Cebimde" };
+  }
 
   const title = (post as { seo_title?: string | null; title?: string }).seo_title || (post as { title: string }).title;
   const description = (post as { summary?: string | null; og_description?: string | null }).og_description || (post as { summary?: string | null }).summary || "";
@@ -61,29 +89,44 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function InternationalNewsDetailPage({ params }: Props) {
   const { slug } = await params;
   const supabase = getSupabasePublic();
+  const nowMs = Date.now();
 
   const { data: postRaw } = await supabase
     .from("merkezi_posts")
     .select(
-      "id, title, summary, content_html_sanitized, country_slug, city, news_type, source_name, source_url, effective_date, priority_level, news_badge, structured_summary, user_impact, application_impact, published_at, cover_image_url"
+      "id, title, summary, content_html_sanitized, country_slug, city, news_type, source_name, source_url, effective_date, priority_level, news_badge, structured_summary, user_impact, application_impact, published_at, scheduled_at, status, cover_image_url"
     )
     .eq("slug", slug)
     .eq("content_type", "international_work_visa_news")
-    .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${nowIso()}`)
+    .in("status", ["published", "scheduled"])
     .maybeSingle();
 
-  if (!postRaw) notFound();
-  const post = postRaw as DuyuruDetailData;
+  if (
+    !postRaw ||
+    !isLiveNewsPost(
+      (postRaw as { status?: string | null }).status,
+      (postRaw as { published_at?: string | null }).published_at,
+      (postRaw as { scheduled_at?: string | null }).scheduled_at,
+      nowMs
+    )
+  ) {
+    notFound();
+  }
+  const post = {
+    ...(postRaw as DuyuruDetailData),
+    published_at:
+      (postRaw as { published_at?: string | null }).published_at ??
+      (postRaw as { scheduled_at?: string | null }).scheduled_at ??
+      null,
+  } as DuyuruDetailData;
 
   const [{ data: countries }, { data: navRows }, { data: tagRelRows }] = await Promise.all([
     supabase.from("merkezi_countries").select("slug, name").eq("is_active", true),
     supabase
       .from("merkezi_posts")
-      .select("id, title, slug, published_at, news_type")
+      .select("id, title, slug, published_at, scheduled_at, status, news_type")
       .eq("content_type", "international_work_visa_news")
-      .eq("status", "published")
-      .or(`published_at.is.null,published_at.lte.${nowIso()}`)
+      .in("status", ["published", "scheduled"])
       .order("published_at", { ascending: false, nullsFirst: false }),
     supabase.from("merkezi_post_tags").select("tag_id").eq("post_id", post.id),
   ]);
@@ -95,13 +138,24 @@ export default async function InternationalNewsDetailPage({ params }: Props) {
     if (rowSlug) countryMap.set(rowSlug, name || rowSlug);
   }
 
-  const ordered = (navRows ?? []) as Array<{
+  const orderedRaw = (navRows ?? []) as Array<{
     id: string;
     title: string;
     slug: string;
     published_at: string | null;
+    scheduled_at: string | null;
+    status: string | null;
     news_type: string | null;
   }>;
+  const ordered = orderedRaw
+    .filter((item) => isLiveNewsPost(item.status, item.published_at, item.scheduled_at, nowMs))
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      slug: item.slug,
+      published_at: item.published_at ?? item.scheduled_at ?? null,
+      news_type: item.news_type,
+    }));
   const currentIndex = ordered.findIndex((item) => item.id === post.id);
   const previous: PrevNextItem | null =
     currentIndex >= 0 && ordered[currentIndex + 1]

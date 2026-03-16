@@ -169,9 +169,9 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
   const [ogDescription, setOgDescription] = useState(initial?.og_description ?? "");
   const [ogImage, setOgImage] = useState(initial?.og_image ?? "");
   const [canonicalUrl, setCanonicalUrl] = useState(initial?.canonical_url ?? "");
-  const [structuredSummary, setStructuredSummary] = useState(initial?.structured_summary ?? "");
-  const [userImpact, setUserImpact] = useState(initial?.user_impact ?? "");
-  const [applicationImpact, setApplicationImpact] = useState(initial?.application_impact ?? "");
+  const [structuredSummary] = useState(initial?.structured_summary ?? "");
+  const [userImpact] = useState(initial?.user_impact ?? "");
+  const [applicationImpact] = useState(initial?.application_impact ?? "");
 
   const [countries, setCountries] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -759,32 +759,6 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
             <RichHtmlEditor value={contentHtml} onChange={setContentHtml} placeholder="Duyuru icerigi..." />
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Editor Yardim Alanlari</h2>
-            <div className="space-y-3">
-              <textarea
-                value={structuredSummary}
-                onChange={(e) => setStructuredSummary(e.target.value)}
-                rows={2}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="Resmi kaynak ozeti"
-              />
-              <textarea
-                value={userImpact}
-                onChange={(e) => setUserImpact(e.target.value)}
-                rows={2}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="Kullaniciyi nasil etkiler?"
-              />
-              <textarea
-                value={applicationImpact}
-                onChange={(e) => setApplicationImpact(e.target.value)}
-                rows={2}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="Basvuru surecine etkisi"
-              />
-            </div>
-          </section>
         </div>
 
         <div className="space-y-4">
