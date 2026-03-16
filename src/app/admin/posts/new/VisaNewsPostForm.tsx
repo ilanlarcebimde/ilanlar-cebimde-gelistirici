@@ -575,16 +575,23 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Ulke</label>
-                <select
+                <input
+                  list="duyuru-country-list"
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
+                  onBlur={(e) => setCountry(slugifyTR(e.target.value))}
+                  placeholder="Ulke slug'i girin (ornek: almanya, belcika, ab-geneli)"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 >
-                  <option value="">Seciniz</option>
+                </input>
+                <datalist id="duyuru-country-list">
                   {countries.map((c) => (
-                    <option key={c.id} value={c.slug}>{c.name}</option>
+                    <option key={c.id} value={c.slug} label={c.name} />
                   ))}
-                </select>
+                </datalist>
+                <p className="mt-1 text-xs text-slate-500">
+                  Bu alan manuel girilebilir. Sistem kaydederken URL uyumlu slug formatina cevirir.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Sehir (opsiyonel)</label>
