@@ -69,6 +69,7 @@ export async function getPublishedPostBySlug(slug: string): Promise<SegmentPost 
     .from("merkezi_posts")
     .select("id, created_at, updated_at, published_at, status, title, slug, cover_image_url, content, content_html_raw, content_html_sanitized, country_slug, city, sector_slug, is_paid, show_contact_when_free, company_logo_url, company_name, company_short_description, content_type, summary")
     .eq("slug", slug)
+    .neq("content_type", "international_work_visa_news")
     .eq("status", "published")
     .or(`published_at.is.null,published_at.lte.${nowIso()}`)
     .maybeSingle();
@@ -236,6 +237,7 @@ export async function getPublishedPostsForMerkeziLanding(limit = 500): Promise<{
   const { data: rows } = await supabase
     .from("merkezi_posts")
     .select("id, title, slug, cover_image_url, country_slug, city, sector_slug, is_paid, published_at, created_at, content_html_sanitized, application_deadline_date, application_deadline_text, content_type, summary")
+    .neq("content_type", "international_work_visa_news")
     .eq("status", "published")
     .or(`published_at.is.null,published_at.lte.${nowIso()}`)
     .order("published_at", { ascending: false, nullsFirst: false })
@@ -244,7 +246,7 @@ export async function getPublishedPostsForMerkeziLanding(limit = 500): Promise<{
 
   const raw = (rows ?? []) as (MerkeziPostLandingItem & {
     content_html_sanitized?: string | null;
-    content_type?: "job" | "blog" | null;
+    content_type?: "job" | "blog" | "international_work_visa_news" | null;
     summary?: string | null;
   })[];
   const filtered = raw.filter(

@@ -47,6 +47,26 @@ export async function PATCH(
     application_deadline_date?: string | null;
     application_deadline_text?: string | null;
     summary?: string | null;
+    seo_title?: string | null;
+    editorial_status?: "draft" | "in_review" | "published";
+    news_type?: string | null;
+    source_name?: string | null;
+    source_url?: string | null;
+    effective_date?: string | null;
+    priority_level?: "low" | "normal" | "important" | "critical" | null;
+    is_featured?: boolean;
+    show_on_news_hub?: boolean;
+    news_badge?: string | null;
+    content_language?: string | null;
+    target_audience?: string | null;
+    news_category?: string | null;
+    og_title?: string | null;
+    og_description?: string | null;
+    og_image?: string | null;
+    canonical_url?: string | null;
+    structured_summary?: string | null;
+    user_impact?: string | null;
+    application_impact?: string | null;
   };
   try {
     body = await req.json();
@@ -54,27 +74,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (body.summary !== undefined) {
-    const summaryTrim = (body.summary ?? "").trim();
-    if (!summaryTrim) {
-      return NextResponse.json({ error: "Özet (SEO meta açıklama) zorunludur." }, { status: 400 });
-    }
-    if (summaryTrim.length < 140 || summaryTrim.length > 160) {
-      return NextResponse.json({ error: "Özet 140–160 karakter arasında olmalıdır." }, { status: 400 });
-    }
+  if (body.editorial_status && !["draft", "in_review", "published"].includes(body.editorial_status)) {
+    return NextResponse.json({ error: "İçerik durumu geçersiz." }, { status: 400 });
+  }
+  if (body.priority_level && !["low", "normal", "important", "critical"].includes(body.priority_level)) {
+    return NextResponse.json({ error: "Önem seviyesi geçersiz." }, { status: 400 });
   }
 
   const nowIso = new Date().toISOString();
   let status = body.status;
   let publishedAt: string | null | undefined = undefined;
   let scheduledAt: string | null | undefined = body.scheduled_at ?? undefined;
-
-  if (status === "published") {
-    publishedAt = nowIso;
-    scheduledAt = null;
-  } else if (status === "scheduled" && !scheduledAt) {
-    return NextResponse.json({ error: "Zamanlama için tarih gerekli" }, { status: 400 });
-  }
 
   const contentRaw = body.content_html_raw?.trim();
   const contentSanitized = contentRaw ? sanitizeContent(contentRaw) : undefined;
@@ -83,9 +93,42 @@ export async function PATCH(
 
   const { data: existingPost } = await supabaseAdmin
     .from("merkezi_posts")
-    .select("is_paid, title")
+    .select("is_paid, title, content_type")
     .eq("id", id)
     .maybeSingle();
+
+  if (!existingPost) {
+    return NextResponse.json({ error: "İçerik bulunamadı." }, { status: 404 });
+  }
+
+  const existingContentType = existingPost?.content_type ?? "job";
+  if (body.summary !== undefined) {
+    const summaryTrim = (body.summary ?? "").trim();
+    if (!summaryTrim) {
+      return NextResponse.json({ error: "Özet (SEO meta açıklama) zorunludur." }, { status: 400 });
+    }
+    if (existingContentType === "international_work_visa_news") {
+      if (summaryTrim.length < 120 || summaryTrim.length > 160) {
+        return NextResponse.json({ error: "Duyuru özeti 120–160 karakter arasında olmalıdır." }, { status: 400 });
+      }
+    } else if (summaryTrim.length < 140 || summaryTrim.length > 160) {
+      return NextResponse.json({ error: "Özet 140–160 karakter arasında olmalıdır." }, { status: 400 });
+    }
+  }
+
+  if (status === "published") {
+    const nextEditorialStatus = body.editorial_status ?? "draft";
+    if (existingContentType === "international_work_visa_news" && nextEditorialStatus === "draft") {
+      return NextResponse.json(
+        { error: "Duyuru doğrudan yayınlanacaksa içerik durumu en az 'in_review' olmalıdır." },
+        { status: 400 }
+      );
+    }
+    publishedAt = nowIso;
+    scheduledAt = null;
+  } else if (status === "scheduled" && !scheduledAt) {
+    return NextResponse.json({ error: "Zamanlama için tarih gerekli" }, { status: 400 });
+  }
 
   const { data: existingContact } = await supabaseAdmin
     .from("merkezi_post_contact")
@@ -122,8 +165,30 @@ export async function PATCH(
   if (body.summary !== undefined) {
     patch.summary = (body.summary ?? "").trim().slice(0, 160) || null;
   }
+  if (body.seo_title !== undefined) patch.seo_title = body.seo_title?.trim() || null;
+  if (body.editorial_status !== undefined) patch.editorial_status = body.editorial_status;
+  if (status === "published") patch.editorial_status = "published";
+  if (body.news_type !== undefined) patch.news_type = body.news_type?.trim() || null;
+  if (body.source_name !== undefined) patch.source_name = body.source_name?.trim() || null;
+  if (body.source_url !== undefined) patch.source_url = body.source_url?.trim() || null;
+  if (body.effective_date !== undefined) patch.effective_date = body.effective_date?.trim() || null;
+  if (body.priority_level !== undefined) patch.priority_level = body.priority_level || null;
+  if (body.is_featured !== undefined) patch.is_featured = body.is_featured;
+  if (body.show_on_news_hub !== undefined) patch.show_on_news_hub = body.show_on_news_hub;
+  if (body.news_badge !== undefined) patch.news_badge = body.news_badge?.trim() || null;
+  if (body.content_language !== undefined) patch.content_language = body.content_language?.trim() || null;
+  if (body.target_audience !== undefined) patch.target_audience = body.target_audience?.trim() || null;
+  if (body.news_category !== undefined) patch.news_category = body.news_category?.trim() || null;
+  if (body.og_title !== undefined) patch.og_title = body.og_title?.trim() || null;
+  if (body.og_description !== undefined) patch.og_description = body.og_description?.trim() || null;
+  if (body.og_image !== undefined) patch.og_image = body.og_image?.trim() || null;
+  if (body.canonical_url !== undefined) patch.canonical_url = body.canonical_url?.trim() || null;
+  if (body.structured_summary !== undefined) patch.structured_summary = body.structured_summary?.trim() || null;
+  if (body.user_impact !== undefined) patch.user_impact = body.user_impact?.trim() || null;
+  if (body.application_impact !== undefined) patch.application_impact = body.application_impact?.trim() || null;
 
-  const newIsPaid = body.is_paid ?? existingPost?.is_paid ?? false;
+  const newIsPaid =
+    existingContentType === "job" ? (body.is_paid ?? existingPost?.is_paid ?? false) : false;
   const newContactEmail =
     body.contact_email !== undefined ? body.contact_email : existingContact?.contact_email ?? null;
   const newContactPhone =

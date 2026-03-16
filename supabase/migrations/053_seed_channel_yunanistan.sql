@@ -1,6 +1,6 @@
--- Yunanistan kanalı: ücretsiz yurtdışı iş ilanları sayfasında görünür (channels)
--- page_url → /ucretsiz-yurtdisi-is-ilanlari?c=yunanistan
--- source_feed_url: n8n veri kaynağı doldurulunca güncellenir.
+-- Yunanistan kanali: ucretsiz yurtdisi is ilanlari sayfasinda gorunur (channels)
+-- page_url -> /ucretsiz-yurtdisi-is-ilanlari?c=yunanistan
+-- source_feed_url: n8n veri kaynagi doldurulunca guncellenir.
 insert into public.channels (
   slug,
   name,
@@ -16,7 +16,7 @@ insert into public.channels (
   'Yunanistan',
   'GR',
   '🇬🇷',
-  'Yunanistan''daki güncel iş ilanları ve kariyer fırsatları. AB üyesi ülke iş piyasası.',
+  'Yunanistan''daki guncel is ilanlari ve kariyer firsatlari. AB uyesi ulke is piyasasi.',
   true,
   'https://www.ilanlarcebimde.com/ucretsiz-yurtdisi-is-ilanlari?c=yunanistan',
   null,

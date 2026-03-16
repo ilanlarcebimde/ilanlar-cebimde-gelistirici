@@ -1473,6 +1473,22 @@ export function CvWizard() {
               )}
             </div>
           </aside>
+
+          <div className="lg:hidden lg:col-span-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl">
+              <h3 className="text-sm font-semibold text-slate-50">Sipariş Özeti</h3>
+              <p className="mt-2 text-3xl font-semibold text-sky-400">349 TL</p>
+              <ul className="mt-3 text-sm text-slate-200 space-y-1.5">
+                <li>✔ Türkçe CV hazırlanacak</li>
+                <li>✔ İngilizce CV hazırlanacak</li>
+                <li>✔ İş başvuru mektubu hazırlanacak</li>
+              </ul>
+              <p className="mt-3 text-xs text-slate-300">
+                Form tamamlandıktan sonra ödeme adımına geçersiniz. Ekibimiz bilgilerinizi kontrol ederek teknik
+                mesleklere uygun profesyonel formatta düzenleme yapar.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 flex items-center justify-between gap-4">

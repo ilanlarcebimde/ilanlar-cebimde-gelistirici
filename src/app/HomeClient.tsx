@@ -13,7 +13,6 @@ import { WhatWeSolveSection } from "@/components/WhatWeSolveSection";
 import { FinalCtaSection } from "@/components/FinalCtaSection";
 import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
-import { StickyCta } from "@/components/StickyCta";
 import { YurtdisiIlanlariSection } from "@/components/home/YurtdisiIlanlariSection";
 import type { WizardMethod } from "@/components/wizard/WizardTypes";
 
@@ -92,7 +91,6 @@ export function HomeClient() {
         <FinalCtaSection onCtaClick={scrollToMethods} />
         <Footer />
       </main>
-      <StickyCta onCtaClick={scrollToMethods} />
 
       <WizardModal
         open={wizardModalOpen}

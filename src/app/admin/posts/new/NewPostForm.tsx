@@ -33,12 +33,13 @@ type NewPostFormProps = {
     summary?: string | null;
   };
   postId?: string;
+  embedded?: boolean;
 };
 
 const SUMMARY_MIN = 140;
 const SUMMARY_MAX = 160;
 
-export function NewPostForm({ initial, postId }: NewPostFormProps) {
+export function NewPostForm({ initial, postId, embedded = false }: NewPostFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugStatus, setSlugStatus] = useState<string | null>(null);
@@ -360,12 +361,14 @@ export function NewPostForm({ initial, postId }: NewPostFormProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Yeni içerik</h1>
-        <Link href="/admin/posts" className="text-sm text-sky-600 hover:underline">
-          ← İçerik listesi
-        </Link>
-      </div>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-slate-900">Yeni içerik</h1>
+          <Link href="/admin/posts" className="text-sm text-sky-600 hover:underline">
+            ← İçerik listesi
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">

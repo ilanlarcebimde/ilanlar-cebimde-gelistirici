@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { NewPostForm } from "../new/NewPostForm";
+import { VisaNewsPostForm } from "../new/VisaNewsPostForm";
 import type { MerkeziPost } from "@/lib/merkezi/types";
 
 export default async function AdminPostEditPage({
@@ -13,7 +14,7 @@ export default async function AdminPostEditPage({
   const { data: post, error } = await supabase
     .from("merkezi_posts")
     .select(
-      "id, title, slug, cover_image_url, content_html_raw, country_slug, city, sector_slug, is_paid, show_contact_when_free, status, scheduled_at, application_deadline_date, application_deadline_text, summary"
+      "id, title, slug, cover_image_url, content_html_raw, country_slug, city, sector_slug, is_paid, show_contact_when_free, status, scheduled_at, application_deadline_date, application_deadline_text, summary, content_type, seo_title, editorial_status, news_type, source_name, source_url, effective_date, priority_level, is_featured, show_on_news_hub, news_badge, content_language, target_audience, news_category, og_title, og_description, og_image, canonical_url, structured_summary, user_impact, application_impact"
     )
     .eq("id", id)
     .maybeSingle();
@@ -51,6 +52,10 @@ export default async function AdminPostEditPage({
     application_deadline_text: (post as { application_deadline_text?: string | null })?.application_deadline_text ?? null,
     summary: (post as { summary?: string | null })?.summary ?? null,
   };
+
+  if ((post as { content_type?: string | null }).content_type === "international_work_visa_news") {
+    return <VisaNewsPostForm initial={initial} postId={id} />;
+  }
 
   return <NewPostForm initial={initial} postId={id} />;
 }

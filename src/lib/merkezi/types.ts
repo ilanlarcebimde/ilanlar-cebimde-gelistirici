@@ -4,6 +4,7 @@
  */
 
 export type MerkeziPostStatus = "draft" | "published" | "scheduled" | "archived";
+export type MerkeziContentType = "job" | "blog" | "international_work_visa_news";
 
 export interface MerkeziPost {
   id: string;
@@ -29,8 +30,28 @@ export interface MerkeziPost {
   company_short_description: string | null;
   application_deadline_date?: string | null;
   application_deadline_text?: string | null;
-  content_type?: "job" | "blog";
+  content_type?: MerkeziContentType;
   summary?: string | null;
+  seo_title?: string | null;
+  editorial_status?: "draft" | "in_review" | "published";
+  news_type?: string | null;
+  source_name?: string | null;
+  source_url?: string | null;
+  effective_date?: string | null;
+  priority_level?: "low" | "normal" | "important" | "critical" | null;
+  is_featured?: boolean;
+  show_on_news_hub?: boolean;
+  news_badge?: string | null;
+  content_language?: string | null;
+  target_audience?: string | null;
+  news_category?: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  og_image?: string | null;
+  canonical_url?: string | null;
+  structured_summary?: string | null;
+  user_impact?: string | null;
+  application_impact?: string | null;
 }
 
 /** Landing sayfası kartı için minimal alanlar (contact/content yok). */
@@ -53,8 +74,11 @@ export interface MerkeziPostLandingItem {
   application_deadline_date?: string | null;
   /** Serbest metin notu (örn. "Başvurular dolana kadar"). Tarih yoksa kullanılır. */
   application_deadline_text?: string | null;
-  /** job = ilan kartı, blog = bilgilendirme kartı. */
-  content_type?: "job" | "blog";
+  /** job = ilan kartı, blog = bilgilendirme, international_work_visa_news = duyuru. */
+  content_type?: MerkeziContentType;
+  news_type?: string | null;
+  priority_level?: "low" | "normal" | "important" | "critical" | null;
+  is_featured?: boolean;
 }
 
 export interface MerkeziPostContact {

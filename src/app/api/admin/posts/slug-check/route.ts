@@ -10,6 +10,7 @@ const RESERVED_SEGMENTS = [
   "premium",
   "ucretsiz-yurtdisi-is-ilanlari",
   "yurtdisi-is-ilanlari",
+  "yurtdisi-calisma-ve-vize-duyurulari",
 ];
 
 export async function GET(req: NextRequest) {

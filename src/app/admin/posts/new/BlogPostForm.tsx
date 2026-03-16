@@ -25,7 +25,11 @@ function parseUploadResponse(res: Response): Promise<{ url?: string; error?: str
   });
 }
 
-export function BlogPostForm() {
+type BlogPostFormProps = {
+  embedded?: boolean;
+};
+
+export function BlogPostForm({ embedded = false }: BlogPostFormProps) {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -210,12 +214,14 @@ export function BlogPostForm() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Yeni blog yazısı</h1>
-        <Link href="/admin/posts/new" className="text-sm text-sky-600 hover:underline">
-          ← Yeni içerik seçimine dön
-        </Link>
-      </div>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-slate-900">Yeni blog yazısı</h1>
+          <Link href="/admin/posts/new" className="text-sm text-sky-600 hover:underline">
+            ← Yeni içerik seçimine dön
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
