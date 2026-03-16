@@ -13,6 +13,10 @@ const secondaryClass =
   "flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-slate-200 bg-white px-2 py-2.5 text-center text-sm font-medium leading-snug text-slate-900 transition hover:bg-slate-50 hover:border-slate-300";
 const tertiaryClass =
   "flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-transparent bg-slate-50 px-2 py-2.5 text-center text-sm font-medium leading-snug text-slate-800 transition hover:bg-slate-100";
+const serviceButtonBase =
+  "flex w-full flex-col items-start gap-0.5 rounded-xl border p-3 text-left transition hover:bg-white hover:shadow-sm";
+const serviceButtonDefault = `${serviceButtonBase} border-slate-200 bg-slate-50`;
+const serviceButtonHighlighted = `${serviceButtonBase} border-orange-200 bg-orange-50`;
 
 const premiumActiveClass =
   "relative overflow-visible flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-medium leading-snug text-emerald-900 transition hover:bg-emerald-100";
@@ -70,12 +74,14 @@ export function JobActionsStack({
       )}
       <div className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Hizmetlerimiz</p>
-        <div className="grid grid-cols-2 gap-2">
-          <Link href="/yurtdisi-cv-paketi" className={tertiaryClass}>
-            Yurtdışı CV Paketi (İngilizce)
+        <div className="space-y-2">
+          <Link href="/yurtdisi-cv-paketi" className={serviceButtonDefault}>
+            <span className="text-sm font-semibold text-slate-900">Yurtdışı CV Paketi</span>
+            <span className="text-xs text-slate-600">İngilizce CV oluştur</span>
           </Link>
-          <Link href="/" className={tertiaryClass}>
-            Usta Başvuru Paketi
+          <Link href="/" className={serviceButtonHighlighted}>
+            <span className="text-sm font-semibold text-slate-900">Ücretsiz Vize Danışmanlığı</span>
+            <span className="text-xs text-slate-700">24 Saat İçinde Danışman Atanır</span>
           </Link>
         </div>
       </div>

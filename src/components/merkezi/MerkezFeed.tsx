@@ -44,7 +44,7 @@ export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
   return (
     <div className="min-h-screen bg-slate-50">
       <PremiumConversionPopup />
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
+      <div className="mx-auto max-w-[1480px] px-4 py-6 sm:py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <input
             type="search"

@@ -99,7 +99,7 @@ export function MobileMenuSheet({
 
           <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
             <MobileMenuSection title="Başvuru Hizmetleri">
-              <MobileMenuItem href="/" label="Usta Başvuru Paketi" icon={BriefcaseBusiness} onClick={onClose} />
+              <MobileMenuItem href="/" label="Ana Sayfa" icon={BriefcaseBusiness} onClick={onClose} />
               <MobileMenuItem href="/yurtdisi-cv-paketi" label="Yurtdışı CV Paketi" icon={FileText} onClick={onClose} />
               <MobileMenuItem
                 href="/yurtdisi-is-basvuru-merkezi"

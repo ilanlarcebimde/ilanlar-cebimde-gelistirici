@@ -97,7 +97,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               href="/"
               className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
-              Usta Başvuru Paketi
+              Ana Sayfa
             </Link>
             <Link
               href="/yurtdisi-cv-paketi"
