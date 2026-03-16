@@ -35,16 +35,16 @@ export function DuyuruGridCard({ post, countryLabel, featured = false }: DuyuruG
         )}
       </div>
 
-      <div className="space-y-3.5 p-5">
+      <div className="space-y-3 p-4 md:p-5">
         <DuyuruCardBadges post={post} countryLabel={countryLabel} featured={featured} />
 
-        <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight text-slate-900">{post.title}</h2>
+        <h2 className="line-clamp-2 text-lg font-bold leading-tight tracking-tight text-slate-900 md:text-xl">{post.title}</h2>
 
-        <p className="line-clamp-2 text-sm leading-7 text-slate-600">
+        <p className="line-clamp-2 text-sm leading-6 text-slate-600">
           {post.summary?.trim() || "Detaylı duyuru içeriği için devamını görüntüleyin."}
         </p>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-3">
           <DuyuruCardMeta post={post} compact />
           <Link
             href={`/yurtdisi-calisma-ve-vize-duyurulari/${post.slug}`}
