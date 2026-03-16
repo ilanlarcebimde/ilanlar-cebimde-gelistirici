@@ -156,10 +156,12 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
   const [priorityLevel, setPriorityLevel] = useState<PriorityLevel>(
     (initial?.priority_level as PriorityLevel) || "normal"
   );
-  const [status, setStatus] = useState<PublishStatus>(normalizeStatus(initial?.status));
+  const [status, setStatus] = useState<PublishStatus>(
+    initial?.status ? normalizeStatus(initial.status) : "published"
+  );
   const [scheduledAt, setScheduledAt] = useState(initial?.scheduled_at ?? "");
   const [editorialStatus, setEditorialStatus] = useState<EditorialStatus>(
-    normalizeEditorialStatus(initial?.editorial_status)
+    initial?.editorial_status ? normalizeEditorialStatus(initial.editorial_status) : "published"
   );
   const [isFeatured, setIsFeatured] = useState(initial?.is_featured ?? false);
   const [showOnNewsHub, setShowOnNewsHub] = useState(initial?.show_on_news_hub ?? true);
@@ -812,6 +814,11 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Yayin Ayarlari</h2>
             <div className="space-y-3 text-sm">
+              {status !== "published" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Bu secimle icerik ana duyuru listesinde gorunmez. Listede gorunmesi icin "Yayinda" secin.
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="flex items-center gap-2"><input type="radio" checked={status === "draft"} onChange={() => setStatus("draft")} /> Taslak</label>
                 <label className="flex items-center gap-2"><input type="radio" checked={status === "published"} onChange={() => setStatus("published")} /> Yayinda</label>
