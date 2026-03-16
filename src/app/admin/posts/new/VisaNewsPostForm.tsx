@@ -203,7 +203,7 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
 
   useEffect(() => {
     if (!summary.trim() && title.trim()) {
-      const typeLabel = NEWS_TYPES.find((t) => t.value === newsType)?.label ?? "Duyuru";
+      const typeLabel = NEWS_TYPES.find((t) => t.value === newsType)?.label ?? (newsType || "Duyuru");
       const countryPart = country ? ` ${country}` : "";
       const generated = `${typeLabel}${countryPart} guncellemesi: ${title.trim()}. Is arayanlar ve basvuru surecleri icin resmi kaynaga dayali ozet ve etkiler.`;
       setSummary(generated.slice(0, META_MAX));
@@ -272,13 +272,26 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
   };
 
   const applyTagSuggestion = () => {
-    const newsLabel = NEWS_TYPES.find((t) => t.value === newsType)?.label;
+    const newsLabel = NEWS_TYPES.find((t) => t.value === newsType)?.label ?? newsType;
     const suggestions = [country, newsLabel, "resmi-duyuru", "yurtdisi-calisma", "vize-guncellemesi"]
       .map((x) => (x || "").trim().toLowerCase().replace(/\s+/g, "-"))
       .filter(Boolean);
     const merged = [...new Set([...tagsArray, ...suggestions])];
     setTags(merged.join(", "));
   };
+
+  const newsTypeOptions = useMemo(
+    () => [...new Set([...NEWS_TYPES.map((x) => x.value), newsType].filter(Boolean))],
+    [newsType]
+  );
+  const targetAudienceOptions = useMemo(
+    () => [...new Set([...TARGET_AUDIENCE.map((x) => x.value), targetAudience].filter(Boolean))],
+    [targetAudience]
+  );
+  const newsCategoryOptions = useMemo(
+    () => [...new Set([...NEWS_CATEGORIES.map((x) => x.value), newsCategory].filter(Boolean))],
+    [newsCategory]
+  );
 
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -562,16 +575,25 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className="block text-xs font-medium text-slate-600">Duyuru turu</label>
-                <select
+                <input
+                  list="news-type-options"
                   value={newsType}
                   onChange={(e) => setNewsType(e.target.value)}
+                  placeholder="Ornek: yurtdisi-istihdam, vize, konsolosluk"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <option value="">Seciniz</option>
-                  {NEWS_TYPES.map((x) => (
-                    <option key={x.value} value={x.value}>{x.label}</option>
+                />
+                <datalist id="news-type-options">
+                  {newsTypeOptions.map((value) => (
+                    <option
+                      key={value}
+                      value={value}
+                      label={NEWS_TYPES.find((x) => x.value === value)?.label ?? value}
+                    />
                   ))}
-                </select>
+                </datalist>
+                <p className="mt-1 text-xs text-slate-500">
+                  Sabit liste disinda yeni bir kategori de yazabilirsiniz.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Ulke</label>
@@ -633,29 +655,47 @@ export function VisaNewsPostForm({ postId, initial, embedded = false }: Props) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Hedef kitle</label>
-                <select
+                <input
+                  list="target-audience-options"
                   value={targetAudience}
                   onChange={(e) => setTargetAudience(e.target.value)}
+                  placeholder="Ornek: teknik-personel, ogrenciler, genel-kullanici"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <option value="">Seciniz</option>
-                  {TARGET_AUDIENCE.map((x) => (
-                    <option key={x.value} value={x.value}>{x.label}</option>
+                />
+                <datalist id="target-audience-options">
+                  {targetAudienceOptions.map((value) => (
+                    <option
+                      key={value}
+                      value={value}
+                      label={TARGET_AUDIENCE.find((x) => x.value === value)?.label ?? value}
+                    />
                   ))}
-                </select>
+                </datalist>
+                <p className="mt-1 text-xs text-slate-500">
+                  Bu alana kendi hedef kitle kategorinizi ekleyebilirsiniz.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Icerik kategorisi</label>
-                <select
+                <input
+                  list="news-category-options"
                   value={newsCategory}
                   onChange={(e) => setNewsCategory(e.target.value)}
+                  placeholder="Ornek: resmi-prosedur-degisikligi, calisma-izni-guncellemesi"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <option value="">Seciniz</option>
-                  {NEWS_CATEGORIES.map((x) => (
-                    <option key={x.value} value={x.value}>{x.label}</option>
+                />
+                <datalist id="news-category-options">
+                  {newsCategoryOptions.map((value) => (
+                    <option
+                      key={value}
+                      value={value}
+                      label={NEWS_CATEGORIES.find((x) => x.value === value)?.label ?? value}
+                    />
                   ))}
-                </select>
+                </datalist>
+                <p className="mt-1 text-xs text-slate-500">
+                  Hazir listeden secin veya yeni bir kategori degerini elle girin.
+                </p>
               </div>
             </div>
           </section>
