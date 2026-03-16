@@ -5,9 +5,13 @@ import { CvPackageHero } from "@/components/cv/CvPackageHero";
 import { CvWizard } from "@/components/cv/CvWizard";
 
 export function YurtdisiCvPaketiClient() {
+  const handleLoginClick = () => {
+    if (typeof window !== "undefined") window.location.href = "/giris";
+  };
+
   return (
     <>
-      <Header />
+      <Header onLoginClick={handleLoginClick} />
       <main className="min-h-screen bg-slate-50">
         <CvPackageHero />
         <div className="h-6 bg-gradient-to-b from-slate-900/10 to-transparent" aria-hidden />
