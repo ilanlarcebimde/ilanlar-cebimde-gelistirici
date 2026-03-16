@@ -165,6 +165,14 @@ body {
   content: "";
   margin-top: 0.9rem;
 }
+@media (max-width: 767px) {
+  .duyuru-body-content p,
+  .duyuru-body-content li {
+    font-size: 17px;
+    line-height: 1.78;
+    color: #1f2937;
+  }
+}
 
 /* Global n8n support chat widget */
 :root {

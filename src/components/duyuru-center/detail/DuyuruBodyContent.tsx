@@ -23,7 +23,7 @@ export function DuyuruBodyContent({ htmlContent, pageTitle }: DuyuruBodyContentP
     const paragraphs = splitPlainTextToParagraphs(content);
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="duyuru-body-content text-[15px] leading-8 text-slate-700">
+        <div className="duyuru-body-content text-[17px] leading-[1.75] text-slate-800">
           {paragraphs.length > 0 ? (
             paragraphs.map((paragraph, idx) => (
               <p key={`${idx}-${paragraph.slice(0, 16)}`}>
@@ -48,7 +48,7 @@ export function DuyuruBodyContent({ htmlContent, pageTitle }: DuyuruBodyContentP
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
       <div
-        className="duyuru-body-content max-w-none text-[15px] leading-8 text-slate-700"
+        className="duyuru-body-content max-w-none text-[17px] leading-[1.75] text-slate-800"
         dangerouslySetInnerHTML={{ __html: cleanedHtml }}
       />
     </section>

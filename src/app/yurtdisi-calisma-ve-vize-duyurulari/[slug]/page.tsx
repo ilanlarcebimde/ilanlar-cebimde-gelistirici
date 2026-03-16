@@ -135,10 +135,15 @@ export default async function InternationalNewsDetailPage({ params }: Props) {
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl space-y-5 px-4">
         <DuyuruDetailHero post={post} countryMap={countryMap} />
-        <DuyuruMetaCards post={post} countryMap={countryMap} />
+        <div className="hidden md:block">
+          <DuyuruMetaCards post={post} countryMap={countryMap} />
+        </div>
         <DuyuruCoverImage title={post.title} imageUrl={post.cover_image_url ?? null} />
 
         <DuyuruBodyContent htmlContent={post.content_html_sanitized} pageTitle={post.title} />
+        <div className="md:hidden">
+          <DuyuruMetaCards post={post} countryMap={countryMap} compact />
+        </div>
         <DuyuruTags tags={tags} />
         <DuyuruFooterActions previous={previous} next={next} />
       </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { DuyuruBadge } from "../DuyuruBadge";
 import { DuyuruDetailData } from "./types";
 import { formatDateTR, getCountryLabel } from "./helpers";
@@ -16,7 +16,7 @@ export function DuyuruDetailHero({ post, countryMap }: DuyuruDetailHeroProps) {
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-8">
-      <nav className="mb-4 flex items-center gap-1 text-xs font-medium text-slate-500">
+      <nav className="mb-4 hidden items-center gap-1 text-xs font-medium text-slate-500 md:flex">
         <Link href="/" className="hover:text-slate-700">Ana Sayfa</Link>
         <ChevronRight className="h-3.5 w-3.5" />
         <Link href="/yurtdisi-calisma-ve-vize-duyurulari" className="hover:text-slate-700">
@@ -25,6 +25,15 @@ export function DuyuruDetailHero({ post, countryMap }: DuyuruDetailHeroProps) {
         <ChevronRight className="h-3.5 w-3.5" />
         <span className="line-clamp-1 text-slate-700">{post.title}</span>
       </nav>
+      <div className="mb-4 md:hidden">
+        <Link
+          href="/yurtdisi-calisma-ve-vize-duyurulari"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Duyurulara geri dön
+        </Link>
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         {(post.priority_level === "important" || post.priority_level === "critical") ? (

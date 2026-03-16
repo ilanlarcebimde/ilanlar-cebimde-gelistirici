@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bell, Menu } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { supabase } from "@/lib/supabase";
+import { MobileHeader } from "@/components/header/MobileHeader";
+import { MobileMenuSheet } from "@/components/header/MobileMenuSheet";
 
 const FEED_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const NEWS_HUB_PATH = "/yurtdisi-calisma-ve-vize-duyurulari";
@@ -14,8 +16,6 @@ const NEWS_HUB_PATH = "/yurtdisi-calisma-ve-vize-duyurulari";
 export function Header({ onLoginClick }: { onLoginClick: () => void }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const hamburgerRef = useRef<HTMLButtonElement>(null);
   const { user, loading } = useAuth();
   const { isSubscribed, isSupported, subscribe, unsubscribe, isLoading: pushLoading } = usePushSubscription();
 
@@ -32,6 +32,15 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
   }, [menuOpen]);
 
   const handleNotificationClick = async () => {
@@ -57,10 +66,16 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
         }`}
       >
         <div className="mx-auto flex h-14 min-h-14 max-h-14 flex-nowrap items-center gap-2 px-3 sm:gap-3 sm:px-4 md:px-5 max-w-[1360px]">
-          {/* Sol: Logo + Başlık — mobilde oturum kapalıyken büyük, açıkken kompakt */}
+          <MobileHeader
+            loggedIn={loggedIn}
+            onLoginClick={onLoginClick}
+            onMenuClick={() => setMenuOpen(true)}
+          />
+
+          {/* Sol: Logo + Başlık */}
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-2 text-slate-900"
+            className="hidden shrink-0 items-center gap-2 text-slate-900 md:flex"
             aria-label="İlanlar Cebimde - Ana Sayfa"
           >
             <Image
@@ -68,15 +83,10 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               alt=""
               width={40}
               height={40}
-              className={`shrink-0 object-contain sm:h-9 sm:w-9 ${
-                loggedIn ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10 sm:h-9 sm:w-9"
-              }`}
+              className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
               priority
             />
             <span className="hidden whitespace-nowrap text-base font-bold tracking-tight sm:block sm:text-lg">
-              İlanlar Cebimde
-            </span>
-            <span className="whitespace-nowrap text-base font-bold tracking-tight sm:hidden">
               İlanlar Cebimde
             </span>
           </Link>
@@ -116,7 +126,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
           </nav>
 
           {/* Sağ: Duruma göre Aboneliklerim + Bildirim + Menü veya Giriş Yap + (masaüstü: Abone Ol) + (mobil: Menü) */}
-          <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2">
+          <div className="ml-auto hidden shrink-0 flex-nowrap items-center gap-1 sm:gap-2 md:flex">
             {loggedIn ? (
               <>
                 {/* Aboneliklerim (ikon yok) → Feed */}
@@ -161,93 +171,18 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
               </>
             )}
 
-            {/* Hamburger menü: sadece mobilde, giriş yapılmış veya yapılmamış her durumda */}
-            <div className="relative flex shrink-0 md:hidden" ref={menuRef}>
-              <button
-                ref={hamburgerRef}
-                type="button"
-                onClick={() => setMenuOpen((o) => !o)}
-                className="flex h-10 w-10 min-h-[40px] min-w-[40px] shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 active:bg-slate-200"
-                aria-label="Menü"
-                aria-expanded={menuOpen}
-              >
-                <Menu className="h-5 w-5" strokeWidth={2} />
-              </button>
-
-              {/* Dropdown: header altında, sağa hizalı, kart görünümü */}
-              {menuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-[998]"
-                    aria-hidden
-                    onClick={() => setMenuOpen(false)}
-                  />
-                  <div
-                    className="absolute right-0 top-full z-[1001] mt-1 w-56 rounded-xl border border-slate-200 bg-white py-2 shadow-[0_10px_40px_rgba(0,0,0,0.12)]"
-                    role="dialog"
-                    aria-label="Menü"
-                  >
-                    <Link
-                      href="/"
-                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Usta Başvuru Paketi
-                    </Link>
-                    <Link
-                      href="/yurtdisi-cv-paketi"
-                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Yurtdışı CV Paketi
-                    </Link>
-                    <Link
-                  href="/yurtdisi-is-basvuru-merkezi"
-                  className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Yurtdışı İş Başvuru Merkezi
-                </Link>
-                    <Link
-                      href={FEED_PATH}
-                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Ücretsiz Yurtdışı İş İlanları
-                    </Link>
-                    <Link
-                      href={NEWS_HUB_PATH}
-                      className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Yurtdışı Çalışma & Vize Duyuruları
-                    </Link>
-                    {loggedIn ? (
-                      <>
-                        <div className="my-1 border-t border-slate-100" />
-                        <Link
-                          href="/panel"
-                          className="block px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Hesabım
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={handleSignOut}
-                          className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
-                        >
-                          Çıkış Yap
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </div>
       </header>
+      <MobileMenuSheet
+        open={menuOpen}
+        loggedIn={loggedIn}
+        feedPath={FEED_PATH}
+        newsHubPath={NEWS_HUB_PATH}
+        onClose={() => setMenuOpen(false)}
+        onLoginClick={onLoginClick}
+        onSignOut={handleSignOut}
+      />
     </>
   );
 }
