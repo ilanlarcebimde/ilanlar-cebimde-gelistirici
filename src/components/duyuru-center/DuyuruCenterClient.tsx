@@ -112,15 +112,18 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
     onlyImportant;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="mx-auto max-w-7xl space-y-6 px-4">
-        <header className="space-y-2">
+    <div className="min-h-screen bg-slate-50 py-6 md:py-10">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 md:space-y-6">
+        <header className="space-y-1.5 md:space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
             Yurtdışı Çalışma &amp; Vize Duyuruları
           </h1>
-          <p className="max-w-3xl text-sm leading-6 text-slate-600">
+          <p className="hidden max-w-3xl text-sm leading-6 text-slate-600 md:block">
             Resmi kurum kaynaklı güncellemeleri tek merkezde takip edin. Ülke, duyuru türü ve durum filtreleriyle
             ihtiyaç duyduğunuz duyuruya hızla ulaşın.
+          </p>
+          <p className="max-w-xl text-sm leading-6 text-slate-600 md:hidden">
+            Resmi kurum duyurularını tek merkezden takip edin.
           </p>
         </header>
 
@@ -151,7 +154,7 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
             />
 
             {restPosts.length > 0 ? (
-              <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <section className="grid grid-cols-1 gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {restPosts.map((post) => (
                   <DuyuruCard
                     key={post.id}

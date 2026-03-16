@@ -18,13 +18,13 @@ export function DuyuruFeaturedCard({ post, countryLabel }: DuyuruFeaturedCardPro
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="grid gap-0 lg:grid-cols-2">
-        <div className="relative min-h-[220px] border-b border-slate-100 lg:min-h-[320px] lg:border-b-0 lg:border-r">
+        <div className="relative aspect-[16/10] border-b border-slate-100 bg-slate-50 lg:min-h-[320px] lg:aspect-auto lg:border-b-0 lg:border-r">
           {post.cover_image_url ? (
             <Image
               src={post.cover_image_url}
               alt={post.title}
               fill
-              className="object-cover"
+              className="object-contain lg:object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"
               unoptimized={post.cover_image_url.includes("supabase")}
             />
