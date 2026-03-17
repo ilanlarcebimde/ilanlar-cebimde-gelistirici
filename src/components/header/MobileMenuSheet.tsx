@@ -131,7 +131,7 @@ export function MobileMenuSheet({
               onClick={onClose}
               className="block w-full rounded-xl bg-brand-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
             >
-              Başvuru Sistemini İncele
+              Ücretsiz Vize Danışmanlığı Al
             </Link>
           </div>
         </div>
