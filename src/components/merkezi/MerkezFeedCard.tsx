@@ -149,9 +149,9 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
               <button
                 type="button"
                 onClick={handleContactClick}
-                className="flex min-h-[80px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-center leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
+                className="flex min-h-[76px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
               >
-                <span className="flex w-full flex-col items-center gap-0.5">
+                <span className="flex w-full flex-col items-start gap-0.5">
                   <span className="truncate whitespace-nowrap text-[11px] font-semibold leading-4 text-slate-900">İşe Hemen Başvur</span>
                   <span className="truncate whitespace-nowrap text-[11px] leading-4 text-slate-600">Firma İletişim Bilgileri</span>
                 </span>
@@ -159,9 +159,9 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
               <button
                 type="button"
                 onClick={handleLetterClick}
-                className="flex min-h-[80px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-center leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
+                className="flex min-h-[76px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
               >
-                <span className="flex w-full flex-col items-center gap-0.5">
+                <span className="flex w-full flex-col items-start gap-0.5">
                   <span className="truncate whitespace-nowrap text-[11px] font-semibold leading-4 text-slate-900">İş Başvuru Mektubu</span>
                   <span className="truncate whitespace-nowrap text-[11px] leading-4 text-slate-600">İşverene Kendinizi Anlatın</span>
                 </span>
@@ -172,18 +172,18 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             <div className="grid grid-cols-[44fr_56fr] gap-1.5 sm:grid-cols-2">
               <Link
                 href="/yurtdisi-cv-paketi"
-                className="flex min-h-[80px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-center leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
+                className="flex min-h-[76px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
               >
-                <span className="flex w-full flex-col items-center gap-0.5">
+                <span className="flex w-full flex-col items-start gap-0.5">
                   <span className="truncate whitespace-nowrap text-[11px] font-semibold leading-4 text-slate-900">Yurtdışı CV Paketi</span>
                   <span className="truncate whitespace-nowrap text-[11px] leading-4 text-slate-600">Uluslararası Standartta</span>
                 </span>
               </Link>
               <Link
                 href="/"
-                className="flex min-h-[80px] items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-center leading-tight transition hover:border-orange-300 hover:bg-orange-100/70 sm:min-h-[64px]"
+                className="flex min-h-[76px] items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left leading-tight transition hover:border-orange-300 hover:bg-orange-100/70 sm:min-h-[64px]"
               >
-                <span className="flex w-full flex-col items-center gap-0.5">
+                <span className="flex w-full flex-col items-start gap-0.5">
                   <span className="truncate whitespace-nowrap text-[11px] font-semibold leading-4 text-slate-900">Ücretsiz Vize Danışmanlığı</span>
                   <span className="truncate whitespace-nowrap text-[11px] leading-4 text-slate-700">24 Saatte Danışman Atanır</span>
                 </span>
