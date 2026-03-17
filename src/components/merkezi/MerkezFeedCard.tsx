@@ -180,7 +180,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
                 </span>
               </Link>
               <Link
-                href="/"
+                href="/ucretsiz-vize-danismanligi"
                 className="flex min-h-[76px] items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left leading-tight transition hover:border-orange-300 hover:bg-orange-100/70 sm:min-h-[64px]"
               >
                 <span className="flex w-full flex-col items-start gap-0.5">
