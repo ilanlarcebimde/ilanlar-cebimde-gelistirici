@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   BriefcaseBusiness,
   Compass,
@@ -7,12 +8,14 @@ import {
   UserCircle2,
   X,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { MobileMenuItem } from "./MobileMenuItem";
 import { MobileMenuSection } from "./MobileMenuSection";
 
 type MobileMenuSheetProps = {
   open: boolean;
   loggedIn: boolean;
+  userId: string | null;
   feedPath: string;
   newsHubPath: string;
   onClose: () => void;
@@ -23,12 +26,38 @@ type MobileMenuSheetProps = {
 export function MobileMenuSheet({
   open,
   loggedIn,
+  userId,
   feedPath,
   newsHubPath,
   onClose,
   onLoginClick,
   onSignOut,
 }: MobileMenuSheetProps) {
+  const [hasChannelSubscription, setHasChannelSubscription] = useState(false);
+
+  useEffect(() => {
+    if (!open || !loggedIn || !userId) return;
+    let active = true;
+    supabase
+      .from("channel_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1)
+      .then(({ data }) => {
+        if (!active) return;
+        setHasChannelSubscription((data?.length ?? 0) > 0);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHasChannelSubscription(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, loggedIn, userId]);
+
+  const accountLabel = hasChannelSubscription ? "Aboneliklerim" : "Hesabım";
+
   return (
     <div
       className={`fixed inset-0 z-[1200] transition-opacity duration-300 md:hidden ${
@@ -73,7 +102,7 @@ export function MobileMenuSheet({
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
                 >
                   <UserCircle2 className="h-4 w-4" />
-                  Hesabım
+                  {accountLabel}
                 </Link>
                 <button
                   type="button"
@@ -84,16 +113,25 @@ export function MobileMenuSheet({
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onLoginClick();
-                }}
-                className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Giriş Yap
-              </button>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onLoginClick();
+                  }}
+                  className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  Giriş Yap
+                </button>
+                <Link
+                  href={feedPath}
+                  onClick={onClose}
+                  className="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
+                >
+                  Ücretsiz Abone Ol
+                </Link>
+              </div>
             )}
           </div>
 

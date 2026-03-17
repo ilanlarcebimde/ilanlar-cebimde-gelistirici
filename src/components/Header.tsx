@@ -12,6 +12,7 @@ import { MobileMenuSheet } from "@/components/header/MobileMenuSheet";
 
 const FEED_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const NEWS_HUB_PATH = "/yurtdisi-calisma-ve-vize-duyurulari";
+const SUBSCRIPTIONS_PATH = "/aboneliklerim";
 
 export function Header({ onLoginClick }: { onLoginClick: () => void }) {
   const [scrolled, setScrolled] = useState(false);
@@ -129,9 +130,17 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
           <div className="ml-auto hidden shrink-0 flex-nowrap items-center gap-1 sm:gap-2 md:flex">
             {loggedIn ? (
               <>
-                {/* Aboneliklerim (ikon yok) → Feed */}
+                {/* Hesabım */}
                 <Link
-                  href={FEED_PATH}
+                  href="/panel"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 sm:px-3 sm:py-2 sm:text-sm min-h-[36px] flex items-center justify-center sm:min-h-[40px]"
+                  aria-label="Hesabım"
+                >
+                  Hesabım
+                </Link>
+                {/* Aboneliklerim */}
+                <Link
+                  href={SUBSCRIPTIONS_PATH}
                   className="shrink-0 rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:rounded-xl sm:px-3 sm:py-2 sm:text-sm min-h-[36px] flex items-center justify-center sm:min-h-[40px]"
                   aria-label="Aboneliklerim"
                 >
@@ -177,6 +186,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
       <MobileMenuSheet
         open={menuOpen}
         loggedIn={loggedIn}
+        userId={user?.id ?? null}
         feedPath={FEED_PATH}
         newsHubPath={NEWS_HUB_PATH}
         onClose={() => setMenuOpen(false)}
