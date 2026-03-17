@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { HeroCommunityProof } from "@/components/HeroCommunityProof";
+import { WhatWeDoSection } from "@/components/WhatWeDoSection";
 import { WizardModal } from "@/components/WizardModal";
 import { CountriesAndJobsSection } from "@/components/CountriesAndJobsSection";
 import { CvWhySection } from "@/components/CvWhySection";
@@ -74,6 +75,7 @@ export function HomeClient() {
       <Header onLoginClick={handleLoginClick} />
       <main>
         <HeroCommunityProof />
+        <WhatWeDoSection />
         <YurtdisiIlanlariSection />
         <CountriesAndJobsSection />
         <CvWhySection />

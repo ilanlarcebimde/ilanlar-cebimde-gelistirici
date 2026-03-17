@@ -4,7 +4,7 @@ type CommunityCard = { name: string; value: string };
 
 const GROUP_CARDS: CommunityCard[] = [
   { name: "Yurtdışı İş İlanları", value: "339.9K" },
-  { name: "İnşaat İş İlanları", value: "169.5K" },
+  { name: "İnşaat İş İlanları (Yurtiçi & Yurtdışı)", value: "169.5K" },
   { name: "Yurtdışı İş İlanları 2026", value: "21.4K" },
   { name: "Yurtdışı İşçi Alımları", value: "12.2K" },
   { name: "Yurtdışı İş İlanları (Ek Grup)", value: "38K" },
@@ -20,6 +20,19 @@ const BENEFITS = [
   "Güvenilir kaynaklardan araştırma ve sınıflandırma",
   "İş arayanlara rehber içerikler ve yönlendirmeler",
 ] as const;
+
+function renderNameWithParenthesis(name: string) {
+  const openIdx = name.indexOf("(");
+  if (openIdx === -1) return name;
+  const main = name.slice(0, openIdx).trimEnd();
+  const sub = name.slice(openIdx).trim();
+  return (
+    <>
+      <span>{main}</span>
+      <span className="block">{sub}</span>
+    </>
+  );
+}
 
 function FacebookBrandMark({ large = false }: { large?: boolean }) {
   return (
@@ -131,7 +144,9 @@ export function HeroCommunityProof() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <FacebookBrandMark />
-                          <p className="text-sm font-semibold text-slate-700">{card.name}</p>
+                          <p className="text-sm font-semibold leading-snug text-slate-700">
+                            {renderNameWithParenthesis(card.name)}
+                          </p>
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/90 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-500">
                           GRUP
