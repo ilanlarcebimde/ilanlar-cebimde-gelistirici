@@ -38,19 +38,21 @@ export function MobileMenuSheet({
   useEffect(() => {
     if (!open || !loggedIn || !userId) return;
     let active = true;
-    supabase
-      .from("channel_subscriptions")
-      .select("id")
-      .eq("user_id", userId)
-      .limit(1)
-      .then(({ data }) => {
+    const run = async () => {
+      try {
+        const { data } = await supabase
+          .from("channel_subscriptions")
+          .select("id")
+          .eq("user_id", userId)
+          .limit(1);
         if (!active) return;
         setHasChannelSubscription((data?.length ?? 0) > 0);
-      })
-      .catch(() => {
+      } catch {
         if (!active) return;
         setHasChannelSubscription(false);
-      });
+      }
+    };
+    void run();
     return () => {
       active = false;
     };
