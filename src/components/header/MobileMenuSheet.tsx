@@ -127,7 +127,7 @@ export function MobileMenuSheet({
 
           <div className="border-t border-slate-100 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
             <Link
-              href="/yurtdisi-is-basvuru-merkezi"
+              href="/ucretsiz-vize-danismanligi"
               onClick={onClose}
               className="block w-full rounded-xl bg-brand-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
             >
