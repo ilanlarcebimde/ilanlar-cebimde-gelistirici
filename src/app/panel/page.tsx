@@ -81,6 +81,16 @@ function formatDate(iso: string) {
   return `${day}.${month}.${year}`;
 }
 
+function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${day}.${month}.${year} ${hh}:${mm}`;
+}
+
 /** session_id'nin son 6-8 karakteri (ekranda ham id göstermemek için). */
 function getSessionShortId(session_id: string): string {
   return session_id.length >= 8 ? session_id.slice(-8) : session_id;
@@ -256,6 +266,47 @@ export default function PanelPage() {
   ) ?? null;
   const sessionsOngoing = sessions.filter((s) => !s.completed).length;
   const sessionsDone = sessions.filter((s) => s.completed).length;
+  const activityItems = [
+    ...payments.map((pay) => ({
+      id: `payment-${pay.id}`,
+      created_at: pay.created_at,
+      kind: "payment" as const,
+      title: `Ödeme ${pay.status === "success" ? "başarılı" : pay.status === "fail" ? "başarısız" : "işlemde"}`,
+      detail: `${pay.amount} ${pay.currency} · ${PAYMENT_TYPE_LABELS[pay.payment_type ?? "standard"] ?? "Standart"}${pay.coupon_code ? ` · Kupon: ${pay.coupon_code}` : ""}`,
+      tone:
+        pay.status === "success"
+          ? "bg-emerald-100 text-emerald-700"
+          : pay.status === "fail"
+            ? "bg-red-100 text-red-700"
+            : "bg-slate-100 text-slate-700",
+      badge: "Ödeme",
+    })),
+    ...premiumSubscriptions.map((sub) => {
+      const paymentRow = Array.isArray(sub.payments) ? sub.payments[0] ?? null : sub.payments ?? null;
+      const type = sub.payment_type ?? paymentRow?.payment_type ?? "standard";
+      const coupon = sub.coupon_code ?? paymentRow?.coupon_code ?? null;
+      return {
+        id: `premium-${sub.id}`,
+        created_at: sub.created_at,
+        kind: "premium" as const,
+        title: "Premium abonelik oluşturuldu",
+        detail: `${PAYMENT_TYPE_LABELS[type] ?? "Standart"} · Bitiş: ${formatDate(sub.ends_at)}${coupon ? ` · Kupon: ${coupon}` : ""}`,
+        tone: "bg-brand-100 text-brand-700",
+        badge: "Abonelik",
+      };
+    }),
+    ...profiles.map((p) => ({
+      id: `profile-${p.id}`,
+      created_at: p.created_at,
+      kind: "profile" as const,
+      title: "Başvuru kaydı güncellendi",
+      detail: `${PROFILE_STATUS_LABELS[p.status] ?? p.status} · ${METHOD_LABELS[p.method] ?? p.method}${(p.country || p.job_area) ? ` · ${[p.country, p.job_area, p.job_branch].filter(Boolean).join(" / ")}` : ""}`,
+      tone: "bg-slate-100 text-slate-700",
+      badge: "Başvuru",
+    })),
+  ]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 20);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard?.writeText(text).then(() => {
@@ -576,6 +627,39 @@ export default function PanelPage() {
                         </span>
                       </span>
                       <span className="shrink-0 text-xs text-slate-500">{formatDate(pay.created_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">İşlem Geçmişi</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Ödeme, abonelik ve başvuru hareketleriniz zaman sırasıyla burada tutulur.
+              </p>
+              {activityItems.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="font-medium text-slate-700">Henüz işlem kaydı yok</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Ödeme veya başvuru işlemi yaptığınızda burada görünecek.
+                  </p>
+                </div>
+              ) : (
+                <ul className="mt-4 space-y-0 divide-y divide-slate-100">
+                  {activityItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex min-w-0 flex-wrap items-start gap-3 py-4 first:pt-0 sm:flex-nowrap"
+                    >
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${item.tone}`}>
+                        {item.badge}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{item.detail}</p>
+                      </div>
+                      <span className="shrink-0 text-xs text-slate-500">{formatDateTime(item.created_at)}</span>
                     </li>
                   ))}
                 </ul>

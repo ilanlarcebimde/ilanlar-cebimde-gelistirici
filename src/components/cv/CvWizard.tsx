@@ -165,6 +165,7 @@ export function CvWizard() {
   const [step, setStep] = useState<CvWizardStep>("target");
   const [data, setData] = useState<CvWizardData>(() => readCvWizardDraft() ?? INITIAL_DATA);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [countryOpen, setCountryOpen] = useState(false);
   const stepIndex = STEPS.indexOf(step);
@@ -256,6 +257,28 @@ export function CvWizard() {
   const handleSubmitAndPay = async () => {
     if (submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
+    const fallbackEmail = (data.email ?? "").trim();
+    const fallbackName = (data.fullName ?? "").trim();
+
+    if (!fallbackEmail) {
+      setSubmitError("Lütfen ödeme adımına geçmeden önce e-posta alanını doldurun.");
+      setSubmitting(false);
+      return;
+    }
+
+    const redirectToPayment = (payload: { email: string; user_name?: string; cv_order_id?: string }) => {
+      if (typeof window === "undefined") return;
+      const pendingPayload = {
+        email: payload.email,
+        user_name: payload.user_name,
+        plan: "cv_package" as const,
+        ...(payload.cv_order_id ? { cv_order_id: payload.cv_order_id } : {}),
+      };
+      window.sessionStorage.setItem("paytr_pending", JSON.stringify(pendingPayload));
+      window.location.href = "/odeme";
+    };
+
     try {
       const res = await fetch("/api/cv-orders/create", {
         method: "POST",
@@ -263,26 +286,29 @@ export function CvWizard() {
         body: JSON.stringify({ data }),
       });
       if (!res.ok) {
-        // Yalın hata; kullanıcıya basit mesaj
+        // Sipariş kaydı başarısız olsa da ödeme akışını bloklamayalım.
         // eslint-disable-next-line no-console
         console.error("cv-orders/create failed", await res.text());
-        setSubmitting(false);
+        redirectToPayment({ email: fallbackEmail, user_name: fallbackName || undefined });
         return;
       }
       const json = (await res.json()) as { email: string; fullName: string; cv_order_id: string };
-      if (typeof window !== "undefined") {
-        const payload = {
-          email: json.email,
-          user_name: json.fullName,
-          plan: "cv_package" as const,
-          cv_order_id: json.cv_order_id,
-        };
-        window.sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
-        window.location.href = "/odeme";
+      if (!json?.email && !fallbackEmail) {
+        setSubmitError("Ödeme bilgileri hazırlanamadı. Lütfen tekrar deneyin.");
+        return;
       }
+      redirectToPayment({
+        email: json.email || fallbackEmail,
+        user_name: json.fullName || fallbackName || undefined,
+        cv_order_id: json.cv_order_id,
+      });
+      return;
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(e);
+      redirectToPayment({ email: fallbackEmail, user_name: fallbackName || undefined });
+      return;
+    } finally {
       setSubmitting(false);
     }
   };
@@ -1522,6 +1548,11 @@ export function CvWizard() {
             </button>
           )}
         </div>
+        {submitError && (
+          <p className="mt-3 text-sm font-medium text-red-600">
+            {submitError}
+          </p>
+        )}
       </div>
     </section>
   );
