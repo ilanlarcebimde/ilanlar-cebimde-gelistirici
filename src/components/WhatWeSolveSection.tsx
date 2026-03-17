@@ -21,7 +21,7 @@ const CARDS = [
 export function WhatWeSolveSection() {
   return (
     <section className="py-10 sm:py-20 bg-white">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.h2
           className="text-2xl font-bold text-slate-900 sm:text-3xl text-center mb-3"
           initial={{ opacity: 0, y: 12 }}

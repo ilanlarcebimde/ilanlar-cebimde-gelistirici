@@ -24,7 +24,7 @@ export function YurtdisiIlanlariSection() {
 
   return (
     <section className="border-t border-slate-100 bg-slate-50/50 py-12 sm:py-16" aria-labelledby="yurtdisi-ilanlari-baslik">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 id="yurtdisi-ilanlari-baslik" className="text-center text-2xl font-bold text-slate-900 sm:text-3xl">
           Yurtdışı İş İlanları
         </h2>

@@ -4,21 +4,17 @@ import { useState, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
-import { Hero } from "@/components/Hero";
-import { MethodSelection } from "@/components/MethodSelection";
+import { HeroCommunityProof } from "@/components/HeroCommunityProof";
 import { WizardModal } from "@/components/WizardModal";
 import { CountriesAndJobsSection } from "@/components/CountriesAndJobsSection";
 import { CvWhySection } from "@/components/CvWhySection";
 import { WhatWeSolveSection } from "@/components/WhatWeSolveSection";
-import { FinalCtaSection } from "@/components/FinalCtaSection";
 import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { YurtdisiIlanlariSection } from "@/components/home/YurtdisiIlanlariSection";
-import type { WizardMethod } from "@/components/wizard/WizardTypes";
 
 export function HomeClient() {
   const { user } = useAuth();
-  const [method, setMethod] = useState<WizardMethod | null>(null);
   const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null; plan?: "weekly" | "cv_package" } | null>(null);
@@ -27,11 +23,6 @@ export function HomeClient() {
 
   const scrollToMethods = useCallback(() => {
     document.getElementById("yontem-secimi")?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  const handleMethodSelect = useCallback((id: WizardMethod) => {
-    setMethod(id);
-    setWizardModalOpen(true);
   }, []);
 
   const handlePaymentClick = useCallback(
@@ -82,20 +73,18 @@ export function HomeClient() {
     <>
       <Header onLoginClick={handleLoginClick} />
       <main>
-        <Hero onCtaClick={scrollToMethods} />
+        <HeroCommunityProof />
         <YurtdisiIlanlariSection />
-        <MethodSelection selectedMethod={method} onSelect={handleMethodSelect} />
         <CountriesAndJobsSection />
         <CvWhySection />
         <WhatWeSolveSection />
-        <FinalCtaSection onCtaClick={scrollToMethods} />
         <Footer />
       </main>
 
       <WizardModal
         open={wizardModalOpen}
         onClose={() => setWizardModalOpen(false)}
-        selectedMethod={method}
+        selectedMethod={null}
         onPaymentClick={handlePaymentClick}
         userId={user?.id}
       />

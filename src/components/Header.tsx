@@ -65,7 +65,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
           scrolled ? "border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "border-transparent"
         }`}
       >
-        <div className="mx-auto flex max-w-[1360px] flex-nowrap items-center gap-2 px-4 py-2.5 md:h-14 md:min-h-14 md:max-h-14 md:gap-3 md:px-5 md:py-0">
+        <div className="mx-auto flex max-w-7xl flex-nowrap items-center gap-2 px-4 py-2.5 sm:px-6 md:h-14 md:min-h-14 md:max-h-14 md:gap-3 md:py-0 lg:px-8">
           <MobileHeader
             loggedIn={loggedIn}
             onLoginClick={onLoginClick}
