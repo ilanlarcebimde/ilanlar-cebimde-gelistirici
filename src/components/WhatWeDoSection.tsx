@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Globe2, ShieldCheck, Languages, ContactRound, Workflow, FileBadge2 } from "lucide-react";
 
 type Feature = {
@@ -10,53 +10,37 @@ type Feature = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-type Particle = {
-  id: string;
-  className?: string;
-  duration: number;
-  delay: number;
-  driftPx: number;
-  hideOnMobile?: boolean;
-};
-
 const FEATURES: Feature[] = [
   {
-    title: "Tüm dünyadaki iş ilanlarını tarıyoruz",
-    description: "Farklı ülkelerdeki açık pozisyonları düzenli olarak takip ediyor ve uygun ilanları derliyoruz.",
+    title: "Dünyadaki iş ilanlarını senin için buluyoruz",
+    description: "Farklı ülkelerdeki uygun pozisyonları düzenli olarak takip ediyoruz.",
     icon: Globe2,
   },
   {
-    title: "Güvenli kaynakları tespit ediyoruz",
-    description: "Daha güvenilir kaynakları ayıklıyor, iş arayanlar için daha sağlıklı bir içerik akışı sunuyoruz.",
+    title: "Güvenilir olanları seçiyoruz",
+    description: "Daha güvenilir kaynakları ayıklayıp öncelikli içerik akışı oluşturuyoruz.",
     icon: ShieldCheck,
   },
   {
-    title: "Çeviri ve ilan düzenleme yapıyoruz",
-    description: "Yabancı dilde yayımlanan ilanları daha anlaşılır hale getiriyor, temel bilgileri düzenli biçimde sunuyoruz.",
+    title: "İlanları anlaşılır hale getiriyoruz",
+    description: "Yabancı dildeki ilanları sadeleştirip temel bilgileri düzenli şekilde sunuyoruz.",
     icon: Languages,
   },
   {
-    title: "İşveren iletişim ve başvuru bilgilerini derliyoruz",
-    description: "Ulaşılabilen başvuru kanallarını, iletişim detaylarını ve önemli ilan bilgilerini tek yerde topluyoruz.",
+    title: "İşveren iletişim bilgilerini hazırlıyoruz",
+    description: "Başvuru kanallarını, iletişim detaylarını ve kritik bilgileri tek yerde topluyoruz.",
     icon: ContactRound,
   },
   {
-    title: "Başvuru süreci için yazılım geliştiriyoruz",
-    description: "Nasıl başvuracağınızı kolaylaştıran rehberler, başvuru akışları ve destek araçları geliştiriyoruz.",
+    title: "Nasıl başvuracağını gösteriyoruz",
+    description: "Adım adım başvuru yönlendirmeleri ve rehber akışlar sunuyoruz.",
     icon: Workflow,
   },
   {
-    title: "CV ve profesyonel destek altyapısı sunuyoruz",
-    description: "CV ve başvuru mektubu sistemleriyle birlikte vize danışmanlık entegrasyonunu da sürece dahil ediyoruz.",
+    title: "Başvuru ve CV'ni hazırlıyoruz",
+    description: "CV ve başvuru mektubu süreçlerini destekleyip profesyonel hazırlık sunuyoruz.",
     icon: FileBadge2,
   },
-];
-
-const PARTICLES: Particle[] = [
-  { id: "p1", duration: 6.6, delay: 0, driftPx: 12 },
-  { id: "p2", duration: 7.4, delay: 1.1, driftPx: -10 },
-  { id: "p3", duration: 8.1, delay: 2.2, driftPx: 9 },
-  { id: "p4", duration: 5.9, delay: 0.6, driftPx: -8, hideOnMobile: true },
 ];
 
 const containerVariants = {
@@ -73,63 +57,14 @@ const itemVariants = {
 };
 
 export function WhatWeDoSection() {
-  const reduceMotion = useReducedMotion();
   const [activeStep, setActiveStep] = useState(0);
-  const [anchorPercents, setAnchorPercents] = useState<number[]>([10, 24, 38, 52, 66, 80]);
-  const flowRef = useRef<HTMLDivElement | null>(null);
-  const nodeRefs = useRef<Array<HTMLElement | null>>([]);
-
-  useLayoutEffect(() => {
-    const recalcAnchors = () => {
-      const flowEl = flowRef.current;
-      if (!flowEl) return;
-      const flowRect = flowEl.getBoundingClientRect();
-      if (!flowRect.height) return;
-
-      const nextAnchors = nodeRefs.current
-        .map((node) => {
-          if (!node) return null;
-          const rect = node.getBoundingClientRect();
-          const centerY = rect.top + rect.height / 2 - flowRect.top;
-          return (centerY / flowRect.height) * 100;
-        })
-        .filter((v): v is number => v !== null);
-
-      if (nextAnchors.length === FEATURES.length) {
-        setAnchorPercents(nextAnchors);
-      }
-    };
-
-    recalcAnchors();
-    window.addEventListener("resize", recalcAnchors);
-    return () => window.removeEventListener("resize", recalcAnchors);
-  }, []);
 
   useEffect(() => {
-    if (reduceMotion) return;
     const timer = window.setInterval(() => {
-      setActiveStep((prev) => (prev + 1) % anchorPercents.length);
-    }, 1125);
+      setActiveStep((prev) => (prev + 1) % FEATURES.length);
+    }, 2000);
     return () => window.clearInterval(timer);
-  }, [reduceMotion, anchorPercents.length]);
-
-  const buildParticlePath = (driftPx: number) => {
-    const entry = Math.max(4, (anchorPercents[0] ?? 8) - 8);
-    const exit = Math.min(96, (anchorPercents[anchorPercents.length - 1] ?? 86) + 8);
-
-    const yFrames: Array<string> = [`${entry}%`];
-    const xFrames: number[] = [0];
-
-    anchorPercents.forEach((anchorY) => {
-      yFrames.push(`${Math.max(0, anchorY - 1.2)}%`, `${anchorY}%`, `${Math.min(100, anchorY + 1.2)}%`);
-      xFrames.push(0, driftPx, 0);
-    });
-
-    yFrames.push(`${exit}%`);
-    xFrames.push(0);
-
-    return { yFrames, xFrames };
-  };
+  }, []);
 
   return (
     <section className="relative overflow-hidden bg-slate-50/60 py-12 sm:py-16" aria-labelledby="what-we-do-title">
@@ -158,53 +93,11 @@ export function WhatWeDoSection() {
               <p className="mt-4 text-sm font-medium text-slate-700">Sürekli çalışan içerik ve başvuru altyapımız</p>
             </motion.div>
 
-            <motion.div
-              ref={flowRef}
-              className="relative lg:col-span-8"
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: "-70px" }}
-            >
+            <motion.div className="relative lg:col-span-8" variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-70px" }}>
               <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/65 p-4 shadow-[0_8px_20px_rgba(15,23,42,0.06)] sm:p-6">
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="absolute left-[18px] top-6 bottom-6 w-px bg-gradient-to-b from-[#a8c3ea]/20 via-[#8fb2e6] to-[#a8c3ea]/20" />
-                  <div className="absolute left-[18px] top-6 bottom-6 w-[2px] bg-gradient-to-b from-transparent via-[#6fa0df]/35 to-transparent blur-[1px]" />
+                <div className="pointer-events-none absolute left-[18px] top-6 bottom-6 w-px bg-gradient-to-b from-slate-200 via-slate-300/90 to-slate-200" />
 
-                  {PARTICLES.map((particle) => {
-                    const { yFrames, xFrames } = buildParticlePath(particle.driftPx);
-                    return (
-                      <motion.span
-                        key={particle.id}
-                        aria-hidden
-                        className={`absolute left-[18px] h-1.5 w-1.5 rounded-full bg-[#3f74c4] shadow-[0_0_0_4px_rgba(63,116,196,0.14)] ${
-                          particle.hideOnMobile ? "hidden sm:block" : ""
-                        }`}
-                        animate={
-                          reduceMotion
-                            ? undefined
-                            : {
-                                top: yFrames,
-                                x: xFrames,
-                                opacity: [0, 1, 1, 0.95, 0.55, 0],
-                              }
-                        }
-                        transition={
-                          reduceMotion
-                            ? undefined
-                            : {
-                                duration: particle.duration,
-                                repeat: Infinity,
-                                ease: "linear",
-                                delay: particle.delay,
-                              }
-                        }
-                      />
-                    );
-                  })}
-                </div>
-
-                <div className="relative space-y-4 pl-8 sm:pl-10">
+                <div className="relative space-y-4 pl-14 sm:pl-16">
                   {FEATURES.map((feature, index) => {
                     const isActive = index === activeStep;
                     const isLast = index === FEATURES.length - 1;
@@ -212,66 +105,61 @@ export function WhatWeDoSection() {
                     return (
                       <motion.article
                         key={feature.title}
-                        ref={(el) => {
-                          nodeRefs.current[index] = el;
-                        }}
                         variants={itemVariants}
                         whileHover={{ y: -2 }}
                         className="group relative"
+                        onMouseEnter={() => setActiveStep(index)}
                       >
                         {!isLast && (
                           <span
                             aria-hidden
-                            className="absolute -left-8 top-7 h-[calc(100%+0.5rem)] w-px bg-gradient-to-b from-[#b3ccef]/90 via-[#d6e4f8]/90 to-transparent sm:-left-10"
+                            className="absolute -left-[34px] top-7 h-[calc(100%+0.5rem)] w-px bg-gradient-to-b from-slate-300/90 via-slate-200/95 to-transparent sm:-left-[42px]"
                           />
                         )}
 
                         <motion.span
                           aria-hidden
-                          className="absolute -left-[36px] top-2.5 h-3 w-3 rounded-full border border-[#8fb2e6] bg-white sm:-left-[44px]"
-                          animate={
-                            reduceMotion
-                              ? undefined
-                              : isActive
-                                ? { boxShadow: ["0 0 0 0 rgba(63,116,196,0.28)", "0 0 0 8px rgba(63,116,196,0)"] }
-                                : {}
-                          }
-                          transition={{ duration: 0.9, ease: "easeOut" }}
+                          className="absolute -left-[38px] top-2.5 h-2.5 w-2.5 rounded-full border border-slate-300 bg-white sm:-left-[46px]"
+                          style={isActive ? { boxShadow: "0 0 0 5px rgba(148,163,184,0.18)" } : undefined}
                         />
 
                         <div
-                          className={`rounded-xl border px-3.5 py-3 transition-all sm:px-4 ${
+                          className={`relative overflow-hidden rounded-xl border px-3.5 py-3 transition-all sm:px-4 ${
                             isActive
-                              ? "border-[#b7cdef] bg-white shadow-[0_10px_20px_rgba(63,116,196,0.10)]"
-                              : "border-slate-200/80 bg-white/75"
+                              ? "border-[#a9c5eb] bg-[#f7fbff] shadow-[0_10px_22px_rgba(63,116,196,0.12)]"
+                              : "border-slate-200/80 bg-white/60"
                           }`}
                         >
+                          {isActive && (
+                            <motion.span
+                              aria-hidden
+                              className="pointer-events-none absolute inset-y-0 -left-1 w-14 bg-gradient-to-r from-transparent via-white/70 to-transparent"
+                              initial={{ x: -54, opacity: 0 }}
+                              animate={{ x: 260, opacity: [0, 0.5, 0] }}
+                              transition={{ duration: 0.7, ease: "easeOut" }}
+                            />
+                          )}
                           <div className="flex items-start gap-3">
                             <motion.span
                               className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
                                 isActive
-                                  ? "border-[#a8c4ea] bg-[#eff5ff] text-[#315f9b]"
+                                  ? "border-[#9ebce6] bg-[#eef5ff] text-[#2d5a98]"
                                   : "border-slate-200 bg-white text-[#3666b0]"
                               }`}
-                              animate={
-                                reduceMotion
-                                  ? undefined
-                                  : isActive
-                                    ? { scale: [1, 1.06, 1], filter: ["brightness(1)", "brightness(1.1)", "brightness(1)"] }
-                                    : { scale: 1 }
-                              }
-                              transition={{ duration: 0.55, ease: "easeInOut" }}
+                              style={isActive ? { boxShadow: "0 0 0 4px rgba(168,196,234,0.24)" } : undefined}
                             >
                               <Icon className="h-4 w-4" />
                             </motion.span>
-                            <div>
-                              <h3
-                                className={`text-sm font-semibold leading-snug sm:text-base ${
-                                  isActive ? "text-[#1f3f70]" : "text-slate-900"
-                                }`}
-                              >
-                                {feature.title}
-                              </h3>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3
+                                  className={`text-sm font-semibold leading-snug sm:text-base ${
+                                    isActive ? "text-[#1f3f70]" : "text-slate-900"
+                                  }`}
+                                >
+                                  {feature.title}
+                                </h3>
+                              </div>
                               <p className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-sm">{feature.description}</p>
                             </div>
                           </div>
@@ -280,6 +168,7 @@ export function WhatWeDoSection() {
                     );
                   })}
                 </div>
+
               </div>
             </motion.div>
           </div>
