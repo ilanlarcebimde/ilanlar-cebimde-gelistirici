@@ -147,7 +147,7 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
             <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm sm:p-5">
               <p className="text-sm font-bold uppercase tracking-wide text-slate-700">Hizmetlerimiz</p>
               <p className="mt-1 text-sm font-semibold text-slate-700">Başvurunuzu güçlendiren ve vize sürecinizi hızlandıran çözümler</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-3 grid grid-cols-[44fr_56fr] gap-2 sm:grid-cols-2">
                 <Link
                   href="/yurtdisi-cv-paketi"
                   className="flex min-h-[74px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-slate-300 hover:shadow-sm"
@@ -160,7 +160,7 @@ export default async function SegmentPage({ params, searchParams }: PageProps) {
                   className="flex min-h-[74px] flex-col justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left transition hover:border-orange-300 hover:shadow-sm"
                 >
                   <span className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">Ücretsiz Vize Danışmanlığı</span>
-                  <span className="truncate text-xs leading-4 text-slate-700">24 Saatte Danışman Atanır</span>
+                  <span className="text-[11px] leading-4 text-slate-700 sm:text-xs">24 Saatte Danışman Atanır</span>
                 </Link>
               </div>
             </section>
