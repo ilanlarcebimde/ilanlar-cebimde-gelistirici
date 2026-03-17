@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import { HomeHeroSection } from "@/components/HomeHeroSection";
 import { HeroCommunityProof } from "@/components/HeroCommunityProof";
 import { WhatWeDoSection } from "@/components/WhatWeDoSection";
 import { WizardModal } from "@/components/WizardModal";
@@ -74,6 +75,7 @@ export function HomeClient() {
     <>
       <Header onLoginClick={handleLoginClick} />
       <main>
+        <HomeHeroSection />
         <HeroCommunityProof />
         <WhatWeDoSection />
         <YurtdisiIlanlariSection />
