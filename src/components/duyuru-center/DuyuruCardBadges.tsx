@@ -1,5 +1,5 @@
 import { DuyuruBadge } from "./DuyuruBadge";
-import { isBreakingPost, isImportantPost, NEWS_TYPE_LABELS, toTurkishBadgeText } from "./helpers";
+import { formatNewsTypeLabel, isBreakingPost, isImportantPost, toTurkishBadgeText } from "./helpers";
 import { DuyuruPost } from "./types";
 
 type DuyuruCardBadgesProps = {
@@ -9,7 +9,7 @@ type DuyuruCardBadgesProps = {
 };
 
 export function DuyuruCardBadges({ post, countryLabel, featured = false }: DuyuruCardBadgesProps) {
-  const typeLabel = post.news_type ? NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
+  const typeLabel = formatNewsTypeLabel(post.news_type);
   const badgeLabel = toTurkishBadgeText(post.news_badge);
 
   return (

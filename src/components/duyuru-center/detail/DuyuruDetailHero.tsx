@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { DuyuruBadge } from "../DuyuruBadge";
 import { DuyuruDetailData } from "./types";
 import { formatDateTR, getCountryLabel } from "./helpers";
-import { NEWS_TYPE_LABELS, toTurkishBadgeText } from "../helpers";
+import { formatNewsTypeLabel, toTurkishBadgeText } from "../helpers";
 
 type DuyuruDetailHeroProps = {
   post: DuyuruDetailData;
@@ -12,7 +12,7 @@ type DuyuruDetailHeroProps = {
 
 export function DuyuruDetailHero({ post, countryMap }: DuyuruDetailHeroProps) {
   const countryLabel = getCountryLabel(post.country_slug, countryMap);
-  const typeLabel = post.news_type ? NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
+  const typeLabel = formatNewsTypeLabel(post.news_type);
   const badgeLabel = toTurkishBadgeText(post.news_badge);
 
   return (

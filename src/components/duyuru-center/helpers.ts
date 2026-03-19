@@ -11,6 +11,18 @@ export const NEWS_TYPE_LABELS: Record<string, string> = {
   migration_procedure: "Göç / Çalışma Prosedürü",
 };
 
+export function formatNewsTypeLabel(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "Resmi Duyuru";
+  const normalized = raw.trim();
+  const mapped = NEWS_TYPE_LABELS[normalized];
+  if (mapped) return mapped;
+  return normalized
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (c) => c.toLocaleUpperCase("tr-TR"))
+    .trim();
+}
+
 export function isImportantPost(post: DuyuruPost): boolean {
   return post.priority_level === "important" || post.priority_level === "critical";
 }

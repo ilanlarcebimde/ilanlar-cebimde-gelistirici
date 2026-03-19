@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { DuyuruCountry, DuyuruSort, DuyuruStatusFilter } from "./types";
-import { NEWS_TYPE_LABELS } from "./helpers";
+import { formatNewsTypeLabel } from "./helpers";
 
 type DuyuruFilterBarProps = {
   countries: DuyuruCountry[];
@@ -131,7 +131,7 @@ export function DuyuruFilterBar(props: DuyuruFilterBarProps) {
             <option value="">Tümü</option>
             {newsTypes.map((type) => (
               <option key={type} value={type}>
-                {NEWS_TYPE_LABELS[type] ?? "Resmi Duyuru"}
+                {formatNewsTypeLabel(type)}
               </option>
             ))}
           </select>
@@ -227,7 +227,7 @@ export function DuyuruFilterBar(props: DuyuruFilterBarProps) {
                   <option value="">Tümü</option>
                   {newsTypes.map((type) => (
                     <option key={type} value={type}>
-                      {NEWS_TYPE_LABELS[type] ?? "Resmi Duyuru"}
+                      {formatNewsTypeLabel(type)}
                     </option>
                   ))}
                 </select>
