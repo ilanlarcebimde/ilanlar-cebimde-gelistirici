@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { DuyuruBadge } from "../DuyuruBadge";
 import { DuyuruDetailData } from "./types";
 import { formatDateTR, getCountryLabel } from "./helpers";
-import { NEWS_TYPE_LABELS } from "../helpers";
+import { NEWS_TYPE_LABELS, toTurkishBadgeText } from "../helpers";
 
 type DuyuruDetailHeroProps = {
   post: DuyuruDetailData;
@@ -13,6 +13,7 @@ type DuyuruDetailHeroProps = {
 export function DuyuruDetailHero({ post, countryMap }: DuyuruDetailHeroProps) {
   const countryLabel = getCountryLabel(post.country_slug, countryMap);
   const typeLabel = post.news_type ? NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
+  const badgeLabel = toTurkishBadgeText(post.news_badge);
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-8">
@@ -44,6 +45,7 @@ export function DuyuruDetailHero({ post, countryMap }: DuyuruDetailHeroProps) {
         ) : null}
         <DuyuruBadge text={typeLabel} tone="type" />
         <DuyuruBadge text={countryLabel} tone="country" />
+        {badgeLabel ? <DuyuruBadge text={badgeLabel} /> : null}
       </div>
 
       <h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 md:text-4xl">{post.title}</h1>
