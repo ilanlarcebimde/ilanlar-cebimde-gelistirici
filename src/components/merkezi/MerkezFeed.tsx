@@ -5,8 +5,6 @@ import { MerkezFeedCard } from "./MerkezFeedCard";
 import { PremiumConversionPopup } from "./PremiumConversionPopup";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
 
-type FilterType = "all" | "premium" | "free";
-
 interface MerkezFeedProps {
   posts: MerkeziPostLandingItem[];
   tagsByPostId: Record<string, MerkeziTag[]>;
@@ -32,14 +30,11 @@ function matchesSearch(post: MerkeziPostLandingItem, query: string): boolean {
 
 export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterType>("all");
 
   const filtered = useMemo(() => {
-    let list = posts.filter((p) => matchesSearch(p, search));
-    if (filter === "premium") list = list.filter((p) => p.is_paid);
-    if (filter === "free") list = list.filter((p) => !p.is_paid);
-    return list;
-  }, [posts, search, filter]);
+    // Bu sayfada yalnızca premium ilanları göster.
+    return posts.filter((p) => p.is_paid && matchesSearch(p, search));
+  }, [posts, search]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -54,20 +49,9 @@ export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 sm:max-w-xs"
             aria-label="İçerik ara"
           />
-          <div className="flex gap-2">
-            {(["all", "free", "premium"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  filter === f ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {f === "all" ? "Tümü" : f === "free" ? "Ücretsiz" : "Premium"}
-              </button>
-            ))}
-          </div>
+          <span className="inline-flex items-center rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white">
+            Premium
+          </span>
         </div>
 
         {filtered.length === 0 ? (
