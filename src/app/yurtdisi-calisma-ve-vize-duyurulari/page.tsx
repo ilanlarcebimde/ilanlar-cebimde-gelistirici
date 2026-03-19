@@ -40,7 +40,7 @@ export default async function InternationalNewsHubPage() {
     .select(
       "id, title, slug, summary, country_slug, news_type, priority_level, news_badge, published_at, scheduled_at, status, is_featured, source_name, cover_image_url"
     )
-    .eq("content_type", "international_work_visa_news")
+    .in("content_type", ["international_work_visa_news", "blog"])
     .in("status", ["published", "scheduled"])
     .order("is_featured", { ascending: false })
     .order("published_at", { ascending: false, nullsFirst: false })

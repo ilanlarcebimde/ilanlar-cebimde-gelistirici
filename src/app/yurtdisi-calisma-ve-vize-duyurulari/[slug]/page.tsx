@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from("merkezi_posts")
     .select("title, summary, seo_title, og_title, og_description, og_image, canonical_url, status, published_at, scheduled_at")
     .eq("slug", slug)
-    .eq("content_type", "international_work_visa_news")
+    .in("content_type", ["international_work_visa_news", "blog"])
     .in("status", ["published", "scheduled"])
     .maybeSingle();
 
@@ -97,7 +97,7 @@ export default async function InternationalNewsDetailPage({ params }: Props) {
       "id, title, summary, content_html_sanitized, country_slug, city, news_type, source_name, source_url, effective_date, priority_level, news_badge, structured_summary, user_impact, application_impact, published_at, scheduled_at, status, cover_image_url"
     )
     .eq("slug", slug)
-    .eq("content_type", "international_work_visa_news")
+    .in("content_type", ["international_work_visa_news", "blog"])
     .in("status", ["published", "scheduled"])
     .maybeSingle();
 
@@ -125,7 +125,7 @@ export default async function InternationalNewsDetailPage({ params }: Props) {
     supabase
       .from("merkezi_posts")
       .select("id, title, slug, published_at, scheduled_at, status, news_type")
-      .eq("content_type", "international_work_visa_news")
+      .in("content_type", ["international_work_visa_news", "blog"])
       .in("status", ["published", "scheduled"])
       .order("published_at", { ascending: false, nullsFirst: false }),
     supabase.from("merkezi_post_tags").select("tag_id").eq("post_id", post.id),
