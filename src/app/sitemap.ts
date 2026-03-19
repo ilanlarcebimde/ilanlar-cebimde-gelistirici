@@ -30,7 +30,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/sss`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/yurtdisi-is-ilanlari`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/ucretsiz-yurtdisi-is-ilanlari`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/ilanlar`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/yurtdisi-is-basvuru-merkezi`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/yurtdisi-calisma-ve-vize-duyurulari`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/ucretsiz-vize-danismanligi`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: `${base}/yurtdisi-cv-paketi`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: `${base}/premium/job-guides`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
     { url: `${base}/giris`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
@@ -50,6 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let channelUrls: MetadataRoute.Sitemap = [];
   let merkeziUrls: MetadataRoute.Sitemap = [];
   const merkeziBase = "/yurtdisi-is-ilanlari";
+  const newsBase = "/yurtdisi-calisma-ve-vize-duyurulari";
 
   try {
     const supabase = getSupabaseAdmin();
@@ -59,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         supabase.from("channels").select("slug").eq("is_active", true).order("slug"),
         supabase
           .from("merkezi_posts")
-          .select("slug, updated_at, published_at")
+          .select("slug, updated_at, published_at, content_type")
           .eq("status", "published")
           .or("published_at.is.null,published_at.lte." + new Date().toISOString())
           .order("published_at", { ascending: false }),
@@ -95,8 +99,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     if (postsRes.data?.length) {
       for (const p of postsRes.data) {
-        const row = p as { slug: string; updated_at?: string; published_at?: string };
-        const url = `${base}${merkeziBase}/${encodeURIComponent(row.slug)}`;
+        const row = p as {
+          slug: string;
+          updated_at?: string;
+          published_at?: string;
+          content_type?: "job" | "blog" | "international_work_visa_news" | null;
+        };
+        const postBase = row.content_type === "international_work_visa_news" ? newsBase : merkeziBase;
+        const url = `${base}${postBase}/${encodeURIComponent(row.slug)}`;
         if (seenUrls.has(url)) continue;
         seenUrls.add(url);
         const lastMod = row.updated_at || row.published_at || now.toISOString();

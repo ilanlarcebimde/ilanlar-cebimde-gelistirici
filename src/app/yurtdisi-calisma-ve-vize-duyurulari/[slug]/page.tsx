@@ -10,6 +10,10 @@ import { DuyuruTags } from "@/components/duyuru-center/detail/DuyuruTags";
 import { DuyuruFooterActions } from "@/components/duyuru-center/detail/DuyuruFooterActions";
 import { DuyuruDetailData, DuyuruTag, PrevNextItem } from "@/components/duyuru-center/detail/types";
 
+// Yayın güncellemeleri ve yeni slug'lar için sayfayı dinamik tut.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function toMs(value: string | null | undefined): number {
   if (!value) return Number.NaN;
   return new Date(value).getTime();

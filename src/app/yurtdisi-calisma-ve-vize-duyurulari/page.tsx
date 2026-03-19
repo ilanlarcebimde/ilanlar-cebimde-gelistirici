@@ -3,6 +3,10 @@ import { getSupabasePublic } from "@/lib/supabase/server";
 import { DuyuruCenterClient } from "@/components/duyuru-center/DuyuruCenterClient";
 import { DuyuruCountry, DuyuruPost } from "@/components/duyuru-center/types";
 
+// Yeni yayınlanan içeriklerin listede anında görünmesi için cache kapalı.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: "Yurtdışı Çalışma & Vize Duyuruları | İlanlar Cebimde",
   description:
@@ -38,7 +42,7 @@ export default async function InternationalNewsHubPage() {
   const query = supabase
     .from("merkezi_posts")
     .select(
-      "id, title, slug, summary, country_slug, news_type, priority_level, news_badge, published_at, scheduled_at, status, is_featured, source_name, cover_image_url"
+      "id, title, slug, summary, country_slug, news_type, priority_level, news_badge, published_at, scheduled_at, created_at, status, is_featured, source_name, cover_image_url"
     )
     .in("content_type", ["international_work_visa_news", "blog"])
     .in("status", ["published", "scheduled"])
@@ -49,9 +53,19 @@ export default async function InternationalNewsHubPage() {
 
   const { data: rows } = await query;
   const posts: DuyuruPost[] = ((rows ?? []) as Array<
-    DuyuruPost & { status: string | null; scheduled_at: string | null }
+    DuyuruPost & { status: string | null; scheduled_at: string | null; created_at?: string | null }
   >)
     .filter((row) => isLiveNewsPost(row.status, row.published_at, row.scheduled_at, nowMs))
+    .sort((a, b) => {
+      const aPrimary = toMs(a.published_at ?? a.scheduled_at);
+      const bPrimary = toMs(b.published_at ?? b.scheduled_at);
+      if (aPrimary !== bPrimary) {
+        return (Number.isNaN(bPrimary) ? 0 : bPrimary) - (Number.isNaN(aPrimary) ? 0 : aPrimary);
+      }
+      const aCreated = toMs(a.created_at ?? null);
+      const bCreated = toMs(b.created_at ?? null);
+      return (Number.isNaN(bCreated) ? 0 : bCreated) - (Number.isNaN(aCreated) ? 0 : aCreated);
+    })
     .map((row) => ({
       id: row.id,
       title: row.title,
