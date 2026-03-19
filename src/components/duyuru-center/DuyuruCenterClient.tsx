@@ -5,7 +5,7 @@ import { DuyuruEmptyState } from "./DuyuruEmptyState";
 import { DuyuruFeaturedCard } from "./DuyuruFeaturedCard";
 import { DuyuruGridCard } from "./DuyuruGridCard";
 import { DuyuruFilterBar } from "./DuyuruFilterBar";
-import { formatCountryLabel, isBreakingPost, isImportantPost } from "./helpers";
+import { formatCountryLabel, isBreakingPost, isImportantPost, normalizeNewsType } from "./helpers";
 import { DuyuruCountry, DuyuruPost, DuyuruSort, DuyuruStatusFilter } from "./types";
 
 type DuyuruCenterClientProps = {
@@ -35,7 +35,7 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
 
   const newsTypes = useMemo(
     () =>
-      Array.from(new Set(posts.map((p) => p.news_type).filter((x): x is string => Boolean(x)))).sort((a, b) =>
+      Array.from(new Set(posts.map((p) => normalizeNewsType(p.news_type)).filter(Boolean))).sort((a, b) =>
         a.localeCompare(b, "tr")
       ),
     [posts]
@@ -46,7 +46,7 @@ export function DuyuruCenterClient({ posts, countries }: DuyuruCenterClientProps
 
     const list = posts.filter((post) => {
       if (selectedCountry && post.country_slug !== selectedCountry) return false;
-      if (selectedType && post.news_type !== selectedType) return false;
+      if (selectedType && normalizeNewsType(post.news_type) !== selectedType) return false;
       if (onlyImportant && !isImportantPost(post)) return false;
 
       if (selectedStatus === "featured" && !post.is_featured) return false;

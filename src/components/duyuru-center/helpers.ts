@@ -11,9 +11,14 @@ export const NEWS_TYPE_LABELS: Record<string, string> = {
   migration_procedure: "Göç / Çalışma Prosedürü",
 };
 
+export function normalizeNewsType(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "";
+  return raw.trim().toLocaleLowerCase("tr-TR");
+}
+
 export function formatNewsTypeLabel(raw: string | null | undefined): string {
-  if (!raw?.trim()) return "Resmi Duyuru";
-  const normalized = raw.trim();
+  const normalized = normalizeNewsType(raw);
+  if (!normalized) return "Resmi Duyuru";
   const mapped = NEWS_TYPE_LABELS[normalized];
   if (mapped) return mapped;
   return normalized
