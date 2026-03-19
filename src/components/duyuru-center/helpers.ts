@@ -69,5 +69,11 @@ export function formatDateTR(isoLike: string | null): string {
 
 export function formatCountryLabel(raw: string | null | undefined): string {
   if (!raw?.trim()) return "AB Geneli";
-  return titleCaseTR(raw);
+  const value = raw.trim();
+  // Editörde serbest metin olarak girilen ülke adlarını (örn: "Kıbrıs (KKTC)") birebir koru.
+  // Sadece slug benzeri değerleri insan okunur hale getir.
+  if (/^[a-z0-9_-]+$/.test(value)) {
+    return titleCaseTR(value);
+  }
+  return value;
 }
