@@ -2,7 +2,7 @@ import { CalendarDays, Globe2, Landmark, MapPin } from "lucide-react";
 import type { ReactNode } from "react";
 import { DuyuruDetailData } from "./types";
 import { formatDateTR, getCountryLabel } from "./helpers";
-import { NEWS_TYPE_LABELS } from "../helpers";
+import { formatNewsTypeLabel } from "../helpers";
 
 type DuyuruMetaCardsProps = {
   post: DuyuruDetailData;
@@ -32,7 +32,7 @@ function MetaCard({
 
 export function DuyuruMetaCards({ post, countryMap, compact = false }: DuyuruMetaCardsProps) {
   const country = getCountryLabel(post.country_slug, countryMap);
-  const type = post.news_type ? NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
+  const type = formatNewsTypeLabel(post.news_type);
   const source = post.source_name?.trim() || "Resmi kaynak";
   const dateLine = post.effective_date
     ? `${formatDateTR(post.published_at)} / ${formatDateTR(post.effective_date)}`

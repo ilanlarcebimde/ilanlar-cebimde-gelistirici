@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { PrevNextItem } from "./types";
 import { formatDateTR } from "./helpers";
-import { NEWS_TYPE_LABELS } from "../helpers";
+import { formatNewsTypeLabel } from "../helpers";
 
 type DuyuruPrevNextNavProps = {
   previous: PrevNextItem | null;
@@ -33,7 +33,7 @@ function NavCard({
         <p className="line-clamp-2 text-sm font-medium leading-6 text-slate-800">{item.title}</p>
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        {formatDateTR(item.published_at)}{item.news_type ? ` · ${NEWS_TYPE_LABELS[item.news_type] ?? "Resmi Duyuru"}` : ""}
+        {formatDateTR(item.published_at)}{item.news_type ? ` · ${formatNewsTypeLabel(item.news_type)}` : ""}
       </p>
     </Link>
   );

@@ -11,6 +11,24 @@ export const NEWS_TYPE_LABELS: Record<string, string> = {
   migration_procedure: "Göç / Çalışma Prosedürü",
 };
 
+function titleCaseTR(input: string): string {
+  return input
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word) => {
+      if (!word) return "";
+      // Kısa ve tamamen büyük kısaltmaları koru (AB, ABD vb.).
+      if (word === word.toLocaleUpperCase("tr-TR") && word.length <= 4) return word;
+      const lower = word.toLocaleLowerCase("tr-TR");
+      const [first, ...rest] = Array.from(lower);
+      if (!first) return "";
+      return first.toLocaleUpperCase("tr-TR") + rest.join("");
+    })
+    .join(" ");
+}
+
 export function normalizeNewsType(raw: string | null | undefined): string {
   if (!raw?.trim()) return "";
   return raw.trim().toLocaleLowerCase("tr-TR");
@@ -21,11 +39,7 @@ export function formatNewsTypeLabel(raw: string | null | undefined): string {
   if (!normalized) return "Resmi Duyuru";
   const mapped = NEWS_TYPE_LABELS[normalized];
   if (mapped) return mapped;
-  return normalized
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/\b\w/g, (c) => c.toLocaleUpperCase("tr-TR"))
-    .trim();
+  return titleCaseTR(normalized);
 }
 
 export function isImportantPost(post: DuyuruPost): boolean {
@@ -39,8 +53,7 @@ export function isBreakingPost(post: DuyuruPost): boolean {
 
 export function toTurkishBadgeText(raw: string | null): string | null {
   if (!raw?.trim()) return null;
-  // Editörde girilen rozet metnini birebir korur.
-  return raw.trim();
+  return titleCaseTR(raw);
 }
 
 export function formatDateTR(isoLike: string | null): string {
@@ -56,10 +69,5 @@ export function formatDateTR(isoLike: string | null): string {
 
 export function formatCountryLabel(raw: string | null | undefined): string {
   if (!raw?.trim()) return "AB Geneli";
-  const value = raw.trim();
-  if (!value.includes("-") && !value.includes("_")) return value;
-  return value
-    .replace(/[-_]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toLocaleUpperCase("tr-TR"))
-    .trim();
+  return titleCaseTR(raw);
 }

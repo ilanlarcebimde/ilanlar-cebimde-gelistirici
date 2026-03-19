@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { DuyuruBadge } from "./DuyuruBadge";
-import { formatDateTR, isBreakingPost, isImportantPost, NEWS_TYPE_LABELS, toTurkishBadgeText } from "./helpers";
+import { formatDateTR, formatNewsTypeLabel, isBreakingPost, isImportantPost, toTurkishBadgeText } from "./helpers";
 import { DuyuruPost } from "./types";
 
 type DuyuruCardProps = {
@@ -11,7 +11,7 @@ type DuyuruCardProps = {
 };
 
 export function DuyuruCard({ post, countryLabel }: DuyuruCardProps) {
-  const typeLabel = post.news_type ? NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
+  const typeLabel = formatNewsTypeLabel(post.news_type);
   const badgeLabel = toTurkishBadgeText(post.news_badge);
   const source = post.source_name?.trim() || "Resmi kaynak";
 

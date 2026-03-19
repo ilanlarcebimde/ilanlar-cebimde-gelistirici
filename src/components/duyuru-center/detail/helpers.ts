@@ -1,4 +1,4 @@
-import { NEWS_TYPE_LABELS, formatCountryLabel, formatDateTR, toTurkishBadgeText } from "../helpers";
+import { formatCountryLabel, formatDateTR, formatNewsTypeLabel, toTurkishBadgeText } from "../helpers";
 import { DuyuruDetailData } from "./types";
 
 export { formatDateTR };
@@ -16,7 +16,7 @@ export function getDetailBadges(post: DuyuruDetailData, countryMap: Map<string, 
     badges.push("Son Dakika");
   }
 
-  const typeLabel = post.news_type ? NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru" : "Resmi Duyuru";
+  const typeLabel = formatNewsTypeLabel(post.news_type);
   badges.push(typeLabel);
 
   const country = getCountryLabel(post.country_slug, countryMap);
@@ -30,7 +30,7 @@ export function getDetailBadges(post: DuyuruDetailData, countryMap: Map<string, 
 export function buildQuickTakeaways(post: DuyuruDetailData, countryMap: Map<string, string>): string[] {
   const points: string[] = [];
   points.push(`${getCountryLabel(post.country_slug, countryMap)} için güncel resmi duyuru.`);
-  if (post.news_type) points.push(`${NEWS_TYPE_LABELS[post.news_type] ?? "Resmi Duyuru"} kapsamındaki değişiklikleri içerir.`);
+  if (post.news_type) points.push(`${formatNewsTypeLabel(post.news_type)} kapsamındaki değişiklikleri içerir.`);
   if (post.user_impact?.trim()) points.push(post.user_impact.trim());
   if (post.application_impact?.trim()) points.push(post.application_impact.trim());
   if (post.structured_summary?.trim()) points.push(post.structured_summary.trim());
