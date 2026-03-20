@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
 import { supabase } from "@/lib/supabase";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
@@ -28,6 +29,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
   const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
 
   const isJob = isJobCard(post);
   const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
@@ -86,14 +88,35 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     const action = pendingPremiumAction;
     if (!action) return;
     setPendingPremiumAction(null);
-    // DB yazımı + RLS sorguları için kısa bekleme.
-    await new Promise((r) => setTimeout(r, 500));
+
+    // Premium satırı yazıldıktan hemen sonra UI/DB okuması yarış koşuluna girebiliyor.
+    // Premium gerçekten aktif olana kadar otomatik aksiyonu tekrar tetiklemeyeceğiz.
+    const delays = [0, 600, 1200];
+    let lastOk = false;
+    for (const waitMs of delays) {
+      if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+      const ok = await refetch();
+      lastOk = ok;
+      if (ok) break;
+    }
+
+    // Aktif değilse manuel denemeyi kullanıcıya bırak; modal tekrar açılmasın.
+    if (!lastOk) return;
+
     if (action === "contact") {
       void handleContactClick();
     } else {
+      // Wizard zaten açıksa yeniden açmaya gerek yok; wizard premium'u yakalayıp step 6'da otomatik retry yapacak.
+      if (letterWizardState) return;
       void handleLetterClick();
     }
-  }, [pendingPremiumAction, handleContactClick, handleLetterClick]);
+  }, [
+    pendingPremiumAction,
+    handleContactClick,
+    handleLetterClick,
+    letterWizardState,
+    refetch,
+  ]);
 
   if (isJob) {
     return (
@@ -167,8 +190,20 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
               <button
                 type="button"
                 onClick={handleContactClick}
-                className="flex min-h-[76px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
+                className={`relative flex min-h-[76px] items-center justify-center rounded-xl border px-3 py-2 text-left leading-tight transition sm:min-h-[64px] ${
+                  subscriptionActive
+                    ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                }`}
               >
+                {subscriptionActive && (
+                  <span
+                    className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
+                    aria-hidden
+                  >
+                    Premium
+                  </span>
+                )}
                 <span className="flex w-full flex-col items-start gap-0.5">
                   <span className="truncate whitespace-nowrap text-[11px] font-semibold leading-4 text-slate-900">İşe Hemen Başvur</span>
                   <span className="truncate whitespace-nowrap text-[11px] leading-4 text-slate-600">Firma İletişim Bilgileri</span>
@@ -177,8 +212,20 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
               <button
                 type="button"
                 onClick={handleLetterClick}
-                className="flex min-h-[76px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-left leading-tight transition hover:border-slate-300 hover:bg-slate-50 sm:min-h-[64px]"
+                className={`relative flex min-h-[76px] items-center justify-center rounded-xl border px-3 py-2 text-left leading-tight transition sm:min-h-[64px] ${
+                  subscriptionActive
+                    ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                }`}
               >
+                {subscriptionActive && (
+                  <span
+                    className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
+                    aria-hidden
+                  >
+                    Premium
+                  </span>
+                )}
                 <span className="flex w-full flex-col items-start gap-0.5">
                   <span className="truncate whitespace-nowrap text-[11px] font-semibold leading-4 text-slate-900">İş Başvuru Mektubu</span>
                   <span className="truncate whitespace-nowrap text-[11px] leading-4 text-slate-600">İşverene Kendinizi Anlatın</span>
@@ -223,7 +270,6 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             postId={post.id}
             accessToken={letterWizardState.token}
             onPremiumRequired={() => {
-              setLetterWizardState(null);
               setPendingPremiumAction("letter");
               setShowPremiumModal(true);
             }}

@@ -38,7 +38,7 @@ function formatSubscriptionEndDate(iso: string): string {
 export default function OdemePage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading, subscription } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, subscription, refetch } = useSubscriptionActive(user?.id);
   const paytrIframeRef = useRef<HTMLDivElement>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,9 +100,17 @@ export default function OdemePage() {
           setCouponMessage({ type: "error", text: (data as { error?: string }).error ?? "Kupon uygulanamadı." });
           return;
         }
-        setCouponMessage({ type: "success", text: "Haftalık premium aktif. Panele yönlendiriliyorsunuz…" });
+        // DB yazımı + istemci senkronizasyonu yarış koşulu yaratabiliyor.
+        // Premium satırı gerçekten aktif görünür görünmez yönlendirelim.
+        setCouponMessage({ type: "success", text: "Haftalık premium aktif ediliyor…" });
         window.dispatchEvent(new Event("premium-subscription-invalidate"));
-        await new Promise((r) => setTimeout(r, 800));
+        const delays = [0, 600, 1200, 2000, 3500];
+        let ok = false;
+        for (const waitMs of delays) {
+          if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+          ok = await refetch();
+          if (ok) break;
+        }
         let target = "/premium/job-guides";
         try {
           let saved = sessionStorage.getItem("premium_after_payment_redirect");
@@ -119,6 +127,7 @@ export default function OdemePage() {
         } catch {
           // ignore
         }
+        setCouponMessage({ type: "success", text: ok ? "Haftalık premium aktif. Panele yönlendiriliyorsunuz…" : "Premium aktive edildi. Yönlendiriliyor…" });
         router.replace(target);
       } catch (e) {
         setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
@@ -301,7 +310,7 @@ export default function OdemePage() {
       return;
     }
     setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
-  }, [couponCode, router, user]);
+  }, [couponCode, router, user, refetch]);
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;

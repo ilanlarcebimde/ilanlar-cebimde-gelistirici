@@ -9,6 +9,23 @@ export type SubscriptionDetail = {
   coupon_code: string | null;
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`timeout_after_${ms}ms`));
+    }, ms);
+    promise
+      .then((v) => {
+        clearTimeout(timer);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
+  });
+}
+
 /**
  * Panel erişimi SADECE premium_subscriptions (kupon veya haftalık ödeme başarılı).
  * ends_at > now() → aktif. order + limit ile en güncel kayıt.
@@ -16,13 +33,17 @@ export type SubscriptionDetail = {
  */
 async function fetchSubscriptionActive(userId: string): Promise<{ active: boolean; subscription: SubscriptionDetail | null }> {
   const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("premium_subscriptions")
-    .select("id, ends_at, payment_type, coupon_code")
-    .eq("user_id", userId)
-    .gt("ends_at", nowIso)
-    .order("ends_at", { ascending: false })
-    .limit(1);
+  const TIMEOUT_MS = 8000;
+  const { data, error } = await withTimeout(
+    supabase
+      .from("premium_subscriptions")
+      .select("id, ends_at, payment_type, coupon_code")
+      .eq("user_id", userId)
+      .gt("ends_at", nowIso)
+      .order("ends_at", { ascending: false })
+      .limit(1),
+    TIMEOUT_MS
+  );
 
   const row = data?.[0] ?? null;
   const active = !error && !!row;

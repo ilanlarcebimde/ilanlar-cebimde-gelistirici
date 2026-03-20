@@ -6,6 +6,8 @@ import { useCoverLetterWizard } from "./lib/useCoverLetterWizard";
 import { validateStepGeneric } from "./lib/coverLetterSchema";
 import { ProgressHeader } from "./ui/ProgressHeader";
 import { StickyActions } from "./ui/StickyActions";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { Step1Generic } from "./steps/Step1Generic";
 import { StepIdentity } from "./steps/StepIdentity";
 import { StepExperience } from "./steps/StepExperience";
@@ -32,6 +34,7 @@ export interface CoverLetterWizardModalProps {
 
 export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired, generic, userId }: CoverLetterWizardModalProps) {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [shouldRetryPremium, setShouldRetryPremium] = useState(false);
   const source = generic
     ? { generic: true as const }
     : postId
@@ -39,6 +42,8 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
       : { jobId: jobId ?? "" };
   const { state, setStep, setAnswers, setError, submitStep, hasJobOrPost, clearDraft, hasDraft } = useCoverLetterWizard(open, source, accessToken, { userId });
   const { step, loading, error, answers, result } = state;
+  const { user } = useAuth();
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id ?? userId);
 
   const handleCloseRequest = () => {
     if (result) {
@@ -107,6 +112,20 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
     };
   }, [open]);
 
+  // Premium gerekli hatasından sonra kullanıcı premium'u aktif ettiyse wizard'ı otomatik step 6'da tekrar gönder.
+  useEffect(() => {
+    if (!open) return;
+    if (!shouldRetryPremium) return;
+    if (subscriptionLoading) return;
+    if (!subscriptionActive) return;
+    if (step !== 6) return;
+    const code = error?.code ?? "";
+    if (code !== "premium_required" && code !== "premium_plus_required") return;
+    setShouldRetryPremium(false);
+    setError(undefined);
+    void submitStep(6, answers);
+  }, [open, shouldRetryPremium, subscriptionLoading, subscriptionActive, step, error?.code, setError, submitStep, answers]);
+
   if (!open) return null;
 
   const body = (
@@ -132,7 +151,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   <p className="mt-1 text-sm text-amber-800">{error.message}</p>
                   <button
                     type="button"
-                    onClick={() => { onPremiumRequired?.(); onClose(); }}
+                    onClick={() => { setShouldRetryPremium(true); onPremiumRequired?.(); }}
                     className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
                   >
                     Premium&apos;a Geç (Avantajlar & Kupon)
@@ -145,7 +164,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
                   <p className="mt-1 text-sm text-amber-800">{error.message}</p>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={() => { setShouldRetryPremium(true); onPremiumRequired?.(); }}
                     className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
                   >
                     Premium Plus&apos;a Geç
