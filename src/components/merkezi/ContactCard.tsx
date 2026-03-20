@@ -39,14 +39,21 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
   if (!hasAnyContact) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="font-semibold text-slate-900">İletişim</h3>
+    <div className={`rounded-xl border p-4 shadow-sm ${isPaid ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className={`font-semibold ${isPaid ? "text-emerald-900" : "text-slate-900"}`}>İletişim</h3>
+        {isPaid && (
+          <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white">
+            Aktif
+          </span>
+        )}
+      </div>
       <ul className="mt-2 space-y-2 text-sm">
         {contact.contact_email && (
           <li>
             <a
               href={`mailto:${contact.contact_email}`}
-              className="text-sky-600 hover:underline"
+              className={isPaid ? "text-emerald-700 hover:underline" : "text-sky-600 hover:underline"}
             >
               {contact.contact_email}
             </a>
@@ -56,7 +63,7 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
           <li>
             <a
               href={`tel:${contact.contact_phone.replace(/\s/g, "")}`}
-              className="text-sky-600 hover:underline"
+              className={isPaid ? "text-emerald-700 hover:underline" : "text-sky-600 hover:underline"}
             >
               {contact.contact_phone}
             </a>
@@ -68,7 +75,7 @@ export function ContactCard({ contact, locked, onUnlock, isPaid }: ContactCardPr
               href={contact.apply_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sky-600 hover:underline"
+              className={isPaid ? "inline-flex items-center gap-1 text-emerald-700 hover:underline" : "inline-flex items-center gap-1 text-sky-600 hover:underline"}
             >
               Başvuru linki
               <span aria-hidden>↗</span>

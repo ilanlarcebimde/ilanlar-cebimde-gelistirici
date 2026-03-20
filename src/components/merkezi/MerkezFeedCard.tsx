@@ -201,7 +201,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
                     className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
                     aria-hidden
                   >
-                    Premium
+                    Aktif
                   </span>
                 )}
                 <span className="flex w-full flex-col items-start gap-0.5">
@@ -223,7 +223,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
                     className="absolute -left-2 -top-2 z-10 flex h-5 items-center justify-center rounded-full bg-slate-600/90 px-2 text-[11px] leading-5 font-medium text-white/95 shadow-sm whitespace-nowrap pointer-events-none"
                     aria-hidden
                   >
-                    Premium
+                    Aktif
                   </span>
                 )}
                 <span className="flex w-full flex-col items-start gap-0.5">
