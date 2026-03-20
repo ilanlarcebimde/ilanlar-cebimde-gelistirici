@@ -34,14 +34,24 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 async function fetchSubscriptionActive(userId: string): Promise<{ active: boolean; subscription: SubscriptionDetail | null }> {
   const nowIso = new Date().toISOString();
   const TIMEOUT_MS = 8000;
-  const { data, error } = await withTimeout(
+  type SupabaseQueryResult = {
+    data: Array<{
+      id: string;
+      ends_at: string;
+      payment_type: string | null;
+      coupon_code: string | null;
+    }> | null;
+    error: { message: string } | null;
+  };
+
+  const { data, error } = await withTimeout<SupabaseQueryResult>(
     supabase
       .from("premium_subscriptions")
       .select("id, ends_at, payment_type, coupon_code")
       .eq("user_id", userId)
       .gt("ends_at", nowIso)
       .order("ends_at", { ascending: false })
-      .limit(1),
+      .limit(1) as unknown as Promise<SupabaseQueryResult>,
     TIMEOUT_MS
   );
 
