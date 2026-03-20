@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { RichContent } from "@/components/merkezi/RichContent";
 import { PostCover } from "@/components/merkezi/PostCover";
 import { CompanyCard } from "@/components/merkezi/CompanyCard";
@@ -48,6 +48,7 @@ export function MerkeziPostView({
   const [contactData, setContactData] = useState<MerkeziPostContact | null>(contact);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
   const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
+  const [contactLoading, setContactLoading] = useState(false);
   const effectivePremium = isPremium || subscriptionActive;
 
   const showContactCard = post.is_paid
@@ -137,6 +138,33 @@ export function MerkeziPostView({
   const sectorLabel = post.sector_name ?? (post.sector_slug ? humanizeSlug(post.sector_slug) : null);
   const metaParts = [countryLabel, post.city, sectorLabel].filter(Boolean);
 
+  // Premium aktifse iletişim kartını otomatik açmak için veriyi arkada çek.
+  useEffect(() => {
+    if (!post.is_paid) return;
+    if (!effectivePremium) return;
+    if (contactData) {
+      setContactUnlocked(true);
+      return;
+    }
+    let cancelled = false;
+    setContactLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/merkezi/post/${post.id}/contact`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = (await res.json()) as MerkeziPostContact;
+        if (cancelled) return;
+        setContactData(data);
+        setContactUnlocked(true);
+      } finally {
+        if (!cancelled) setContactLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [post.id, post.is_paid, effectivePremium, contactData]);
+
   return (
     <article className="mx-auto max-w-3xl">
       <ViewTracker postId={post.id} />
@@ -186,6 +214,9 @@ export function MerkeziPostView({
                 onUnlock={handleContactUnlock}
                 isPaid={true}
               />
+              {effectivePremium && !contactData && contactLoading && (
+                <p className="mt-2 text-xs text-emerald-700">İletişim bilgileri yükleniyor...</p>
+              )}
             </section>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {effectivePremium ? (
