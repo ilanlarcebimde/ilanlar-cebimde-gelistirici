@@ -49,6 +49,16 @@ export default function OdemeBasariliPage() {
     return () => clearTimeout(t);
   }, [user, refetch]);
 
+  // Premium aktifse kullanıcıyı ilgili hizmete otomatik yönlendir (tam yenileme).
+  useEffect(() => {
+    if (!premiumChecked || !subscriptionActive) return;
+    const target = afterPaymentPanelPath || "/premium/job-guides";
+    const t = setTimeout(() => {
+      window.location.href = target;
+    }, 600);
+    return () => clearTimeout(t);
+  }, [premiumChecked, subscriptionActive, afterPaymentPanelPath]);
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
       <motion.div

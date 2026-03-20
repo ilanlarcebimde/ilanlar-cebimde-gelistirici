@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
     const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    await admin.from("premium_subscriptions").insert({
+    const { error: insertError } = await admin.from("premium_subscriptions").insert({
       user_id: user.id,
       profile_id: null,
       payment_id: null,
@@ -40,6 +40,19 @@ export async function POST(req: NextRequest) {
       payment_type: "coupon",
       coupon_code: code,
     });
+    if (insertError) {
+      // Eski şema uyumluluğu: payment_type/coupon_code kolonları yoksa minimum insert ile devam et.
+      const { error: fallbackError } = await admin.from("premium_subscriptions").insert({
+        user_id: user.id,
+        profile_id: null,
+        payment_id: null,
+        ends_at: endsAt,
+      });
+      if (fallbackError) {
+        console.error("[premium/apply-coupon] insert failed", { insertError, fallbackError, userId: user.id });
+        return NextResponse.json({ error: "Premium kaydı oluşturulamadı" }, { status: 500 });
+      }
+    }
 
     return NextResponse.json({ success: true, ends_at: endsAt });
   } catch (e) {

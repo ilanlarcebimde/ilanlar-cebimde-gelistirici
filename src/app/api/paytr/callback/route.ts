@@ -60,10 +60,20 @@ export async function POST(request: NextRequest) {
     let profileId: string | null = payment?.profile_id ?? null;
     const userId = payment?.user_id ?? null;
 
+    // CV paketi siparişi varsa, ödeme başarısını sipariş kaydına da yansıt.
+    await supabase
+      .from("cv_orders")
+      .update({
+        payment_status: "paid",
+        order_status: "paid",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("merchant_oid", merchant_oid);
+
     // Haftalık premium: 7 gün sonra abonelik otomatik sonlanır
     if (userId && paymentId) {
       const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase.from("premium_subscriptions").insert({
+      const { error: insertError } = await supabase.from("premium_subscriptions").insert({
         user_id: userId,
         profile_id: profileId,
         payment_id: paymentId,
@@ -71,6 +81,22 @@ export async function POST(request: NextRequest) {
         payment_type: payment?.payment_type ?? "standard",
         coupon_code: payment?.coupon_code ?? null,
       });
+      if (insertError) {
+        const { error: fallbackError } = await supabase.from("premium_subscriptions").insert({
+          user_id: userId,
+          profile_id: profileId,
+          payment_id: paymentId,
+          ends_at: endsAt,
+        });
+        if (fallbackError) {
+          console.error("[PAYTR] premium_subscriptions insert failed", {
+            userId,
+            paymentId,
+            insertError,
+            fallbackError,
+          });
+        }
+      }
     }
 
     if (!profileId && payment?.profile_snapshot && typeof payment.profile_snapshot === "object") {

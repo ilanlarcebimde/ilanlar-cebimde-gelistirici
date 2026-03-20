@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     // Haftalık premium: kuponla tamamlanan kullanıcı (user_id gönderilmişse) 7 gün abonelik alır
     if (userId) {
       const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase.from("premium_subscriptions").insert({
+      const { error: insertError } = await supabase.from("premium_subscriptions").insert({
         user_id: userId,
         profile_id: profileId,
         payment_id: null,
@@ -100,6 +100,22 @@ export async function POST(req: Request) {
         payment_type: "coupon",
         coupon_code: couponCode,
       });
+      if (insertError) {
+        const { error: fallbackError } = await supabase.from("premium_subscriptions").insert({
+          user_id: userId,
+          profile_id: profileId,
+          payment_id: null,
+          ends_at: endsAt,
+        });
+        if (fallbackError) {
+          console.error("[complete-coupon] premium_subscriptions insert failed", {
+            userId,
+            profileId,
+            insertError,
+            fallbackError,
+          });
+        }
+      }
     }
 
     return NextResponse.json({ success: true, profile_id: profileId });

@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       basket_description,
       profile_snapshot,
       user_id: body_user_id,
+      cv_order_id,
       payment_type,
       coupon_code,
     } = body as {
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
         photo_url?: string | null;
       };
       user_id?: string;
+      cv_order_id?: string;
       payment_type?: string;
       coupon_code?: string;
     };
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
         : null;
 
     const userId = typeof body_user_id === "string" && body_user_id.trim() ? body_user_id.trim() : null;
+    const cvOrderId = typeof cv_order_id === "string" && cv_order_id.trim() ? cv_order_id.trim() : null;
     await supabase.from("payments").insert({
       profile_id: null,
       user_id: userId,
@@ -88,6 +91,17 @@ export async function POST(request: NextRequest) {
       payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
       coupon_code: typeof coupon_code === "string" && coupon_code.trim() ? coupon_code.trim().toUpperCase() : null,
     });
+
+    // CV paketi siparişi varsa ödeme referansını bağla ki callback'te sipariş statüsü ilerletilebilsin.
+    if (cvOrderId) {
+      await supabase
+        .from("cv_orders")
+        .update({
+          merchant_oid,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", cvOrderId);
+    }
 
     const token = await getPaytrToken(
       {

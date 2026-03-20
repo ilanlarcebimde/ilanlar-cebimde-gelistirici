@@ -273,6 +273,13 @@ export function CvWizard() {
         email: payload.email,
         user_name: payload.user_name,
         plan: "cv_package" as const,
+        // CV paketi ödeme callback'inde profile oluşturulabilmesi için snapshot alanları.
+        method: "form" as const,
+        country: data.targetCountry ?? null,
+        job_area: data.jobAreaId ?? null,
+        job_branch: data.jobTitle ?? null,
+        answers: data,
+        photo_url: data.photoUrl ?? null,
         ...(payload.cv_order_id ? { cv_order_id: payload.cv_order_id } : {}),
       };
       window.sessionStorage.setItem("paytr_pending", JSON.stringify(pendingPayload));

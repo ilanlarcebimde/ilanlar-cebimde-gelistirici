@@ -38,8 +38,6 @@ async function fetchSubscriptionActive(userId: string): Promise<{ active: boolea
     data: Array<{
       id: string;
       ends_at: string;
-      payment_type: string | null;
-      coupon_code: string | null;
     }> | null;
     error: { message: string } | null;
   };
@@ -47,7 +45,7 @@ async function fetchSubscriptionActive(userId: string): Promise<{ active: boolea
   const { data, error } = await withTimeout<SupabaseQueryResult>(
     supabase
       .from("premium_subscriptions")
-      .select("id, ends_at, payment_type, coupon_code")
+      .select("id, ends_at")
       .eq("user_id", userId)
       .gt("ends_at", nowIso)
       .order("ends_at", { ascending: false })
@@ -62,7 +60,7 @@ async function fetchSubscriptionActive(userId: string): Promise<{ active: boolea
     return { active: false, subscription: null };
   }
   const subscription: SubscriptionDetail | null = row
-    ? { ends_at: row.ends_at ?? "", payment_type: row.payment_type ?? null, coupon_code: row.coupon_code ?? null }
+    ? { ends_at: row.ends_at ?? "", payment_type: null, coupon_code: null }
     : null;
   return { active, subscription };
 }

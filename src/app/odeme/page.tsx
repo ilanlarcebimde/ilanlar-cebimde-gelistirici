@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 
 const AMOUNT_FULL = 549;
-const AMOUNT_WEEKLY = 99;
+const AMOUNT_WEEKLY = 89;
 const AMOUNT_CV_PACKAGE = 349;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
@@ -37,6 +37,7 @@ function formatSubscriptionEndDate(iso: string): string {
 
 export default function OdemePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { active: subscriptionActive, loading: subscriptionLoading, subscription, refetch } = useSubscriptionActive(user?.id);
   const paytrIframeRef = useRef<HTMLDivElement>(null);
@@ -49,6 +50,29 @@ export default function OdemePage() {
   const [showPayHint, setShowPayHint] = useState(false);
   const [cv79Applied, setCv79Applied] = useState(false);
   const [iyiustalarApplied, setIyiustalarApplied] = useState(false);
+
+  const getPostPaymentTarget = useCallback(() => {
+    let target = "/premium/job-guides";
+    try {
+      const saved = sessionStorage.getItem("premium_after_payment_redirect");
+      if (saved && (saved.startsWith("/premium/job-guide/") || saved.startsWith("/ucretsiz-yurtdisi-is-ilanlari?openHowTo="))) {
+        sessionStorage.removeItem("premium_after_payment_redirect");
+        return saved;
+      }
+      const jobId = sessionStorage.getItem("premium_pending_job_id");
+      if (jobId) {
+        sessionStorage.removeItem("premium_pending_job_id");
+        return "/premium/job-guide/" + jobId;
+      }
+    } catch {
+      // ignore
+    }
+    const nextParam = searchParams.get("next");
+    if (nextParam && nextParam.startsWith("/")) {
+      target = nextParam;
+    }
+    return target;
+  }, [searchParams]);
 
   const scrollToPayForm = useCallback(() => {
     paytrIframeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -111,24 +135,10 @@ export default function OdemePage() {
           ok = await refetch();
           if (ok) break;
         }
-        let target = "/premium/job-guides";
-        try {
-          let saved = sessionStorage.getItem("premium_after_payment_redirect");
-          if (saved && saved.startsWith("/premium/job-guide/")) {
-            sessionStorage.removeItem("premium_after_payment_redirect");
-            target = saved;
-          } else {
-            const jobId = sessionStorage.getItem("premium_pending_job_id");
-            if (jobId) {
-              sessionStorage.removeItem("premium_pending_job_id");
-              target = "/premium/job-guide/" + jobId;
-            }
-          }
-        } catch {
-          // ignore
-        }
+        const target = getPostPaymentTarget();
         setCouponMessage({ type: "success", text: ok ? "Haftalık premium aktif. Panele yönlendiriliyorsunuz…" : "Premium aktive edildi. Yönlendiriliyor…" });
-        router.replace(target);
+        // Tam sayfa yenilemesi ile hedef hizmette aktif aboneliği kesin yansıt.
+        window.location.href = target;
       } catch (e) {
         setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
       }
@@ -156,6 +166,7 @@ export default function OdemePage() {
         const full = JSON.parse(sessionStorage.getItem("paytr_pending")!) as {
           email?: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string;
           answers?: Record<string, unknown>; photo_url?: string | null; plan?: string; user_id?: string; profile_snapshot?: unknown;
+          cv_order_id?: string;
         };
         const email = full?.email?.trim();
         if (!email) {
@@ -184,6 +195,7 @@ export default function OdemePage() {
             payment_type: "discounted",
             coupon_code: CV_PACKAGE_DISCOUNT_CODE,
             ...(full?.user_id && { user_id: full.user_id }),
+            ...(full?.cv_order_id && { cv_order_id: full.cv_order_id }),
           }),
         });
         const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, { logPrefix: "[paytr/initiate]" });
@@ -310,7 +322,7 @@ export default function OdemePage() {
       return;
     }
     setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
-  }, [couponCode, router, user, refetch]);
+  }, [couponCode, router, user, refetch, getPostPaymentTarget]);
 
   useEffect(() => {
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
@@ -326,6 +338,7 @@ export default function OdemePage() {
           photo_url?: string | null;
           plan?: string;
           user_id?: string;
+          cv_order_id?: string;
           cv79_discount?: boolean;
           iyiustalar_discount?: boolean;
         })
@@ -388,6 +401,7 @@ export default function OdemePage() {
           ? IYIUSTALAR_COUPON_CODE
           : null,
       ...(parsed?.user_id && { user_id: parsed.user_id }),
+      ...(parsed?.cv_order_id && { cv_order_id: parsed.cv_order_id }),
     };
 
     fetch("/api/paytr/initiate", {

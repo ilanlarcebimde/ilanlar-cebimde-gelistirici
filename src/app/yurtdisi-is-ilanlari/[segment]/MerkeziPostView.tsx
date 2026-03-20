@@ -13,6 +13,8 @@ import { ViewTracker } from "@/components/merkezi/ViewTracker";
 import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
 import { NasilBasvururum } from "@/components/merkezi/NasilBasvururum";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
 import { supabase } from "@/lib/supabase";
 import type { MerkeziPost, MerkeziTag } from "@/lib/merkezi/types";
@@ -39,17 +41,21 @@ export function MerkeziPostView({
   isPremium,
   contact,
 }: MerkeziPostViewProps) {
+  const { user } = useAuth();
+  const { active: subscriptionActive, refetch } = useSubscriptionActive(user?.id);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [contactUnlocked, setContactUnlocked] = useState(!!contact && isPremium);
+  const [contactUnlocked, setContactUnlocked] = useState(!!contact && (isPremium || subscriptionActive));
   const [contactData, setContactData] = useState<MerkeziPostContact | null>(contact);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
+  const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
+  const effectivePremium = isPremium || subscriptionActive;
 
   const showContactCard = post.is_paid
     ? contactUnlocked && contactData
     : post.show_contact_when_free && contactData;
 
   const handleContactUnlock = async () => {
-    if (isPremium) {
+    if (effectivePremium) {
       if (!contactData) {
         const res = await fetch(`/api/merkezi/post/${post.id}/contact`, { credentials: "include" });
         if (res.ok) {
@@ -57,24 +63,30 @@ export function MerkeziPostView({
           setContactData(data);
           setContactUnlocked(true);
         } else if (res.status === 401 || res.status === 403) {
+          setPendingPremiumAction("contact");
           setShowPremiumModal(true);
         }
       } else setContactUnlocked(true);
-    } else setShowPremiumModal(true);
+    } else {
+      setPendingPremiumAction("contact");
+      setShowPremiumModal(true);
+    }
   };
 
   const handleLetterCta = useCallback(async () => {
-    if (!isPremium) {
+    if (!effectivePremium) {
+      setPendingPremiumAction("letter");
       setShowPremiumModal(true);
       return;
     }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
+      setPendingPremiumAction("letter");
       setShowPremiumModal(true);
       return;
     }
     setLetterWizardState({ open: true, token: session.access_token });
-  }, [isPremium]);
+  }, [effectivePremium]);
 
   const handlePremiumCta = async () => {
     setShowPremiumModal(false);
@@ -95,6 +107,31 @@ export function MerkeziPostView({
     sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
     window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
   };
+
+  const handlePremiumApplied = useCallback(async () => {
+    const action = pendingPremiumAction;
+    if (!action) return;
+    setPendingPremiumAction(null);
+
+    const delays = [0, 600, 1200];
+    let lastOk = false;
+    for (const waitMs of delays) {
+      if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+      const ok = await refetch();
+      lastOk = ok;
+      if (ok) break;
+    }
+
+    if (!lastOk) return;
+
+    if (action === "contact") {
+      void handleContactUnlock();
+      return;
+    }
+
+    if (letterWizardState) return;
+    void handleLetterCta();
+  }, [pendingPremiumAction, refetch, handleLetterCta, letterWizardState, handleContactUnlock]);
 
   const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
   const sectorLabel = post.sector_name ?? (post.sector_slug ? humanizeSlug(post.sector_slug) : null);
@@ -151,7 +188,7 @@ export function MerkeziPostView({
               />
             </section>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {isPremium ? (
+              {effectivePremium ? (
                 <>
                   <button
                     type="button"
@@ -225,6 +262,7 @@ export function MerkeziPostView({
         open={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
         onCta={handlePremiumCta}
+        onPremiumApplied={handlePremiumApplied}
       />
       {letterWizardState && (
         <CoverLetterWizardModal
@@ -233,7 +271,7 @@ export function MerkeziPostView({
           postId={post.id}
           accessToken={letterWizardState.token}
           onPremiumRequired={() => {
-            setLetterWizardState(null);
+            setPendingPremiumAction("letter");
             setShowPremiumModal(true);
           }}
         />
