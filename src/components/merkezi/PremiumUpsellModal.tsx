@@ -37,6 +37,8 @@ interface PremiumUpsellModalProps {
   open: boolean;
   onClose: () => void;
   onCta: () => void;
+  /** Kupon başarıyla uygulanınca parent'ın bloke olan aksiyonu otomatik devam ettirmesi için. */
+  onPremiumApplied?: () => void;
   title?: string;
   subtitle?: string;
   priceText?: string;
@@ -47,6 +49,7 @@ export function PremiumUpsellModal({
   open,
   onClose,
   onCta,
+  onPremiumApplied,
   title = "Premium ile Başvurunu Güçlendir",
   subtitle = "Firma iletişim bilgilerine eriş ve kendi bilgilerine göre hazırlanmış İngilizce iş başvuru mektubu ile öne çık.",
   priceText = "99 TL/Hafta",
@@ -118,6 +121,12 @@ export function PremiumUpsellModal({
       }
       setCouponSuccess(true);
       if (typeof window !== "undefined") window.dispatchEvent(new Event("premium-subscription-invalidate"));
+      // Premium aktif olduktan sonra bloke olan aksiyonu devam ettirmek için.
+      try {
+        onPremiumApplied?.();
+      } catch {
+        // ignore; aksiyon devam edemezse kullanıcı yine manuel tıklayabilir.
+      }
       setTimeout(() => onClose(), 800);
     } catch {
       setCouponError("Bağlantı hatası. Tekrar deneyin.");

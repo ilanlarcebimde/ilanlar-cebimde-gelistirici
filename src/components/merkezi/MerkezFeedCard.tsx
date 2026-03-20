@@ -27,6 +27,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const { user } = useAuth();
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
+  const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
 
   const isJob = isJobCard(post);
   const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
@@ -35,18 +36,22 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const displayTags = tags.slice(0, MAX_TAGS);
   const extraTags = tags.length > MAX_TAGS ? tags.length - MAX_TAGS : 0;
 
-  const handleContactClick = async () => {
+  const handleContactClick = useCallback(async () => {
     const res = await fetch(`/api/merkezi/post/${post.id}/contact`, { credentials: "include" });
     if (res.ok) {
       window.location.href = `${BASE}/${post.slug}`;
       return;
     }
-    if (res.status === 401 || res.status === 403) setShowPremiumModal(true);
-  };
+    if (res.status === 401 || res.status === 403) {
+      setPendingPremiumAction("contact");
+      setShowPremiumModal(true);
+    }
+  }, [post.id, post.slug]);
 
   const handleLetterClick = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
+      setPendingPremiumAction("letter");
       setShowPremiumModal(true);
       return;
     }
@@ -76,6 +81,19 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
     window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
   };
+
+  const handlePremiumApplied = useCallback(async () => {
+    const action = pendingPremiumAction;
+    if (!action) return;
+    setPendingPremiumAction(null);
+    // DB yazımı + RLS sorguları için kısa bekleme.
+    await new Promise((r) => setTimeout(r, 500));
+    if (action === "contact") {
+      void handleContactClick();
+    } else {
+      void handleLetterClick();
+    }
+  }, [pendingPremiumAction, handleContactClick, handleLetterClick]);
 
   if (isJob) {
     return (
@@ -192,7 +210,12 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
           </div>
         </div>
 
-        <PremiumUpsellModal open={showPremiumModal} onClose={() => setShowPremiumModal(false)} onCta={handlePremiumCta} />
+        <PremiumUpsellModal
+          open={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          onCta={handlePremiumCta}
+          onPremiumApplied={handlePremiumApplied}
+        />
         {letterWizardState && (
           <CoverLetterWizardModal
             open={letterWizardState.open}
@@ -201,6 +224,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
             accessToken={letterWizardState.token}
             onPremiumRequired={() => {
               setLetterWizardState(null);
+              setPendingPremiumAction("letter");
               setShowPremiumModal(true);
             }}
           />

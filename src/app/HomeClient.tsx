@@ -19,7 +19,7 @@ export function HomeClient() {
   const { user } = useAuth();
   const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null; plan?: "weekly" | "cv_package" } | null>(null);
+  const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; user_id?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null; plan?: "weekly" | "cv_package" } | null>(null);
 
   const handleLoginClick = useCallback(() => setAuthOpen(true), []);
 
@@ -30,12 +30,18 @@ export function HomeClient() {
   const handlePaymentClick = useCallback(
     (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => {
       setWizardModalOpen(false);
-      sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
+      sessionStorage.setItem(
+        "paytr_pending",
+        JSON.stringify({
+          ...payload,
+          ...(user?.id && { user_id: user.id }),
+        })
+      );
       setPaymentPayload(null);
       setAuthOpen(false);
       window.location.href = "/odeme";
     },
-    []
+    [user?.id]
   );
 
   const handleAuthSuccess = useCallback(
@@ -50,6 +56,7 @@ export function HomeClient() {
               ...paymentPayload,
               email,
               user_name: paymentPayload.user_name?.trim() || undefined,
+              ...(user?.id && { user_id: user.id }),
             })
           );
           setPaymentPayload(null);
@@ -57,7 +64,7 @@ export function HomeClient() {
         }
       }
     },
-    [paymentPayload]
+    [paymentPayload, user?.id]
   );
 
   const handleGoogleAuth = useCallback(() => {

@@ -8,7 +8,7 @@ import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
-const PREMIUM_COUPON_CODE = "ADMIN89";
+const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
 
 const CARDS = [
   {
@@ -61,7 +61,7 @@ export function PremiumIntroModal({
       setCouponMessage({ type: "error", text: "Kupon kodu girin." });
       return;
     }
-    if (code !== PREMIUM_COUPON_CODE) {
+    if (!PREMIUM_COUPON_CODES.includes(code)) {
       setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
       return;
     }
@@ -82,7 +82,7 @@ export function PremiumIntroModal({
       const res = await fetch("/api/premium/apply-coupon", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ code: PREMIUM_COUPON_CODE }),
+        body: JSON.stringify({ code }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
