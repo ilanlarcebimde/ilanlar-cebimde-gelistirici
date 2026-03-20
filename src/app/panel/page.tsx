@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase, normalizeProfileRow } from "@/lib/supabase";
-import { Copy, RefreshCw, Info, Play } from "lucide-react";
-
-/** /assistant?session=... sayfası yoksa "Devam et" ve boş state CTA disabled gösterilir. */
-const ASSISTANT_PAGE_AVAILABLE = false;
+import { Copy, RefreshCw } from "lucide-react";
 
 type ProfileRow = {
   id: string;
@@ -37,10 +34,17 @@ type PremiumSubscriptionRow = {
   coupon_code?: string | null;
   payments?: PaymentRow | PaymentRow[] | null;
 };
-type SessionRow = {
-  session_id: string;
-  completed: boolean;
-  updated_at: string;
+type CvOrderRow = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  target_country: string | null;
+  job_category: string | null;
+  job_title: string | null;
+  payment_status: string;
+  order_status: string;
+  created_at: string;
+  merchant_oid: string | null;
 };
 type SubWithChannel = {
   id: string;
@@ -91,11 +95,6 @@ function formatDateTime(iso: string) {
   return `${day}.${month}.${year} ${hh}:${mm}`;
 }
 
-/** session_id'nin son 6-8 karakteri (ekranda ham id göstermemek için). */
-function getSessionShortId(session_id: string): string {
-  return session_id.length >= 8 ? session_id.slice(-8) : session_id;
-}
-
 function PanelSkeleton() {
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
@@ -129,69 +128,79 @@ export default function PanelPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [premiumSubscriptions, setPremiumSubscriptions] = useState<PremiumSubscriptionRow[]>([]);
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [cvOrders, setCvOrders] = useState<CvOrderRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubWithChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [unsubscribing, setUnsubscribing] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [sessionInfoOpen, setSessionInfoOpen] = useState(false);
-  const sessionInfoRef = useRef<HTMLDivElement>(null);
-  const sessionInfoTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     setFetchError(null);
     setLoading(true);
     const uid = user.id;
-    Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, status, method, country, job_area, job_branch, created_at")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("payments")
-        .select("id, status, amount, currency, created_at, payment_type, coupon_code")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("premium_subscriptions")
-        .select(
-          "id, payment_id, ends_at, created_at, payment_type, coupon_code, payments(id, status, amount, currency, created_at, payment_type, coupon_code)"
-        )
-        .eq("user_id", uid)
-        .order("ends_at", { ascending: false }),
-      supabase
-        .from("assistant_sessions")
-        .select("session_id, completed, updated_at")
-        .eq("user_id", uid)
-        .order("updated_at", { ascending: false }),
-      supabase
-        .from("channel_subscriptions")
-        .select("id, channel_id, created_at, channels(slug, name, country_code)")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false }),
-    ])
-      .then(([p, pay, premium, s, sub]) => {
-        const rows = (p.data as ProfileRow[]) ?? [];
-        setProfiles(rows.map((r) => normalizeProfileRow(r) ?? r));
-        setPayments((pay.data as PaymentRow[]) ?? []);
-        const premiumRows = ((premium.data as PremiumSubscriptionRow[]) ?? []).map((item) => ({
-          ...item,
-          payments: Array.isArray(item.payments) ? item.payments[0] ?? null : item.payments ?? null,
-        }));
-        setPremiumSubscriptions(premiumRows);
-        setSessions((s.data as SessionRow[]) ?? []);
-        const subData = (sub.data ?? []).map((item: any) => ({
-          id: item.id,
-          channel_id: item.channel_id,
-          created_at: item.created_at,
-          channels: Array.isArray(item.channels) ? item.channels[0] : item.channels,
-        })) as SubWithChannel[];
-        setSubscriptions(subData);
-      })
-      .catch(() => setFetchError("Veriler yüklenirken bir hata oluştu."))
-      .finally(() => setLoading(false));
+    try {
+      const [p, pay, premium, sub, cvByUser, cvByEmail] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, status, method, country, job_area, job_branch, created_at")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("payments")
+          .select("id, status, amount, currency, created_at, payment_type, coupon_code")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("premium_subscriptions")
+          .select(
+            "id, payment_id, ends_at, created_at, payment_type, coupon_code, payments(id, status, amount, currency, created_at, payment_type, coupon_code)"
+          )
+          .eq("user_id", uid)
+          .order("ends_at", { ascending: false }),
+        supabase
+          .from("channel_subscriptions")
+          .select("id, channel_id, created_at, channels(slug, name, country_code)")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("cv_orders")
+          .select("id, email, full_name, target_country, job_category, job_title, payment_status, order_status, created_at, merchant_oid")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false }),
+        user.email
+          ? supabase
+              .from("cv_orders")
+              .select("id, email, full_name, target_country, job_category, job_title, payment_status, order_status, created_at, merchant_oid")
+              .eq("email", user.email)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      const rows = (p.data as ProfileRow[]) ?? [];
+      setProfiles(rows.map((r) => normalizeProfileRow(r) ?? r));
+      setPayments((pay.data as PaymentRow[]) ?? []);
+      const premiumRows = ((premium.data as PremiumSubscriptionRow[]) ?? []).map((item) => ({
+        ...item,
+        payments: Array.isArray(item.payments) ? item.payments[0] ?? null : item.payments ?? null,
+      }));
+      setPremiumSubscriptions(premiumRows);
+      const mergedCv = [...((cvByUser.data as CvOrderRow[]) ?? []), ...((cvByEmail.data as CvOrderRow[]) ?? [])];
+      const dedupCv = Array.from(new Map(mergedCv.map((row) => [row.id, row])).values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setCvOrders(dedupCv);
+      const subData = (sub.data ?? []).map((item: any) => ({
+        id: item.id,
+        channel_id: item.channel_id,
+        created_at: item.created_at,
+        channels: Array.isArray(item.channels) ? item.channels[0] : item.channels,
+      })) as SubWithChannel[];
+      setSubscriptions(subData);
+    } catch {
+      setFetchError("Veriler yüklenirken bir hata oluştu.");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -220,26 +229,6 @@ export default function PanelPage() {
     };
   }, [fetchData, user]);
 
-  useEffect(() => {
-    if (!sessionInfoOpen) return;
-    const onEscape = (e: KeyboardEvent) => e.key === "Escape" && setSessionInfoOpen(false);
-    const onClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        sessionInfoRef.current?.contains(target) ||
-        sessionInfoTriggerRef.current?.contains(target)
-      )
-        return;
-      setSessionInfoOpen(false);
-    };
-    window.addEventListener("keydown", onEscape);
-    document.addEventListener("mousedown", onClickOutside);
-    return () => {
-      window.removeEventListener("keydown", onEscape);
-      document.removeEventListener("mousedown", onClickOutside);
-    };
-  }, [sessionInfoOpen]);
-
   if (authLoading || (!user && !authLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-4">
@@ -264,8 +253,20 @@ export default function PanelPage() {
   const activePremium = premiumSubscriptions.find(
     (sub) => new Date(sub.ends_at).getTime() > Date.now()
   ) ?? null;
-  const sessionsOngoing = sessions.filter((s) => !s.completed).length;
-  const sessionsDone = sessions.filter((s) => s.completed).length;
+  const displayPayments: PaymentRow[] = [
+    ...payments,
+    ...premiumSubscriptions
+      .filter((s) => !s.payment_id)
+      .map((s) => ({
+        id: `coupon-${s.id}`,
+        status: "success",
+        amount: 0,
+        currency: "TRY",
+        created_at: s.created_at,
+        payment_type: s.payment_type ?? "coupon",
+        coupon_code: s.coupon_code ?? null,
+      })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const activityItems = [
     ...payments.map((pay) => ({
       id: `payment-${pay.id}`,
@@ -303,6 +304,15 @@ export default function PanelPage() {
       detail: `${PROFILE_STATUS_LABELS[p.status] ?? p.status} · ${METHOD_LABELS[p.method] ?? p.method}${(p.country || p.job_area) ? ` · ${[p.country, p.job_area, p.job_branch].filter(Boolean).join(" / ")}` : ""}`,
       tone: "bg-slate-100 text-slate-700",
       badge: "Başvuru",
+    })),
+    ...cvOrders.map((o) => ({
+      id: `cv-order-${o.id}`,
+      created_at: o.created_at,
+      kind: "cv_order" as const,
+      title: "CV paketi formu kaydedildi",
+      detail: `${o.payment_status === "paid" ? "Ödeme alındı" : "Ödeme bekleniyor"} · ${o.order_status}`,
+      tone: "bg-indigo-100 text-indigo-700",
+      badge: "CV",
     })),
   ]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -356,7 +366,7 @@ export default function PanelPage() {
       <main className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
         <h1 className="text-2xl font-semibold text-slate-900">Hesabım</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Geçmiş başvuruların, ödemelerin ve oturumların burada. Verilerin güvenle saklanır.
+          Geçmiş başvuruların, ödemelerin ve aboneliklerin burada. Verilerin güvenle saklanır.
         </p>
 
         {fetchError && (
@@ -381,28 +391,26 @@ export default function PanelPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-medium text-slate-500">Başvurular</p>
-                <p className="mt-1 text-xl font-semibold text-slate-900">{profiles.length}</p>
-                {lastProfile && (
-                  <p className="mt-0.5 text-xs text-slate-500">Son: {formatDate(lastProfile.created_at)}</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900">{profiles.length + cvOrders.length}</p>
+                {(lastProfile || cvOrders[0]) && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Son: {formatDate((lastProfile?.created_at ?? cvOrders[0]?.created_at) as string)}
+                  </p>
                 )}
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-medium text-slate-500">Ödemeler</p>
-                <p className="mt-1 text-xl font-semibold text-slate-900">{payments.length}</p>
-                {lastPayment && (
+                <p className="mt-1 text-xl font-semibold text-slate-900">{displayPayments.length}</p>
+                {(displayPayments[0] || lastPayment) && (
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Son: {lastPayment.status === "success" ? "Başarılı" : lastPayment.status === "fail" ? "Başarısız" : "İşlemde"}
+                    Son: {(displayPayments[0] ?? lastPayment)?.status === "success" ? "Başarılı" : (displayPayments[0] ?? lastPayment)?.status === "fail" ? "Başarısız" : "İşlemde"}
                   </p>
                 )}
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-sm font-medium text-slate-500">Oturumlar</p>
-                <p className="mt-1 text-xl font-semibold text-slate-900">{sessions.length}</p>
-                {sessions.length > 0 && (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {sessionsOngoing} devam ediyor, {sessionsDone} tamamlandı
-                  </p>
-                )}
+                <p className="text-sm font-medium text-slate-500">Kanal Abonelikleri</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900">{subscriptions.length}</p>
+                <p className="mt-0.5 text-xs text-slate-500">Hesabınızla senkronize</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-medium text-slate-500">Premium Durumu</p>
@@ -544,14 +552,14 @@ export default function PanelPage() {
             {/* Başvurularım */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Başvurularım</h2>
-              {profiles.length === 0 ? (
+              {profiles.length === 0 && cvOrders.length === 0 ? (
                 <div className="py-6 text-center">
                   <p className="font-medium text-slate-700">Henüz başvurun yok</p>
                   <p className="mt-1 text-sm text-slate-500">
                     CV&apos;ni oluşturup buradan geçmişini takip edebilirsin.
                   </p>
                   <Link
-                    href="/#yontem-secimi"
+                    href="/yurtdisi-cv-paketi"
                     className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
                   >
                     CV bilgilerini tamamla
@@ -559,6 +567,22 @@ export default function PanelPage() {
                 </div>
               ) : (
                 <ul className="mt-4 space-y-0 divide-y divide-slate-100">
+                  {cvOrders.map((o) => (
+                    <li
+                      key={o.id}
+                      className="flex min-w-0 flex-wrap items-center gap-3 py-4 first:pt-0 sm:flex-nowrap"
+                    >
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                        o.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
+                      }`}>
+                        {o.payment_status === "paid" ? "Ödendi" : "Ödeme bekliyor"}
+                      </span>
+                      <span className="min-w-0 flex-1 text-sm text-slate-700">
+                        CV Paketi · {[o.target_country, o.job_category, o.job_title].filter(Boolean).join(" / ") || "Form kaydı"}
+                      </span>
+                      <span className="shrink-0 text-xs text-slate-500">{formatDate(o.created_at)}</span>
+                    </li>
+                  ))}
                   {profiles.map((p) => (
                     <li
                       key={p.id}
@@ -594,7 +618,7 @@ export default function PanelPage() {
             {/* Ödemelerim */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Ödemelerim</h2>
-              {payments.length === 0 ? (
+              {displayPayments.length === 0 ? (
                 <div className="py-6 text-center">
                   <p className="font-medium text-slate-700">Henüz ödeme kaydın yok</p>
                   <p className="mt-1 text-sm text-slate-500">
@@ -603,7 +627,7 @@ export default function PanelPage() {
                 </div>
               ) : (
                 <ul className="mt-4 space-y-0 divide-y divide-slate-100">
-                  {payments.map((pay) => (
+                  {displayPayments.map((pay) => (
                     <li
                       key={pay.id}
                       className="flex min-w-0 flex-wrap items-center gap-3 py-4 first:pt-0 sm:flex-nowrap"
@@ -620,7 +644,9 @@ export default function PanelPage() {
                         {pay.status === "success" ? "Başarılı" : pay.status === "fail" ? "Başarısız" : "İşlemde"}
                       </span>
                       <span className="min-w-0 flex-1 text-sm text-slate-700">
-                        <span className="font-medium text-slate-800">{pay.amount} {pay.currency}</span>
+                        <span className="font-medium text-slate-800">
+                          {pay.amount > 0 ? `${pay.amount} ${pay.currency}` : "Kupon ile aktivasyon"}
+                        </span>
                         <span className="ml-2 text-xs text-slate-500">
                           · {PAYMENT_TYPE_LABELS[pay.payment_type ?? "standard"] ?? "Standart"}
                           {pay.coupon_code ? ` · Kupon: ${pay.coupon_code}` : ""}
@@ -666,116 +692,6 @@ export default function PanelPage() {
               )}
             </section>
 
-            {/* Asistan Oturumlarım */}
-            <section className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-              <div className="relative flex items-start gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">Asistan Oturumlarım</h2>
-                <button
-                  ref={sessionInfoTriggerRef}
-                  type="button"
-                  onClick={() => setSessionInfoOpen((o) => !o)}
-                  className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  aria-label="Oturum bilgisi"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
-                {sessionInfoOpen && (
-                  <div
-                    ref={sessionInfoRef}
-                    role="tooltip"
-                    className="absolute left-0 top-full z-50 mt-1 max-w-[260px] rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg"
-                  >
-                    Oturum, sesli asistan/sohbet sırasında toplanan bilgilerin kaydıdır. Devam eden
-                    oturumlar daha sonra sürdürülebilir.
-                  </div>
-                )}
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                Sesli asistan ve sohbet üzerinden yaptığın görüşmelerin kayıtları. Kaldığın yerden
-                devam edebilirsin.
-              </p>
-              {sessions.length === 0 ? (
-                <div className="py-5 text-center">
-                  <p className="font-medium text-slate-700">Henüz asistan oturumun yok</p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Sesli asistan veya sohbet ile CV&apos;ni oluşturduğunda burada görünür.
-                  </p>
-                  {ASSISTANT_PAGE_AVAILABLE ? (
-                    <Link
-                      href="/assistant"
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                    >
-                      <Play className="h-4 w-4" />
-                      Sesli asistanı başlat
-                    </Link>
-                  ) : (
-                    <span
-                      className="mt-3 inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
-                      aria-disabled
-                    >
-                      <Play className="h-4 w-4" />
-                      Sesli asistanı başlat
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <p className="mt-3 text-xs text-slate-400">Bu liste hesabınla senkronizedir.</p>
-                  <ul className="mt-2 space-y-0 divide-y divide-slate-100">
-                    {sessions.map((s) => (
-                      <li
-                        key={s.session_id}
-                        className="flex min-w-0 flex-wrap items-center gap-2 py-3 first:pt-2 sm:flex-nowrap"
-                      >
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                            s.completed
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {s.completed ? "Tamamlandı" : "Devam ediyor"}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-slate-800">
-                            Oturum: #{getSessionShortId(s.session_id)}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Son güncelleme: {formatDate(s.updated_at)}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(s.session_id, "Oturum ID")}
-                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                            aria-label="Oturum ID kopyala"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                          {!s.completed &&
-                            (ASSISTANT_PAGE_AVAILABLE ? (
-                              <Link
-                                href={`/assistant?session=${encodeURIComponent(s.session_id)}`}
-                                className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                              >
-                                Devam et
-                              </Link>
-                            ) : (
-                              <span
-                                className="cursor-not-allowed rounded-lg bg-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500"
-                                aria-disabled
-                              >
-                                Devam et
-                              </span>
-                            ))}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </section>
           </div>
         )}
 
