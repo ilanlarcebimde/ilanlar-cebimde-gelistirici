@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       language_entries: d.languageEntries ?? [],
       reference_entries: d.referenceEntries ?? [],
       photo_url: (d.photoUrl ?? "").trim() || null,
-      price: 349,
+      price: 469,
       payment_status: "pending",
       order_status: "draft",
     })

@@ -261,7 +261,7 @@ setStepIndex(firstUnanswered >= 0 ? firstUnanswered : FLOW_STEPS.length);
                   rel="noopener noreferrer"
                   className="mt-4 flex w-full items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-700 sm:w-auto sm:min-w-[200px]"
                 >
-                  Yurtdışı CV Paketi — 349 TL
+                  Yurtdışı CV Paketi — 469 TL
                 </a>
                 <ul className="mt-4 space-y-1 text-sm text-slate-600">
                   {CV_PACKAGE_ITEMS.map((item, i) => (

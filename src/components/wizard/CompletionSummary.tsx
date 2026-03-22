@@ -15,7 +15,7 @@ const BONUS_ITEMS = [
   "Kişiselleştirilmiş iş başvuru mektubu (şansınızı artırmayı hedefler)",
 ];
 
-/** Yurtdışı CV Paketi: sadece CV + mektup, 349 TL */
+/** Yurtdışı CV Paketi: sadece CV + mektup, 469 TL */
 const CV_PACKAGE_ITEMS = [
   "Türkçe CV (uluslararası standartlara uygun)",
   "İngilizce CV (uluslararası standartlara uygun)",
@@ -23,7 +23,7 @@ const CV_PACKAGE_ITEMS = [
 ];
 
 const PRICE = 549;
-const PRICE_CV_PACKAGE = 349;
+const PRICE_CV_PACKAGE = 469;
 
 /** Ödeme sayfasına gidecek tam profil verisi; kayıt yalnızca ödeme/kupon sonrası yapılır */
 export interface PaymentPayload {
@@ -35,7 +35,7 @@ export interface PaymentPayload {
   job_branch: string;
   answers: Record<string, unknown>;
   photo_url: string | null;
-  /** Paket türü: cv_package = Yurtdışı CV Paketi 349 TL, weekly = Haftalık Premium 89 TL */
+  /** Paket türü: cv_package = Yurtdışı CV Paketi 469 TL, weekly = Haftalık Premium 89 TL */
   plan?: "weekly" | "cv_package";
 }
 
@@ -62,7 +62,7 @@ export function CompletionSummary({
   answers: Record<string, unknown>;
   photoUrl: string | null;
   onPaymentClick: (payload: PaymentPayload) => void;
-  /** cv_package = Yurtdışı CV Paketi 349 TL (Türkçe CV, İngilizce CV, İş başvuru mektubu) */
+  /** cv_package = Yurtdışı CV Paketi 469 TL (Türkçe CV, İngilizce CV, İş başvuru mektubu) */
   productPlan?: "cv_package";
 }) {
   const countryName = COUNTRIES.find((c) => c.id === country)?.name ?? country;

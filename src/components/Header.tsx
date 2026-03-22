@@ -14,7 +14,14 @@ const FEED_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const NEWS_HUB_PATH = "/yurtdisi-calisma-ve-vize-duyurulari";
 const SUBSCRIPTIONS_PATH = "/aboneliklerim";
 
-export function Header({ onLoginClick }: { onLoginClick: () => void }) {
+export function Header({
+  onLoginClick,
+  stickyTopClassName = "top-0",
+}: {
+  onLoginClick: () => void;
+  /** Örn. üst kampanya şeridi için `top-10` */
+  stickyTopClassName?: string;
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, loading } = useAuth();
@@ -62,7 +69,7 @@ export function Header({ onLoginClick }: { onLoginClick: () => void }) {
   return (
     <>
       <header
-        className={`sticky top-0 z-[1000] w-full border-b bg-white/95 backdrop-blur-md transition-shadow duration-200 ${
+        className={`sticky ${stickyTopClassName} z-[1000] w-full border-b bg-white/95 backdrop-blur-md transition-shadow duration-200 ${
           scrolled ? "border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "border-transparent"
         }`}
       >

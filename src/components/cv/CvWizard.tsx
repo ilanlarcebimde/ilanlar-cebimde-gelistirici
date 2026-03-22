@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Briefcase, UserRound } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { COUNTRIES } from "@/data/countries";
 import { PROFESSION_AREAS } from "@/data/professions";
@@ -161,9 +161,16 @@ const INITIAL_DATA: CvWizardData = {
   photoUrl: null,
 };
 
-export function CvWizard() {
+type CvWizardProps = {
+  /** İlk adım (hedef ülke) tamamlanıp İleri denildiğinde — kampanya popup tetikleyicisi */
+  onLeaveFirstStep?: () => void;
+};
+
+export function CvWizard({ onLeaveFirstStep }: CvWizardProps) {
   const [step, setStep] = useState<CvWizardStep>("target");
-  const [data, setData] = useState<CvWizardData>(() => readCvWizardDraft() ?? INITIAL_DATA);
+  /** SSR ile ilk paint aynı olmalı; taslak yalnızca mount sonrası sessionStorage'dan yüklenir (hydration uyumu). */
+  const [data, setData] = useState<CvWizardData>(INITIAL_DATA);
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -174,8 +181,18 @@ export function CvWizard() {
     () => COUNTRIES.find((c) => c.id === data.targetCountry) ?? null,
     [data.targetCountry]
   );
+  const selectedJobArea = useMemo(
+    () => PROFESSION_AREAS.find((a) => a.id === data.jobAreaId) ?? null,
+    [data.jobAreaId]
+  );
 
-  useCvWizardAutosave(data);
+  useEffect(() => {
+    const draft = readCvWizardDraft();
+    if (draft) setData(draft);
+    setDraftHydrated(true);
+  }, []);
+
+  useCvWizardAutosave(data, draftHydrated);
 
   const update = <K extends keyof CvWizardData>(key: K, value: CvWizardData[K]) => {
     setData((d) => ({ ...d, [key]: value }));
@@ -247,7 +264,10 @@ export function CvWizard() {
   };
 
   const goNext = () => {
-    if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1]);
+    if (stepIndex < STEPS.length - 1) {
+      if (stepIndex === 0) onLeaveFirstStep?.();
+      setStep(STEPS[stepIndex + 1]);
+    }
   };
 
   const goPrev = () => {
@@ -323,7 +343,7 @@ export function CvWizard() {
   return (
     <section
       id="cv-wizard-start"
-      className="py-10 sm:py-14 bg-slate-50 text-slate-900"
+      className="pt-10 pb-6 sm:pt-14 sm:pb-8 bg-slate-50 text-slate-900"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mb-6 sm:mb-8">
@@ -1416,7 +1436,10 @@ export function CvWizard() {
             )}
 
             {step === "review" && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+              <div
+                id="cv-package-payment"
+                className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm scroll-mt-32"
+              >
                 <h2 className="text-lg font-semibold text-slate-900">Kontrol ve önizleme</h2>
                 <p className="mt-1 text-xs sm:text-sm text-slate-600">
                   Aşağıda özetlediğimiz bilgiler, hazırlanacak Türkçe CV, İngilizce CV ve iş başvuru mektubunuz için
@@ -1459,7 +1482,7 @@ export function CvWizard() {
                     <li>• İş başvuru mektubu</li>
                   </ul>
                   <p className="mt-3 text-sm text-slate-900">
-                    Toplam ücret: <span className="font-semibold text-sky-600">349 TL</span>
+                    Toplam ücret: <span className="font-semibold text-sky-600">469 TL</span>
                   </p>
                   <p className="mt-2 text-xs text-slate-500">
                     Formu tamamladıktan sonra ödeme adımına geçeceksiniz. Ekibimiz, bilgilerinizi kontrol ederek teknik
@@ -1476,7 +1499,7 @@ export function CvWizard() {
             <div className="sticky top-24 space-y-4">
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl">
                 <h3 className="text-sm font-semibold text-slate-50">Sipariş Özeti</h3>
-                <p className="mt-2 text-3xl font-semibold text-sky-400">349 TL</p>
+                <p className="mt-2 text-3xl font-semibold text-sky-400">469 TL</p>
                 <ul className="mt-3 text-sm text-slate-200 space-y-1.5">
                   <li>✔ Türkçe CV hazırlanacak</li>
                   <li>✔ İngilizce CV hazırlanacak</li>
@@ -1498,19 +1521,43 @@ export function CvWizard() {
                       className="object-cover"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-medium text-slate-300">Seçilen ülke</p>
                     <p className="text-sm text-slate-50">{selectedCountry.name}</p>
                   </div>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-lg flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-sky-400">
+                  <Briefcase className="h-5 w-5" strokeWidth={2} aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-slate-300">Meslek kategorisi</p>
+                  <p className="mt-0.5 text-sm text-slate-50 leading-snug break-words">
+                    {selectedJobArea?.name ?? "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-lg flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-sky-400">
+                  <UserRound className="h-5 w-5" strokeWidth={2} aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-slate-300">Meslek / unvan</p>
+                  <p className="mt-0.5 text-sm text-slate-50 leading-snug break-words">
+                    {data.jobTitle.trim() ? data.jobTitle : "—"}
+                  </p>
+                </div>
+              </div>
             </div>
           </aside>
 
-          <div className="lg:hidden lg:col-span-4">
+          <div className="lg:hidden lg:col-span-4 space-y-4">
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl">
               <h3 className="text-sm font-semibold text-slate-50">Sipariş Özeti</h3>
-              <p className="mt-2 text-3xl font-semibold text-sky-400">349 TL</p>
+              <p className="mt-2 text-3xl font-semibold text-sky-400">469 TL</p>
               <ul className="mt-3 text-sm text-slate-200 space-y-1.5">
                 <li>✔ Türkçe CV hazırlanacak</li>
                 <li>✔ İngilizce CV hazırlanacak</li>
@@ -1520,6 +1567,48 @@ export function CvWizard() {
                 Form tamamlandıktan sonra ödeme adımına geçersiniz. Ekibimiz bilgilerinizi kontrol ederek teknik
                 mesleklere uygun profesyonel formatta düzenleme yapar.
               </p>
+            </div>
+
+            {selectedCountry && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-lg flex items-center gap-3">
+                <div className="relative h-8 w-12 overflow-hidden rounded-lg border border-slate-700/80 shrink-0">
+                  <Image
+                    src={`https://flagcdn.com/w80/${selectedCountry.id}.png`}
+                    alt={selectedCountry.name}
+                    fill
+                    sizes="48px"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-300">Seçilen ülke</p>
+                  <p className="text-sm text-slate-50">{selectedCountry.name}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-lg flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-sky-400">
+                <Briefcase className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-300">Meslek kategorisi</p>
+                <p className="mt-0.5 text-sm text-slate-50 leading-snug break-words">
+                  {selectedJobArea?.name ?? "—"}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-lg flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-sky-400">
+                <UserRound className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-300">Meslek / unvan</p>
+                <p className="mt-0.5 text-sm text-slate-50 leading-snug break-words">
+                  {data.jobTitle.trim() ? data.jobTitle : "—"}
+                </p>
+              </div>
             </div>
           </div>
         </div>

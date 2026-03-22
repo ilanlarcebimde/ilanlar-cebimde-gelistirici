@@ -205,7 +205,7 @@ export function ChannelsSidebar({ selectedSlug, onChannelSelect, basePath = "/ab
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900">Yurtdışı CV Paketi</p>
-            <p className="text-xs text-slate-500">Türkçe + İngilizce CV, İş başvuru mektubu — 349 TL</p>
+            <p className="text-xs text-slate-500">Türkçe + İngilizce CV, İş başvuru mektubu — 469 TL</p>
           </div>
         </Link>
       </div>

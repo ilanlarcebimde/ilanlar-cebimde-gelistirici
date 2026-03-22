@@ -2,17 +2,22 @@
 
 import { useCallback } from "react";
 
-const PRICE = 349;
+const PRICE = 469;
 
-export function CvPackageHero() {
+type CvPackageHeroProps = {
+  /** Üst şerit vb. ek ofset (px), varsayılan: yalnızca header */
+  scrollAnchorOffsetPx?: number;
+};
+
+export function CvPackageHero({ scrollAnchorOffsetPx = 72 }: CvPackageHeroProps) {
   const scrollToWizard = useCallback(() => {
     if (typeof document === "undefined") return;
     const target = document.getElementById("cv-wizard-start");
     if (!target) return;
-    const headerOffset = 72; // sticky header + küçük güvenli boşluk
+    const headerOffset = scrollAnchorOffsetPx;
     const top = target.getBoundingClientRect().top + window.scrollY - headerOffset;
     window.scrollTo({ top, behavior: "smooth" });
-  }, []);
+  }, [scrollAnchorOffsetPx]);
 
   return (
     <section className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 pb-10 pt-8 sm:pt-10 sm:pb-12 border-b border-slate-800">

@@ -4,7 +4,7 @@ import { YurtdisiCvPaketiClient } from "./YurtdisiCvPaketiClient";
 const SITE_URL = "https://www.ilanlarcebimde.com";
 const TITLE = "Yurtdışı CV Paketi | Türkçe & İngilizce CV + Başvuru Mektubu";
 const DESCRIPTION =
-  "Yurtdışı iş başvurusu için Türkçe CV, İngilizce CV ve başvuru mektubu tek pakette. Uluslararası standartlara uygun, form veya sohbet asistanı ile hazırla. 349 TL.";
+  "Yurtdışı iş başvurusu için Türkçe CV, İngilizce CV ve başvuru mektubu tek pakette. Uluslararası standartlara uygun, form veya sohbet asistanı ile hazırla. 469 TL.";
 
 export const metadata: Metadata = {
   title: TITLE,

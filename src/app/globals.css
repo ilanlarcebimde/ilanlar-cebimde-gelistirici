@@ -113,6 +113,39 @@ body {
   }
 }
 
+/* Yurtdışı CV paketi: kampanya şeridi + alt popup */
+@keyframes cvCampaignBarShimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.cv-campaign-bar-shimmer {
+  background-size: 200% 100%;
+  animation: cvCampaignBarShimmer 11s ease-in-out infinite;
+}
+
+@keyframes cvCampaignCtaPulse {
+  0%,
+  91%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  }
+  95% {
+    transform: scale(1.04);
+    box-shadow: 0 8px 22px rgba(2, 132, 199, 0.45);
+  }
+}
+
+.cv-campaign-cta-pulse {
+  animation: cvCampaignCtaPulse 9s ease-in-out infinite;
+}
+
 @keyframes merkeziPulse {
   0%,
   100% {

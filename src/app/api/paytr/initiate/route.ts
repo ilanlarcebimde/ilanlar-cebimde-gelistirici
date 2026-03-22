@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPaytrToken, getSiteUrl } from "@/lib/paytr";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import {
+  AMOUNT_YURTDISIIS_DISCOUNTED,
+  isYurtdisiisCouponCode,
+  normalizeTrCouponCode,
+} from "@/lib/yurtdisiisCoupon";
+import { verifyYurtdisiisCanUse } from "@/lib/yurtdisiisCouponServer";
 
 function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -53,12 +59,29 @@ export async function POST(request: NextRequest) {
     };
 
     const emailTrimmed = typeof email === "string" ? email.trim() : "";
+    const userId = typeof body_user_id === "string" && body_user_id.trim() ? body_user_id.trim() : null;
     if (!merchant_oid || !emailTrimmed || amount == null || amount <= 0) {
       return NextResponse.json(
         { success: false, error: "merchant_oid, email ve amount (0'dan büyük) zorunludur." },
         { status: 400 }
       );
     }
+
+    const couponRaw = typeof coupon_code === "string" ? coupon_code.trim() : "";
+    if (couponRaw && isYurtdisiisCouponCode(couponRaw)) {
+      if (Number(amount) !== AMOUNT_YURTDISIIS_DISCOUNTED) {
+        return NextResponse.json(
+          { success: false, error: "Geçersiz tutar veya kupon." },
+          { status: 400 }
+        );
+      }
+      const check = await verifyYurtdisiisCanUse(emailTrimmed, userId);
+      if (!check.ok) {
+        return NextResponse.json({ success: false, error: check.error }, { status: 400 });
+      }
+    }
+
+    const couponNormalized = couponRaw ? normalizeTrCouponCode(couponRaw) : null;
 
     const user_name_val = typeof user_name === "string" ? user_name.trim().slice(0, 60) : "Müşteri";
     const user_address_val = typeof user_address === "string" && user_address.trim() ? user_address.trim().slice(0, 400) : "Adres girilmedi";
@@ -77,7 +100,6 @@ export async function POST(request: NextRequest) {
           }
         : null;
 
-    const userId = typeof body_user_id === "string" && body_user_id.trim() ? body_user_id.trim() : null;
     const cvOrderId = typeof cv_order_id === "string" && cv_order_id.trim() ? cv_order_id.trim() : null;
     await supabase.from("payments").insert({
       profile_id: null,
@@ -89,7 +111,7 @@ export async function POST(request: NextRequest) {
       provider_ref: merchant_oid,
       profile_snapshot: snapshot,
       payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
-      coupon_code: typeof coupon_code === "string" && coupon_code.trim() ? coupon_code.trim().toUpperCase() : null,
+      coupon_code: couponNormalized,
     });
 
     // CV paketi siparişi varsa ödeme referansını bağla ki callback'te sipariş statüsü ilerletilebilsin.

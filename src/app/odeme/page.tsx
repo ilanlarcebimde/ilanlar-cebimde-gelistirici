@@ -8,17 +8,24 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
+import {
+  AMOUNT_YURTDISIIS_DISCOUNTED,
+  isYurtdisiisCouponCode,
+  isYurtdisiisCouponExpired,
+  normalizeTrCouponCode,
+  YURTDISIIS_COUPON_CODE,
+} from "@/lib/yurtdisiisCoupon";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
-const AMOUNT_CV_PACKAGE = 349;
+const AMOUNT_CV_PACKAGE = 469;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
 const BASKET_CV_PACKAGE = "Yurtdışı CV Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
 /** Haftalık premium kuponları (giriş gerekli; ADMIN89/99TLDENEME 7 gün, ICMERKEZI14 API’de e-postaya göre 14 gün) */
 const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
-/** Yurtdışı CV Paketi 79 TL indirim (349 - 79 = 270 TL) */
+/** Yurtdışı CV Paketi 79 TL indirim (469 - 79 = 390 TL) */
 const CV_PACKAGE_DISCOUNT_CODE = "CV79";
 const CV_PACKAGE_DISCOUNT_AMOUNT = 79;
 const AMOUNT_CV_PACKAGE_DISCOUNTED = AMOUNT_CV_PACKAGE - CV_PACKAGE_DISCOUNT_AMOUNT;
@@ -49,6 +56,7 @@ export default function OdemePage() {
   const [freeWithCoupon, setFreeWithCoupon] = useState(false);
   const [showPayHint, setShowPayHint] = useState(false);
   const [cv79Applied, setCv79Applied] = useState(false);
+  const [yurtdisiisApplied, setYurtdisiisApplied] = useState(false);
   const [iyiustalarApplied, setIyiustalarApplied] = useState(false);
 
   const getPostPaymentTarget = useCallback(() => {
@@ -96,11 +104,12 @@ export default function OdemePage() {
   }, []);
 
   const applyCoupon = useCallback(async () => {
-    const code = couponCode.trim().toUpperCase();
-    if (!code) {
+    const rawCoupon = couponCode.trim();
+    if (!rawCoupon) {
       setCouponMessage({ type: "error", text: "Kupon kodu girin." });
       return;
     }
+    const code = rawCoupon.toUpperCase();
     if (PREMIUM_COUPON_CODES.includes(code)) {
       setCouponMessage({ type: "success", text: "Kupon uygulanıyor…" });
       if (!user) {
@@ -144,6 +153,119 @@ export default function OdemePage() {
       }
       return;
     }
+    if (isYurtdisiisCouponCode(rawCoupon)) {
+      if (isYurtdisiisCouponExpired()) {
+        setCouponMessage({ type: "error", text: "Bu kuponun süresi dolmuştur." });
+        return;
+      }
+      const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+      const parsed = pending ? (JSON.parse(pending) as { plan?: string }) : null;
+      if (parsed?.plan !== "cv_package") {
+        setCouponMessage({ type: "error", text: "Bu kupon sadece Yurtdışı CV Paketi için geçerlidir." });
+        return;
+      }
+      let full: Record<string, unknown>;
+      try {
+        full = JSON.parse(pending!) as Record<string, unknown>;
+      } catch {
+        setCouponMessage({ type: "error", text: "Oturum güncellenemedi. Sayfayı yenileyip tekrar deneyin." });
+        return;
+      }
+      const email = typeof full.email === "string" ? full.email.trim() : "";
+      const user_id = typeof full.user_id === "string" && full.user_id.trim() ? full.user_id.trim() : null;
+      const eligRes = await fetch("/api/cv-coupon/yurtdisiis-eligibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, user_id }),
+      });
+      const eligData = (await eligRes.json().catch(() => ({}))) as { error?: string };
+      if (!eligRes.ok) {
+        setCouponMessage({ type: "error", text: eligData.error ?? "Kupon kullanılamıyor." });
+        return;
+      }
+      setCouponMessage({
+        type: "success",
+        text: `129 TL indirim uygulandı. Ödemeniz: ${AMOUNT_YURTDISIIS_DISCOUNTED} TL.`,
+      });
+      try {
+        sessionStorage.setItem(
+          "paytr_pending",
+          JSON.stringify({ ...full, yurtdisiis_discount: true, cv79_discount: false })
+        );
+      } catch {
+        setCouponMessage({ type: "error", text: "Oturum güncellenemedi. Sayfayı yenileyip tekrar deneyin." });
+        return;
+      }
+      setYurtdisiisApplied(true);
+      setCv79Applied(false);
+      setIframeUrl(null);
+      setLoading(true);
+      try {
+        const fullReload = JSON.parse(sessionStorage.getItem("paytr_pending")!) as {
+          email?: string;
+          user_name?: string;
+          method?: string;
+          country?: string;
+          job_area?: string;
+          job_branch?: string;
+          answers?: Record<string, unknown>;
+          photo_url?: string | null;
+          plan?: string;
+          user_id?: string;
+          profile_snapshot?: unknown;
+          cv_order_id?: string;
+        };
+        const emailPay = fullReload?.email?.trim();
+        if (!emailPay) {
+          setError("E-posta bulunamadı.");
+          setLoading(false);
+          return;
+        }
+        const user_name =
+          (fullReload?.user_name && String(fullReload.user_name).trim()) || emailPay.split("@")[0] || "Müşteri";
+        const profile_snapshot =
+          fullReload?.method != null
+            ? {
+                method: fullReload.method,
+                country: fullReload.country ?? null,
+                job_area: fullReload.job_area ?? null,
+                job_branch: fullReload.job_branch ?? null,
+                answers: fullReload.answers ?? {},
+                photo_url: fullReload.photo_url ?? null,
+              }
+            : undefined;
+        const res = await fetch("/api/paytr/initiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            merchant_oid: "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11),
+            email: emailPay,
+            amount: AMOUNT_YURTDISIIS_DISCOUNTED,
+            user_name: user_name.slice(0, 60),
+            user_address: "Adres girilmedi",
+            user_phone: "5550000000",
+            merchant_ok_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarili`,
+            merchant_fail_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarisiz`,
+            basket_description: BASKET_CV_PACKAGE,
+            profile_snapshot,
+            payment_type: "discounted",
+            coupon_code: normalizeTrCouponCode(YURTDISIIS_COUPON_CODE),
+            ...(fullReload?.user_id && { user_id: fullReload.user_id }),
+            ...(fullReload?.cv_order_id && { cv_order_id: fullReload.cv_order_id }),
+          }),
+        });
+        const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
+          logPrefix: "[paytr/initiate]",
+        });
+        if (data.success && data.iframe_url) setIframeUrl(data.iframe_url);
+        else setError(data.error || "Ödeme başlatılamadı");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ödeme yüklenemedi.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (code === CV_PACKAGE_DISCOUNT_CODE) {
       const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
       const parsed = pending ? (JSON.parse(pending) as { plan?: string }) : null;
@@ -151,15 +273,16 @@ export default function OdemePage() {
         setCouponMessage({ type: "error", text: "CV79 kuponu sadece Yurtdışı CV Paketi için geçerlidir." });
         return;
       }
-      setCouponMessage({ type: "success", text: "79 TL indirim uygulandı. Ödemeniz: 270 TL." });
+      setCouponMessage({ type: "success", text: "79 TL indirim uygulandı. Ödemeniz: 390 TL." });
       try {
         const full = JSON.parse(pending!) as Record<string, unknown>;
-        sessionStorage.setItem("paytr_pending", JSON.stringify({ ...full, cv79_discount: true }));
+        sessionStorage.setItem("paytr_pending", JSON.stringify({ ...full, cv79_discount: true, yurtdisiis_discount: false }));
       } catch {
         setCouponMessage({ type: "error", text: "Oturum güncellenemedi. Sayfayı yenileyip tekrar deneyin." });
         return;
       }
       setCv79Applied(true);
+      setYurtdisiisApplied(false);
       setIframeUrl(null);
       setLoading(true);
       try {
@@ -340,6 +463,7 @@ export default function OdemePage() {
           user_id?: string;
           cv_order_id?: string;
           cv79_discount?: boolean;
+          yurtdisiis_discount?: boolean;
           iyiustalar_discount?: boolean;
         })
       : null;
@@ -351,17 +475,23 @@ export default function OdemePage() {
 
     const isWeekly = parsed?.plan === "weekly";
     const isCvPackage = parsed?.plan === "cv_package";
-    const useCv79 = isCvPackage && !!parsed?.cv79_discount;
+    const useYurtdisiis = isCvPackage && !!parsed?.yurtdisiis_discount;
+    const useCv79 = isCvPackage && !!parsed?.cv79_discount && !useYurtdisiis;
     const useIyiustalar = !isWeekly && !isCvPackage && !!parsed?.iyiustalar_discount;
     const amount = isWeekly
       ? AMOUNT_WEEKLY
       : isCvPackage
-        ? (useCv79 ? AMOUNT_CV_PACKAGE_DISCOUNTED : AMOUNT_CV_PACKAGE)
+        ? useYurtdisiis
+          ? AMOUNT_YURTDISIIS_DISCOUNTED
+          : useCv79
+            ? AMOUNT_CV_PACKAGE_DISCOUNTED
+            : AMOUNT_CV_PACKAGE
         : useIyiustalar
           ? AMOUNT_FULL_IYIUSTALAR
           : AMOUNT_FULL;
     const basketDescription = isWeekly ? BASKET_WEEKLY : isCvPackage ? BASKET_CV_PACKAGE : BASKET_FULL;
     setCv79Applied(!!useCv79);
+    setYurtdisiisApplied(!!useYurtdisiis);
     setIyiustalarApplied(!!useIyiustalar);
 
     const user_name =
@@ -394,12 +524,14 @@ export default function OdemePage() {
       merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
       basket_description: basketDescription,
       profile_snapshot,
-      payment_type: isWeekly ? "weekly" : useCv79 || useIyiustalar ? "discounted" : "standard",
-      coupon_code: useCv79
-        ? CV_PACKAGE_DISCOUNT_CODE
-        : useIyiustalar
-          ? IYIUSTALAR_COUPON_CODE
-          : null,
+      payment_type: isWeekly ? "weekly" : useCv79 || useYurtdisiis || useIyiustalar ? "discounted" : "standard",
+      coupon_code: useYurtdisiis
+        ? normalizeTrCouponCode(YURTDISIIS_COUPON_CODE)
+        : useCv79
+          ? CV_PACKAGE_DISCOUNT_CODE
+          : useIyiustalar
+            ? IYIUSTALAR_COUPON_CODE
+            : null,
       ...(parsed?.user_id && { user_id: parsed.user_id }),
       ...(parsed?.cv_order_id && { cv_order_id: parsed.cv_order_id }),
     };
@@ -586,7 +718,9 @@ export default function OdemePage() {
           <p className="text-sm font-medium text-slate-700">
             {(() => {
               const p = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-              const data = p ? (JSON.parse(p) as { plan?: string; cv79_discount?: boolean }) : null;
+              const data = p
+                ? (JSON.parse(p) as { plan?: string; cv79_discount?: boolean; yurtdisiis_discount?: boolean })
+                : null;
               if (data?.plan === "weekly") {
                 return (
                   <>
@@ -596,7 +730,11 @@ export default function OdemePage() {
                 );
               }
               if (data?.plan === "cv_package") {
-                const amount = data?.cv79_discount ? "270,00 TL" : "349,00 TL";
+                const amount = data?.yurtdisiis_discount
+                  ? "340,00 TL"
+                  : data?.cv79_discount
+                    ? "390,00 TL"
+                    : "469,00 TL";
                 return <>Ödemeniz gereken tutar: <span className="text-slate-900">{amount}</span></>;
               }
               return <>Ödemeniz gereken tutar: <span className="text-slate-900">549,00 TL</span></>;

@@ -16,9 +16,9 @@ export function buildCvWizardAutosavePayload(data: CvWizardData) {
   };
 }
 
-export function useCvWizardAutosave(data: CvWizardData) {
+export function useCvWizardAutosave(data: CvWizardData, enabled = true) {
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
     const payload = buildCvWizardAutosavePayload(data);
     if (!payload) return;
     try {
@@ -26,7 +26,7 @@ export function useCvWizardAutosave(data: CvWizardData) {
     } catch {
       // ignore storage quota/session errors
     }
-  }, [data]);
+  }, [data, enabled]);
 }
 
 export function readCvWizardDraft(): CvWizardData | null {
