@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  /* Yurtdışı CV kampanya şeridi — JS ölçümü gelene kadar güvenli varsayılan */
+  --cv-campaign-bar-height: 5rem;
   --background: #f8fafc;
   --foreground: #0f172a;
   --card-bg: rgba(255, 255, 255, 0.72);

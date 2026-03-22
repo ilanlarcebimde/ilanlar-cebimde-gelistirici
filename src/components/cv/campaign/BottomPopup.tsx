@@ -53,11 +53,11 @@ export function BottomPopup() {
             {HEADLINE}
           </h2>
 
-          <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-slate-700 sm:text-base">
-            <p>{LINE1}</p>
-            <p>{LINE2}</p>
-            <p>{LINE3}</p>
-          </div>
+          <ul className="mt-4 list-disc space-y-3 pl-5 text-[15px] leading-relaxed text-slate-700 marker:text-slate-500 sm:pl-6 sm:text-base">
+            <li>{LINE1}</li>
+            <li>{LINE2}</li>
+            <li>{LINE3}</li>
+          </ul>
 
           <motion.div
             initial="hidden"

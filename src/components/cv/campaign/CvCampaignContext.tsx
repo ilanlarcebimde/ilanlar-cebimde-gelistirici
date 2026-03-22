@@ -9,7 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { CV_CAMPAIGN_BAR_HEIGHT_PX, CV_CAMPAIGN_POPUP_DISMISSED_KEY } from "./cvCampaignConstants";
+import {
+  CV_CAMPAIGN_BAR_HEIGHT_PX,
+  CV_CAMPAIGN_BAR_ROOT_ID,
+  CV_CAMPAIGN_POPUP_DISMISSED_KEY,
+} from "./cvCampaignConstants";
 
 type CvCampaignContextValue = {
   popupOpen: boolean;
@@ -27,13 +31,19 @@ type CvCampaignContextValue = {
 
 const CvCampaignContext = createContext<CvCampaignContextValue | null>(null);
 
+function getCampaignBarHeightPx(): number {
+  if (typeof document === "undefined") return CV_CAMPAIGN_BAR_HEIGHT_PX;
+  const el = document.getElementById(CV_CAMPAIGN_BAR_ROOT_ID);
+  return el?.offsetHeight ?? CV_CAMPAIGN_BAR_HEIGHT_PX;
+}
+
 function scrollToCvAnchor() {
   if (typeof window === "undefined") return;
   const payment = document.getElementById("cv-package-payment");
   const target = payment ?? document.getElementById("cv-wizard-start");
   if (!target) return;
   const headerApprox = 56;
-  const offset = headerApprox + CV_CAMPAIGN_BAR_HEIGHT_PX + 8;
+  const offset = headerApprox + getCampaignBarHeightPx() + 8;
   const top = target.getBoundingClientRect().top + window.scrollY - offset;
   window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
