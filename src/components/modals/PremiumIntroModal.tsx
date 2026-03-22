@@ -8,7 +8,7 @@ import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
-const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
+const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
 
 const CARDS = [
   {

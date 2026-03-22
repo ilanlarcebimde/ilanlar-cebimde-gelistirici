@@ -5,7 +5,15 @@ export const runtime = "nodejs";
 
 const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
 
-/** Geçerli kuponlarla haftalık premium (7 gün); sadece giriş yapmış kullanıcıya uygulanır. */
+/** Yalnızca tanımlı e-posta ile kullanılabilir; 14 gün premium (Başvuru Merkezi özel). */
+const MERKEZI_14_GUN_CODE = "ICMERKEZI14";
+const MERKEZI_14_GUN_EMAIL = "durmush514@gmail.com";
+
+function normalizeEmail(email: string | undefined): string {
+  return (email ?? "").trim().toLowerCase();
+}
+
+/** Geçerli kuponlarla premium; çoğu kod 7 gün, ICMERKEZI14 yalnızca yetkili e-postada 14 gün. */
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -26,12 +34,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
     }
     const code = (body?.code ?? "").trim().toUpperCase();
-    if (!PREMIUM_COUPON_CODES.includes(code)) {
+
+    let durationDays = 7;
+    if (code === MERKEZI_14_GUN_CODE) {
+      if (normalizeEmail(user.email) !== MERKEZI_14_GUN_EMAIL) {
+        return NextResponse.json({ error: "Geçersiz kupon kodu" }, { status: 400 });
+      }
+      durationDays = 14;
+    } else if (!PREMIUM_COUPON_CODES.includes(code)) {
       return NextResponse.json({ error: "Geçersiz kupon kodu" }, { status: 400 });
     }
 
     const admin = getSupabaseAdmin();
-    const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     const { error: insertError } = await admin.from("premium_subscriptions").insert({
       user_id: user.id,
       profile_id: null,

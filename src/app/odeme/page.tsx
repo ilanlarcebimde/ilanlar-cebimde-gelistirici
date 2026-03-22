@@ -16,8 +16,8 @@ const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
 const BASKET_CV_PACKAGE = "Yurtdışı CV Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
-/** Haftalık premium kuponları (7 gün abonelik, giriş gerekli) */
-const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
+/** Haftalık premium kuponları (giriş gerekli; ADMIN89/99TLDENEME 7 gün, ICMERKEZI14 API’de e-postaya göre 14 gün) */
+const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
 /** Yurtdışı CV Paketi 79 TL indirim (349 - 79 = 270 TL) */
 const CV_PACKAGE_DISCOUNT_CODE = "CV79";
 const CV_PACKAGE_DISCOUNT_AMOUNT = 79;
