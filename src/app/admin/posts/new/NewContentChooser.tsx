@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { FreeAccessCodesPanel } from "@/components/admin/FreeAccessCodesPanel";
 import { NewPostForm } from "./NewPostForm";
 import { BlogPostForm } from "./BlogPostForm";
 import { VisaNewsPostForm } from "./VisaNewsPostForm";
@@ -44,6 +45,8 @@ export function NewContentChooser() {
 
   return (
     <div className="space-y-6">
+      <FreeAccessCodesPanel />
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">Yeni içerik oluştur</h1>
         <Link href="/admin/posts" className="text-sm text-sky-600 hover:underline">

@@ -7,6 +7,7 @@ import {
   normalizeTrCouponCode,
 } from "@/lib/yurtdisiisCoupon";
 import { verifyYurtdisiisCanUse } from "@/lib/yurtdisiisCouponServer";
+import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 
 function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -60,6 +61,24 @@ export async function POST(request: NextRequest) {
 
     const emailTrimmed = typeof email === "string" ? email.trim() : "";
     const userId = typeof body_user_id === "string" && body_user_id.trim() ? body_user_id.trim() : null;
+    const paymentTypeRaw = typeof payment_type === "string" ? payment_type.trim() : "";
+
+    /** İş başvuru mektubu paneli — tek seferlik 79 TL; haftalık premium ile karışmaz */
+    if (paymentTypeRaw === LETTER_PANEL_PAYMENT_TYPE) {
+      if (Number(amount) !== LETTER_PANEL_AMOUNT_TRY) {
+        return NextResponse.json(
+          { success: false, error: "Geçersiz tutar." },
+          { status: 400 }
+        );
+      }
+      if (!userId) {
+        return NextResponse.json(
+          { success: false, error: "Bu ödeme için giriş yapmanız gerekir." },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!merchant_oid || !emailTrimmed || amount == null || amount <= 0) {
       return NextResponse.json(
         { success: false, error: "merchant_oid, email ve amount (0'dan büyük) zorunludur." },

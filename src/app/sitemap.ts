@@ -32,6 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/ucretsiz-yurtdisi-is-ilanlari`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/ilanlar`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/yurtdisi-is-basvuru-merkezi`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/is-basvuru-mektubu-olustur`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
     { url: `${base}/yurtdisi-calisma-ve-vize-duyurulari`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/ucretsiz-vize-danismanligi`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: `${base}/yurtdisi-cv-paketi`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },

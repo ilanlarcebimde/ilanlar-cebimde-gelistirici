@@ -12,23 +12,27 @@ export interface ProgressHeaderProps {
   stepKey?: number;
   /** Dinamik alt başlık: job/post varsa ilana göre, yoksa verdiğiniz bilgilere göre */
   subtitle?: string;
+  /** Sayfa içi gömülü sihirbazda kapatma gizlenebilir */
+  hideCloseButton?: boolean;
 }
 
-export function ProgressHeader({ currentStep, onClose, stepKey = 0, subtitle }: ProgressHeaderProps) {
+export function ProgressHeader({ currentStep, onClose, stepKey = 0, subtitle, hideCloseButton }: ProgressHeaderProps) {
   const subtext = subtitle ?? COVER_LETTER_WIZARD_HEADING.subtitle;
   return (
     <header className="relative">
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-0 top-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-        aria-label="Kapat"
-      >
-        <X className="h-5 w-5" />
-      </button>
+      {!hideCloseButton ? (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-0 top-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Kapat"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      ) : null}
       <h2
         key={stepKey}
-        className="pr-10 text-xl font-bold tracking-tight text-slate-900 transition-opacity duration-200 md:text-2xl"
+        className={`${hideCloseButton ? "" : "pr-10"} text-xl font-bold tracking-tight text-slate-900 transition-opacity duration-200 md:text-2xl`}
       >
         {COVER_LETTER_WIZARD_HEADING.title}
       </h2>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { makeCallbackHash } from "@/lib/paytr";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidProfileId(id: string | null): id is string {
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
     const paymentId = payment?.id ?? null;
     let profileId: string | null = payment?.profile_id ?? null;
     const userId = payment?.user_id ?? null;
+    const isLetterPanelUnlock = payment?.payment_type === LETTER_PANEL_PAYMENT_TYPE;
 
     // CV paketi siparişi varsa, ödeme başarısını sipariş kaydına da yansıt.
     await supabase
@@ -70,8 +72,8 @@ export async function POST(request: NextRequest) {
       })
       .eq("merchant_oid", merchant_oid);
 
-    // Haftalık premium: 7 gün sonra abonelik otomatik sonlanır
-    if (userId && paymentId) {
+    // Haftalık premium: 7 gün sonra abonelik otomatik sonlanır (tek seferlik panel erişimi bu kapsama girmez)
+    if (userId && paymentId && !isLetterPanelUnlock) {
       const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const { error: insertError } = await supabase.from("premium_subscriptions").insert({
         user_id: userId,

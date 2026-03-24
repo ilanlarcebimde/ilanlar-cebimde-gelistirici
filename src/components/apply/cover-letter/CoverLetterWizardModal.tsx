@@ -30,9 +30,24 @@ export interface CoverLetterWizardModalProps {
   generic?: boolean;
   /** Opsiyonel: taslak anahtarı için kullanıcı id (localStorage key). */
   userId?: string;
+  /** `inline`: portal/backdrop yok; sayfa içi gömülü sihirbaz. */
+  variant?: "modal" | "inline";
+  /** Üst kapatma (X) gizle — özellikle inline sayfa için */
+  hideCloseButton?: boolean;
 }
 
-export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessToken, onPremiumRequired, generic, userId }: CoverLetterWizardModalProps) {
+export function CoverLetterWizardModal({
+  open,
+  onClose,
+  jobId,
+  postId,
+  accessToken,
+  onPremiumRequired,
+  generic,
+  userId,
+  variant = "modal",
+  hideCloseButton = false,
+}: CoverLetterWizardModalProps) {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [shouldRetryPremium, setShouldRetryPremium] = useState(false);
   const source = generic
@@ -104,13 +119,13 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
 
   // Body scroll lock when modal is open
   useEffect(() => {
-    if (!open) return;
+    if (variant !== "modal" || !open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [open, variant]);
 
   // Premium gerekli hatasından sonra kullanıcı premium'u aktif ettiyse wizard'ı otomatik step 6'da tekrar gönder.
   useEffect(() => {
@@ -130,18 +145,33 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
 
   const body = (
     <div
-      className="relative z-10 flex max-h-[calc(100dvh-16px)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl md:max-w-[720px] lg:max-w-[840px] [@media(max-width:768px)]:max-h-[100dvh] [@media(max-width:768px)]:rounded-none"
+      className={
+        variant === "inline"
+          ? "relative z-0 flex min-h-[min(70vh,640px)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg md:max-w-[720px] lg:max-w-[840px]"
+          : "relative z-10 flex max-h-[calc(100dvh-16px)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl md:max-w-[720px] lg:max-w-[840px] [@media(max-width:768px)]:max-h-[100dvh] [@media(max-width:768px)]:rounded-none"
+      }
       style={{ ["--app-header-h" as string]: "56px" }}
     >
       <div
         className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 md:px-8 md:pb-8"
-        style={{ paddingTop: "calc(var(--app-header-h, 56px) + env(safe-area-inset-top) + 12px)" }}
+        style={{
+          paddingTop:
+            variant === "inline"
+              ? "max(1rem, env(safe-area-inset-top))"
+              : "calc(var(--app-header-h, 56px) + env(safe-area-inset-top) + 12px)",
+        }}
       >
       {result ? (
         <StepResultTabs data={result} jobEmail={jobEmail} onClose={onClose} />
       ) : (
         <>
-          <ProgressHeader currentStep={step} onClose={handleCloseRequest} stepKey={step} subtitle={subtitle} />
+          <ProgressHeader
+            currentStep={step}
+            onClose={handleCloseRequest}
+            stepKey={step}
+            subtitle={subtitle}
+            hideCloseButton={hideCloseButton || variant === "inline"}
+          />
 
           {error && (
             <div className="mt-6 space-y-4">
@@ -356,6 +386,50 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
     </div>
   );
 
+  const confirmLayer =
+    showCloseConfirm && (
+      <div
+        className={`${variant === "modal" ? "absolute" : "fixed"} inset-0 z-[10002] flex items-center justify-center bg-black/40 p-4`}
+        role="dialog"
+        aria-modal
+        aria-labelledby="close-confirm-title"
+      >
+        <div className="max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <h3 id="close-confirm-title" className="font-semibold text-slate-900">
+            Taslağı silmek istiyor musunuz?
+          </h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Kapatırsanız girdiğiniz bilgiler taslak olarak saklanır. Bir sonraki açılışta kaldığınız yerden devam edebilirsiniz.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              onClick={handleDiscardAndClose}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              onClick={handleKeepDraftAndClose}
+              className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Devam et
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+  if (variant === "inline") {
+    return (
+      <>
+        {body}
+        {confirmLayer}
+      </>
+    );
+  }
+
   return createPortal(
     <div
       className="cover-letter-wizard-overlay fixed inset-0 z-[10001] flex items-center justify-center p-0 md:p-4 md:[--app-header-h:64px]"
@@ -365,32 +439,7 @@ export function CoverLetterWizardModal({ open, onClose, jobId, postId, accessTok
     >
       <div className="absolute inset-0 bg-slate-200/70" aria-hidden onClick={handleCloseRequest} />
       {body}
-      {showCloseConfirm && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal aria-labelledby="close-confirm-title">
-          <div className="max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 id="close-confirm-title" className="font-semibold text-slate-900">Taslağı silmek istiyor musunuz?</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Kapatırsanız girdiğiniz bilgiler taslak olarak saklanır. Bir sonraki açılışta kaldığınız yerden devam edebilirsiniz.
-            </p>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={handleDiscardAndClose}
-                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                onClick={handleKeepDraftAndClose}
-                className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Devam et
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmLayer}
     </div>,
     document.body
   );
