@@ -36,7 +36,8 @@ export function UcretsizPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch: refetchSubscription } =
+    useSubscriptionActive(user?.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
@@ -52,10 +53,18 @@ export function UcretsizPanelClient() {
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
   const openedPremiumAfterLoginRef = useRef(false);
+  const howToOpenPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const howToOpenedForParamRef = useRef<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const processedSubscribeRef = useRef<string | null>(null);
+
+  const openHowToKey = searchParams.get("openHowTo") ?? "";
+
+  useEffect(() => {
+    howToOpenedForParamRef.current = null;
+  }, [openHowToKey]);
 
   const loadSubscribedSlugs = useCallback(async () => {
     if (!user?.id) {
@@ -206,24 +215,74 @@ export function UcretsizPanelClient() {
     setPremiumOpen(true);
   }, [user, subscriptionLoading, subscriptionActive, pendingJobId]);
 
-  // Ödeme sonrası openHowTo=jobId ile geldiyse ve abonelik aktifse wizard aç
+  // Ödeme sonrası openHowTo=jobId: PayTR callback premium satırını gecikmeli yazabilir — abonelik görünene kadar tekrarlı doğrula
   useEffect(() => {
     const openHowTo = searchParams.get("openHowTo");
     if (!openHowTo || !user || subscriptionLoading) return;
+
+    const openWizardOnce = async () => {
+      if (howToOpenedForParamRef.current === openHowTo) return;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      howToOpenedForParamRef.current = openHowTo;
+      setHowToJobId(openHowTo);
+      setHowToJobSourceUrl(null);
+      setHowToToken(token);
+      setHowToOpen(true);
+      router.replace(BASE_PATH, { scroll: false });
+    };
+
     if (subscriptionActive) {
-      (async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (token) {
-          setHowToJobId(openHowTo);
-          setHowToJobSourceUrl(null);
-          setHowToToken(token);
-          setHowToOpen(true);
-          router.replace(BASE_PATH, { scroll: false });
-        }
-      })();
+      void openWizardOnce();
+      return;
     }
-  }, [searchParams, user, subscriptionActive, subscriptionLoading, router]);
+
+    let cancelled = false;
+
+    void (async () => {
+      const okFirst = await refetchSubscription();
+      if (cancelled) return;
+      if (okFirst) {
+        await openWizardOnce();
+        return;
+      }
+      if (cancelled) return;
+
+      let attempts = 0;
+      const maxAttempts = 54;
+      howToOpenPollRef.current = setInterval(async () => {
+        attempts += 1;
+        const ok = await refetchSubscription();
+        if (ok) {
+          if (howToOpenPollRef.current) {
+            clearInterval(howToOpenPollRef.current);
+            howToOpenPollRef.current = null;
+          }
+          await openWizardOnce();
+        } else if (attempts >= maxAttempts) {
+          if (howToOpenPollRef.current) {
+            clearInterval(howToOpenPollRef.current);
+            howToOpenPollRef.current = null;
+          }
+          setApplyToast(
+            "Abonelik henüz görünmüyor. Ödemeniz tamamlandıysa birkaç saniye sonra sayfayı yenileyin veya tekrar “Nasıl Başvururum?”a tıklayın."
+          );
+          setTimeout(() => setApplyToast(null), 8000);
+        }
+      }, 500);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (howToOpenPollRef.current) {
+        clearInterval(howToOpenPollRef.current);
+        howToOpenPollRef.current = null;
+      }
+    };
+  }, [searchParams, user, subscriptionActive, subscriptionLoading, router, refetchSubscription]);
 
   // Premium panelden geri atıldıysa: job id varsa sakla, sebebe göre giriş veya ödeme modalı aç
   useEffect(() => {

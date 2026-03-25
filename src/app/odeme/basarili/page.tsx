@@ -1,18 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 
+/** PayTR callback bazen premium satırını gecikmeli yazar; tek refetch yetmez. */
+const PREMIUM_POLL_ATTEMPTS = 45;
+const PREMIUM_POLL_INTERVAL_MS = 500;
+
 export default function OdemeBasariliPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { active: subscriptionActive, refetch } = useSubscriptionActive(user?.id);
-  const [premiumChecked, setPremiumChecked] = useState(false);
+  const { refetch } = useSubscriptionActive(user?.id);
+  const [verifyDone, setVerifyDone] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [redirectFailed, setRedirectFailed] = useState(false);
+  const redirectedRef = useRef(false);
   const [afterPaymentPanelPath] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -35,29 +42,50 @@ export default function OdemeBasariliPage() {
   useEffect(() => {
     sessionStorage.removeItem("paytr_pending");
     router.refresh();
-    // Tüm premium subscription hook'larının yeniden fetch etmesi için (feed, layout vb.)
     window.dispatchEvent(new Event("premium-subscription-invalidate"));
   }, [router]);
 
-  // Ödeme dönüşünde abonelik durumunu hemen kontrol et; "Premium aktif" ve panele link için
+  // Abonelik satırı DB'ye yansıyana kadar tekrarlı doğrula; başarılı olunca hedef sayfaya tam yönlendirme
   useEffect(() => {
-    if (!user) return;
-    window.dispatchEvent(new Event("premium-subscription-invalidate"));
-    const t = setTimeout(() => {
-      refetch().then(() => setPremiumChecked(true));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [user, refetch]);
+    if (!user) {
+      setVerifyDone(true);
+      return;
+    }
 
-  // Premium aktifse kullanıcıyı ilgili hizmete otomatik yönlendir (tam yenileme).
-  useEffect(() => {
-    if (!premiumChecked || !subscriptionActive) return;
+    let cancelled = false;
+    setVerifying(true);
+
     const target = afterPaymentPanelPath || "/premium/job-guides";
-    const t = setTimeout(() => {
-      window.location.href = target;
-    }, 600);
-    return () => clearTimeout(t);
-  }, [premiumChecked, subscriptionActive, afterPaymentPanelPath]);
+
+    void (async () => {
+      window.dispatchEvent(new Event("premium-subscription-invalidate"));
+
+      for (let attempt = 0; attempt < PREMIUM_POLL_ATTEMPTS; attempt++) {
+        if (cancelled) return;
+        const ok = await refetch();
+        if (ok && !redirectedRef.current) {
+          redirectedRef.current = true;
+          setVerifying(false);
+          setVerifyDone(true);
+          window.location.href = target;
+          return;
+        }
+        if (attempt < PREMIUM_POLL_ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, PREMIUM_POLL_INTERVAL_MS));
+        }
+      }
+
+      if (!cancelled) {
+        setVerifying(false);
+        setVerifyDone(true);
+        setRedirectFailed(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, refetch, afterPaymentPanelPath]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
@@ -68,14 +96,23 @@ export default function OdemeBasariliPage() {
       >
         <CheckCircle className="h-16 w-16 text-emerald-500 mx-auto mb-6" />
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Ödeme Başarılı</h1>
-        <p className="text-slate-600 mb-8">
-          Ödemeniz alındı. Usta Başvuru Paketiniz hazırlanıyor; CV ve bonuslar en kısa sürede panelinizde yer alacak.
+        <p className="text-slate-600 mb-4">
+          Ödemeniz alındı. Haftalık premium aboneliğiniz hesabınıza işleniyor.
         </p>
-        {premiumChecked && subscriptionActive && (
-          <p className="text-sm font-medium text-emerald-600 mb-6">
-            Premium paketiniz aktif. İlanlardan &quot;Nasıl Başvururum?&quot; ile panele gidebilirsiniz.
+
+        {verifying ? (
+          <p className="mb-6 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            Aboneliğiniz doğrulanıyor… Birkaç saniye içinde panele yönlendirileceksiniz.
           </p>
-        )}
+        ) : null}
+
+        {verifyDone && redirectFailed ? (
+          <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Abonelik henüz sistemde görünmüyor; ödeme birkaç saniye içinde tamamlanır. Aşağıdaki bağlantıya tıklayın veya
+            sayfayı kısa süre sonra yenileyin.
+          </p>
+        ) : null}
+
         <div className="flex flex-col gap-3 justify-center">
           <Link
             href={afterPaymentPanelPath || "/premium/job-guides"}
