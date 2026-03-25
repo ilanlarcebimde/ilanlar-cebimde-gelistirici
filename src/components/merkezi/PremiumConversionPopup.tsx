@@ -86,6 +86,11 @@ export function PremiumConversionPopup() {
       };
 
       sessionStorage.removeItem(MERKEZI_POPUP_COUPON_KEY);
+      try {
+        sessionStorage.setItem("premium_after_payment_redirect", currentPath);
+      } catch {
+        // ignore
+      }
       sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
       window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
     })();

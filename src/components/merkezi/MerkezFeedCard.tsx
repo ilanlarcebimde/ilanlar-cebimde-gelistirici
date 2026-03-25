@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
@@ -13,6 +13,11 @@ import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
 
 const BASE = "/yurtdisi-is-ilanlari";
 const MAX_TAGS = 4;
+
+const MERKEZI_RESUME_PREMIUM_KEY = "merkezi_resume_premium";
+const MERKEZI_RESUME_MAX_AGE_MS = 1000 * 60 * 60 * 24;
+const PREMIUM_APPLY_POLL_ATTEMPTS = 45;
+const PREMIUM_APPLY_POLL_INTERVAL_MS = 500;
 
 interface MerkezFeedCardProps {
   post: MerkeziPostLandingItem;
@@ -30,6 +35,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
   const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
   const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
+  const resumeHandledRef = useRef(false);
 
   const isJob = isJobCard(post);
   const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
@@ -80,6 +86,21 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
       plan: "weekly" as const,
       ...(user?.id && { user_id: user.id }),
     };
+    try {
+      sessionStorage.setItem("premium_after_payment_redirect", currentPath);
+      if (pendingPremiumAction) {
+        sessionStorage.setItem(
+          MERKEZI_RESUME_PREMIUM_KEY,
+          JSON.stringify({
+            action: pendingPremiumAction,
+            postId: post.id,
+            ts: Date.now(),
+          }),
+        );
+      }
+    } catch {
+      // ignore
+    }
     sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
     window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
   };
@@ -89,18 +110,14 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     if (!action) return;
     setPendingPremiumAction(null);
 
-    // Premium satırı yazıldıktan hemen sonra UI/DB okuması yarış koşuluna girebiliyor.
-    // Premium gerçekten aktif olana kadar otomatik aksiyonu tekrar tetiklemeyeceğiz.
-    const delays = [0, 600, 1200];
     let lastOk = false;
-    for (const waitMs of delays) {
-      if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+    for (let attempt = 0; attempt < PREMIUM_APPLY_POLL_ATTEMPTS; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, PREMIUM_APPLY_POLL_INTERVAL_MS));
       const ok = await refetch();
       lastOk = ok;
       if (ok) break;
     }
 
-    // Aktif değilse manuel denemeyi kullanıcıya bırak; modal tekrar açılmasın.
     if (!lastOk) return;
 
     if (action === "contact") {
@@ -117,6 +134,36 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
     letterWizardState,
     refetch,
   ]);
+
+  useEffect(() => {
+    if (!subscriptionActive || subscriptionLoading) return;
+    if (resumeHandledRef.current) return;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(MERKEZI_RESUME_PREMIUM_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        action?: "contact" | "letter";
+        postId?: string;
+        ts?: number;
+      };
+      if (parsed.postId !== post.id || !parsed.action) return;
+      if (parsed.ts != null && Date.now() - parsed.ts > MERKEZI_RESUME_MAX_AGE_MS) {
+        sessionStorage.removeItem(MERKEZI_RESUME_PREMIUM_KEY);
+        return;
+      }
+      sessionStorage.removeItem(MERKEZI_RESUME_PREMIUM_KEY);
+      resumeHandledRef.current = true;
+      if (parsed.action === "contact") void handleContactClick();
+      else void handleLetterClick();
+    } catch {
+      try {
+        if (raw) sessionStorage.removeItem(MERKEZI_RESUME_PREMIUM_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, [subscriptionActive, subscriptionLoading, post.id, handleContactClick, handleLetterClick]);
 
   if (isJob) {
     return (

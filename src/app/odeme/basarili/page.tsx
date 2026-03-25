@@ -12,6 +12,15 @@ import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 const PREMIUM_POLL_ATTEMPTS = 45;
 const PREMIUM_POLL_INTERVAL_MS = 500;
 
+function isAllowedPremiumReturnPath(path: string): boolean {
+  return (
+    path.startsWith("/premium/job-guide/") ||
+    path.startsWith("/ucretsiz-yurtdisi-is-ilanlari?openHowTo=") ||
+    path.startsWith("/yurtdisi-is-basvuru-merkezi") ||
+    path.startsWith("/yurtdisi-is-ilanlari/")
+  );
+}
+
 export default function OdemeBasariliPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -24,7 +33,7 @@ export default function OdemeBasariliPage() {
     if (typeof window === "undefined") return null;
     try {
       const path = sessionStorage.getItem("premium_after_payment_redirect");
-      if (path && (path.startsWith("/premium/job-guide/") || path.startsWith("/ucretsiz-yurtdisi-is-ilanlari?openHowTo="))) {
+      if (path && isAllowedPremiumReturnPath(path)) {
         sessionStorage.removeItem("premium_after_payment_redirect");
         return path;
       }

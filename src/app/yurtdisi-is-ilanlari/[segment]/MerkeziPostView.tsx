@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { RichContent } from "@/components/merkezi/RichContent";
 import { PostCover } from "@/components/merkezi/PostCover";
 import { CompanyCard } from "@/components/merkezi/CompanyCard";
@@ -19,6 +19,11 @@ import { humanizeSlug } from "@/lib/slugify";
 import { supabase } from "@/lib/supabase";
 import type { MerkeziPost, MerkeziTag } from "@/lib/merkezi/types";
 import type { MerkeziPostContact } from "@/lib/merkezi/types";
+
+const MERKEZI_RESUME_PREMIUM_KEY = "merkezi_resume_premium";
+const MERKEZI_RESUME_MAX_AGE_MS = 1000 * 60 * 60 * 24;
+const PREMIUM_APPLY_POLL_ATTEMPTS = 45;
+const PREMIUM_APPLY_POLL_INTERVAL_MS = 500;
 
 interface MerkeziPostViewProps {
   post: MerkeziPost;
@@ -42,13 +47,14 @@ export function MerkeziPostView({
   contact,
 }: MerkeziPostViewProps) {
   const { user } = useAuth();
-  const { active: subscriptionActive, refetch } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [contactUnlocked, setContactUnlocked] = useState(!!contact && (isPremium || subscriptionActive));
   const [contactData, setContactData] = useState<MerkeziPostContact | null>(contact);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
   const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
   const [contactLoading, setContactLoading] = useState(false);
+  const resumeHandledRef = useRef(false);
   const effectivePremium = isPremium || subscriptionActive;
 
   const showContactCard = post.is_paid
@@ -105,6 +111,21 @@ export function MerkeziPostView({
       plan: "weekly" as const,
       ...(user?.id && { user_id: user.id }),
     };
+    try {
+      sessionStorage.setItem("premium_after_payment_redirect", currentPath);
+      if (pendingPremiumAction) {
+        sessionStorage.setItem(
+          MERKEZI_RESUME_PREMIUM_KEY,
+          JSON.stringify({
+            action: pendingPremiumAction,
+            postId: post.id,
+            ts: Date.now(),
+          }),
+        );
+      }
+    } catch {
+      // ignore
+    }
     sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
     window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
   };
@@ -114,10 +135,9 @@ export function MerkeziPostView({
     if (!action) return;
     setPendingPremiumAction(null);
 
-    const delays = [0, 600, 1200];
     let lastOk = false;
-    for (const waitMs of delays) {
-      if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+    for (let attempt = 0; attempt < PREMIUM_APPLY_POLL_ATTEMPTS; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, PREMIUM_APPLY_POLL_INTERVAL_MS));
       const ok = await refetch();
       lastOk = ok;
       if (ok) break;
@@ -133,6 +153,36 @@ export function MerkeziPostView({
     if (letterWizardState) return;
     void handleLetterCta();
   }, [pendingPremiumAction, refetch, handleLetterCta, letterWizardState, handleContactUnlock]);
+
+  useEffect(() => {
+    if (!effectivePremium || subscriptionLoading) return;
+    if (resumeHandledRef.current) return;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(MERKEZI_RESUME_PREMIUM_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        action?: "contact" | "letter";
+        postId?: string;
+        ts?: number;
+      };
+      if (parsed.postId !== post.id || !parsed.action) return;
+      if (parsed.ts != null && Date.now() - parsed.ts > MERKEZI_RESUME_MAX_AGE_MS) {
+        sessionStorage.removeItem(MERKEZI_RESUME_PREMIUM_KEY);
+        return;
+      }
+      sessionStorage.removeItem(MERKEZI_RESUME_PREMIUM_KEY);
+      resumeHandledRef.current = true;
+      if (parsed.action === "contact") void handleContactUnlock();
+      else void handleLetterCta();
+    } catch {
+      try {
+        if (raw) sessionStorage.removeItem(MERKEZI_RESUME_PREMIUM_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, [effectivePremium, subscriptionLoading, post.id, handleContactUnlock, handleLetterCta]);
 
   const countryLabel = post.country_name ?? (post.country_slug ? humanizeSlug(post.country_slug) : null);
   const sectorLabel = post.sector_name ?? (post.sector_slug ? humanizeSlug(post.sector_slug) : null);
