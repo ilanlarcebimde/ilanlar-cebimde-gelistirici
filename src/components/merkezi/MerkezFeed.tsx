@@ -1,14 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MerkezFeedCard } from "./MerkezFeedCard";
 import { PremiumConversionPopup } from "./PremiumConversionPopup";
 import type { MerkeziPostLandingItem, MerkeziTag } from "@/lib/merkezi/types";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
+import { supabase } from "@/lib/supabase";
 
 interface MerkezFeedProps {
   posts: MerkeziPostLandingItem[];
   tagsByPostId: Record<string, MerkeziTag[]>;
 }
+
+const ADMIN_FREE_UNLIMITED_EMAIL = "ilanlarcebimde@gmail.com";
+const AUTO_GRANT_COUPON_ENDPOINT = "/api/premium/auto-grant-email-coupon";
 
 function normalize(s: string): string {
   return s
@@ -30,6 +36,39 @@ function matchesSearch(post: MerkeziPostLandingItem, query: string): boolean {
 
 export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
   const [search, setSearch] = useState("");
+  const autoGrantedRef = useRef(false);
+  const { user, loading: authLoading } = useAuth();
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+
+  useEffect(() => {
+    if (autoGrantedRef.current) return;
+    if (!user?.email) return;
+    if (authLoading || subscriptionLoading) return;
+    if (subscriptionActive) return;
+
+    const email = user.email.trim().toLowerCase();
+    if (email !== ADMIN_FREE_UNLIMITED_EMAIL) return;
+
+    autoGrantedRef.current = true;
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+
+        const res = await fetch(AUTO_GRANT_COUPON_ENDPOINT, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+
+        // useSubscriptionActive, tüm mounted hook'ları otomatik refresh eder.
+        window.dispatchEvent(new Event("premium-subscription-invalidate"));
+      } catch {
+        // ignore
+      }
+    })();
+  }, [user?.email, authLoading, subscriptionLoading, subscriptionActive]);
 
   const filtered = useMemo(() => {
     // Bu sayfada yalnızca premium ilanları göster.

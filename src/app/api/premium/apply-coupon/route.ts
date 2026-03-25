@@ -7,7 +7,7 @@ const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME"];
 
 /** Yalnızca tanımlı e-posta ile kullanılabilir; 14 gün premium (Başvuru Merkezi özel). */
 const MERKEZI_14_GUN_CODE = "ICMERKEZI14";
-const MERKEZI_14_GUN_EMAIL = "durmush514@gmail.com";
+const MERKEZI_14_GUN_EMAILS = new Set(["durmush514@gmail.com", "mhmtcskn42@gmail.com"]);
 
 function normalizeEmail(email: string | undefined): string {
   return (email ?? "").trim().toLowerCase();
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     let durationDays = 7;
     if (code === MERKEZI_14_GUN_CODE) {
-      if (normalizeEmail(user.email) !== MERKEZI_14_GUN_EMAIL) {
+      if (!MERKEZI_14_GUN_EMAILS.has(normalizeEmail(user.email))) {
         return NextResponse.json({ error: "Geçersiz kupon kodu" }, { status: 400 });
       }
       durationDays = 14;

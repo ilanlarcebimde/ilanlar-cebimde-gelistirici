@@ -17,6 +17,9 @@ import type { FeedPost } from "@/components/kanal/FeedPostCard";
 
 const BASE_PATH = "/ucretsiz-yurtdisi-is-ilanlari";
 const DEBOUNCE_MS = 300;
+const AUTO_COUPON_EMAIL_14_DAYS = "mhmtcskn42@gmail.com";
+const AUTO_COUPON_EMAIL_UNLIMITED = "ilanlarcebimde@gmail.com";
+const AUTO_GRANT_COUPON_ENDPOINT = "/api/premium/auto-grant-email-coupon";
 
 type ChannelInfo = { id: string; slug: string; name: string; brand_color: string | null; page_url: string | null };
 
@@ -53,6 +56,7 @@ export function UcretsizPanelClient() {
   const [loading, setLoading] = useState(true);
   const [chip, setChip] = useState<string>("all");
   const openedPremiumAfterLoginRef = useRef(false);
+  const autoGrantedCouponOnceRef = useRef(false);
   const howToOpenPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const howToOpenedForParamRef = useRef<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -283,6 +287,72 @@ export function UcretsizPanelClient() {
       }
     };
   }, [searchParams, user, subscriptionActive, subscriptionLoading, router, refetchSubscription]);
+
+  // Özel kullanıcı: Bu sayfada `mhmtcskn42@gmail.com` ile oturum açıldığında 2 hafta geçerli premium kuponu otomatik tanımla.
+  useEffect(() => {
+    if (autoGrantedCouponOnceRef.current) return;
+    if (!user?.email) return;
+    if (authLoading || subscriptionLoading) return;
+    if (subscriptionActive) return;
+
+    const email = user.email.trim().toLowerCase();
+    if (email !== AUTO_COUPON_EMAIL_14_DAYS && email !== AUTO_COUPON_EMAIL_UNLIMITED) return;
+
+    autoGrantedCouponOnceRef.current = true;
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+
+        const res = await fetch(AUTO_GRANT_COUPON_ENDPOINT, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return;
+
+        window.dispatchEvent(new Event("premium-subscription-invalidate"));
+        await refetchSubscription();
+
+        // Wizard'ı açmak için jobId:
+        // - React state'ten (pendingJobId) gelebilir
+        // - veya login redirect sonrası state kaybolmuş olabilir: sessionStorage'dan geri alırız.
+        let jobIdToOpen: string | null = pendingJobId;
+        try {
+          if (!jobIdToOpen) {
+            jobIdToOpen = sessionStorage.getItem("premium_pending_job_id");
+          }
+        } catch {
+          // ignore
+        }
+
+        if (!jobIdToOpen) return;
+        try {
+          sessionStorage.removeItem("premium_pending_job_id");
+        } catch {
+          // ignore
+        }
+
+        setPremiumOpen(false);
+        setPendingJobId(null);
+        setHowToJobId(jobIdToOpen);
+        setHowToJobSourceUrl(null);
+        setHowToToken(token);
+        setHowToOpen(true);
+      } catch {
+        // sessizce düş; kullanıcı premium paneline manuel yönlendirilebilir
+      }
+    })();
+  }, [
+    user?.email,
+    authLoading,
+    subscriptionLoading,
+    subscriptionActive,
+    refetchSubscription,
+    premiumOpen,
+    pendingJobId,
+  ]);
 
   // Premium panelden geri atıldıysa: job id varsa sakla, sebebe göre giriş veya ödeme modalı aç
   useEffect(() => {

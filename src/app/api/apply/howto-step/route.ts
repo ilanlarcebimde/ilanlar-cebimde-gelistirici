@@ -501,53 +501,98 @@ export async function POST(req: NextRequest) {
       answers,
     };
 
-    const webhookRes = await fetch(HOWTO_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // N8N/rehber servis bazen geç yanıtlayabiliyor veya 5xx dönebiliyor.
+    // Bu yüzden 1 kez kısa retry + timeout ekliyoruz.
+    const MAX_ATTEMPTS = 2;
+    const TIMEOUT_MS = 25000;
 
-    const contentType = webhookRes.headers.get("content-type") ?? "";
-    let webhookData: unknown;
-    if (contentType.includes("application/json")) {
+    let lastWebhookData: unknown = null;
+    let lastStatus: number | null = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
       try {
-        webhookData = await webhookRes.json();
-      } catch {
-        webhookData = { _raw: await webhookRes.text() };
+        const webhookRes = await fetch(HOWTO_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        lastStatus = webhookRes.status;
+
+        const contentType = webhookRes.headers.get("content-type") ?? "";
+        let webhookData: unknown;
+        if (contentType.includes("application/json")) {
+          try {
+            webhookData = await webhookRes.json();
+          } catch {
+            webhookData = { _raw: await webhookRes.text() };
+          }
+        } else {
+          webhookData = { _raw: await webhookRes.text() };
+        }
+
+        lastWebhookData = webhookData;
+
+        if (webhookRes.ok) {
+          return NextResponse.json(webhookData);
+        }
+
+        console.warn("[apply/howto-step] webhook non-OK", { jobId, step, attempt, status: webhookRes.status });
+
+        // Sadece 5xx/timeout gibi geçici hatalarda retry yap.
+        if (webhookRes.status < 500 || attempt === MAX_ATTEMPTS) {
+          const detailObj =
+            webhookData && typeof webhookData === "object" && webhookData !== null
+              ? (webhookData as Record<string, unknown>)
+              : null;
+          const status = webhookRes.status;
+          const fallback5xx =
+            status >= 500
+              ? "Rehber servisi geçici olarak yanıt vermiyor. Lütfen birkaç dakika sonra «Tekrar Dene» ile yeniden deneyin."
+              : `Rehber servisi hata döndü (${status}).`;
+          const detailMessage =
+            typeof detailObj?.message === "string"
+              ? detailObj.message
+              : typeof detailObj?.error === "string"
+                ? detailObj.error
+                : typeof detailObj?.detail === "string"
+                  ? detailObj.detail
+                  : fallback5xx;
+
+          return NextResponse.json(
+            {
+              error: "webhook_error",
+              status: webhookRes.status,
+              detail: detailMessage,
+            },
+            { status: 502 }
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn("[apply/howto-step] webhook attempt failed", { jobId, step, attempt, msg });
+
+        // Abort/timeout ise retry denenecek; değilse de 2 denemelik akışta son çare olmalı.
+        if (attempt === MAX_ATTEMPTS) {
+          return NextResponse.json(
+            { error: "webhook_timeout_or_network_error", detail: msg.slice(0, 200), requestedId: jobId },
+            { status: 504 }
+          );
+        }
+      } finally {
+        clearTimeout(t);
       }
-    } else {
-      webhookData = { _raw: await webhookRes.text() };
     }
 
-    if (!webhookRes.ok) {
-      console.warn("[apply/howto-step] webhook non-OK", jobId, step, webhookRes.status);
-      const detailObj = webhookData && typeof webhookData === "object" && webhookData !== null
-        ? (webhookData as Record<string, unknown>)
-        : null;
-      const status = webhookRes.status;
-      const fallback5xx =
-        status >= 500
-          ? "Rehber servisi geçici olarak yanıt vermiyor. Lütfen birkaç dakika sonra «Tekrar dene» ile yeniden deneyin."
-          : `Rehber servisi hata döndü (${status}).`;
-      const detailMessage =
-        typeof detailObj?.message === "string"
-          ? detailObj.message
-          : typeof detailObj?.error === "string"
-            ? detailObj.error
-            : typeof detailObj?.detail === "string"
-              ? detailObj.detail
-              : fallback5xx;
-      return NextResponse.json(
-        {
-          error: "webhook_error",
-          status: webhookRes.status,
-          detail: detailMessage,
-        },
-        { status: 502 }
-      );
-    }
-
-    return NextResponse.json(webhookData);
+    // Teorik olarak buraya gelmemeli ama fallback.
+    return NextResponse.json(
+      { error: "webhook_error", status: lastStatus ?? 500, detail: "Rehber servisi yanıt vermedi." },
+      { status: 502 }
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[apply/howto-step] unexpected error", jobId, step, msg, err);
