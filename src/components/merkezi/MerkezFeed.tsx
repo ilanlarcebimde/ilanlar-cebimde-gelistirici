@@ -38,7 +38,10 @@ export function MerkezFeed({ posts, tagsByPostId }: MerkezFeedProps) {
   const [search, setSearch] = useState("");
   const autoGrantedRef = useRef(false);
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
 
   useEffect(() => {
     if (autoGrantedRef.current) return;

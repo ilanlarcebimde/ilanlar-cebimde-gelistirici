@@ -12,8 +12,10 @@ export const MERKEZI_POPUP_COUPON_KEY = "merkezi_popup_coupon";
 export const MERKEZI_POPUP_COUPON_CODE = "İYİUSTALAR";
 export function PremiumConversionPopup() {
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } =
-    useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);

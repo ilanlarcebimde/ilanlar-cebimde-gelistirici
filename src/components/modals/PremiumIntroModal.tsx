@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 
 const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
 
@@ -114,6 +115,10 @@ export function PremiumIntroModal({
     const email = user?.email?.trim();
     if (!email) {
       router.push("/giris?next=" + encodeURIComponent("/ucretsiz-yurtdisi-is-ilanlari"));
+      onClose();
+      return;
+    }
+    if (isVipPreviewActive(email)) {
       onClose();
       return;
     }
@@ -247,7 +252,7 @@ export function PremiumIntroModal({
       {open ? createPortal(content, document.body) : null}
       <PaymentPausedNotice
         variant="modal"
-        open={paymentPausedOpen}
+        open={paymentPausedOpen && !isVipPreviewActive(user?.email)}
         onClose={() => setPaymentPausedOpen(false)}
       />
     </>

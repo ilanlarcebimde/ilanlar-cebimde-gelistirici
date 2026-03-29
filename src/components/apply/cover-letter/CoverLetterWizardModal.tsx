@@ -58,7 +58,10 @@ export function CoverLetterWizardModal({
   const { state, setStep, setAnswers, setError, submitStep, hasJobOrPost, clearDraft, hasDraft } = useCoverLetterWizard(open, source, accessToken, { userId });
   const { step, loading, error, answers, result } = state;
   const { user } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id ?? userId);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id ?? userId,
+    user?.email
+  );
 
   const handleCloseRequest = () => {
     if (result) {

@@ -16,6 +16,7 @@ import {
   YURTDISIIS_COUPON_CODE,
 } from "@/lib/yurtdisiisCoupon";
 import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
+import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 const AMOUNT_FULL = 549;
@@ -48,7 +49,10 @@ export default function OdemePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading, subscription, refetch } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, subscription, refetch } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const paytrIframeRef = useRef<HTMLDivElement>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(!PAYMENTS_PAUSED);
@@ -618,7 +622,7 @@ export default function OdemePage() {
         style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
       >
         <div className="mx-auto max-w-2xl">
-          {PAYMENTS_PAUSED && (
+          {PAYMENTS_PAUSED && !isVipPreviewActive(user?.email) && (
             <div className="mb-6">
               <PaymentPausedNotice variant="inline" />
             </div>

@@ -14,6 +14,7 @@ import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
 import { NasilBasvururum } from "@/components/merkezi/NasilBasvururum";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
@@ -48,7 +49,10 @@ export function MerkeziPostView({
   contact,
 }: MerkeziPostViewProps) {
   const { user } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
   const [contactUnlocked, setContactUnlocked] = useState(!!contact && (isPremium || subscriptionActive));
@@ -327,7 +331,7 @@ export function MerkeziPostView({
       />
       <PaymentPausedNotice
         variant="modal"
-        open={paymentPausedOpen}
+        open={paymentPausedOpen && !isVipPreviewActive(user?.email)}
         onClose={() => setPaymentPausedOpen(false)}
       />
       {letterWizardState && (

@@ -29,7 +29,10 @@ export default function PremiumLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const retryCancelledRef = useRef(false);
 
   // Debug: hangi gate (auth / subscription) takılı görünüyor

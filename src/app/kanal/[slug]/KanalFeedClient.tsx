@@ -28,7 +28,10 @@ type SubscriptionRow = { id: string; channel_id: string };
 export function KanalFeedClient({ slug }: { slug: string }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const [channel, setChannel] = useState<Channel | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);

@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const hasActivePremium = await isPremiumSubscriptionActive(auth.user.id);
+  const hasActivePremium = await isPremiumSubscriptionActive(auth.user.id, auth.user.email ?? null);
   if (!hasActivePremium) {
     return NextResponse.json(
       { error: "premium_required", detail: "Haftalık premium aboneliğiniz yok veya süresi dolmuş. Erişim için abonelik gereklidir." },

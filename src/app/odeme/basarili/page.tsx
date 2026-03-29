@@ -24,7 +24,7 @@ function isAllowedPremiumReturnPath(path: string): boolean {
 export default function OdemeBasariliPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { refetch } = useSubscriptionActive(user?.id);
+  const { refetch } = useSubscriptionActive(user?.id, user?.email);
   const [verifyDone, setVerifyDone] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [redirectFailed, setRedirectFailed] = useState(false);

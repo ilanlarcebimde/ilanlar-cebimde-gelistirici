@@ -20,7 +20,10 @@ export default function PremiumJobGuidePage() {
   const params = useParams();
   const jobId = typeof params?.jobId === "string" ? params.jobId.trim() : "";
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const [showPayModal, setShowPayModal] = useState(false);
 
   useEffect(() => {

@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
       .eq("status", "published")
       .maybeSingle();
     if (postRow?.is_paid) {
-      const hasPremium = await isPremiumSubscriptionActive(auth.user.id);
+      const hasPremium = await isPremiumSubscriptionActive(auth.user.id, auth.user.email ?? null);
       if (!hasPremium) {
         return NextResponse.json(
           { error: "premium_required", detail: "Bu özellik için haftalık Premium (99 TL) aboneliği gereklidir." },

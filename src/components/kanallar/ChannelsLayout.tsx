@@ -17,7 +17,10 @@ export function ChannelsLayout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);

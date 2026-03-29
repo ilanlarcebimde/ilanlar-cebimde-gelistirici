@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
   const intent = body.intent === "cover_letter_generate" ? "cover_letter_generate" : "howto_apply";
 
   if (intent === "cover_letter_generate") {
-    const hasPlus = await isPremiumPlusSubscriptionActive(auth.user.id);
+    const hasPlus = await isPremiumPlusSubscriptionActive(auth.user.id, auth.user.email ?? null);
     if (!hasPlus) {
       return NextResponse.json(
         { error: "premium_plus_required", message: "Bu özellik Premium Plus abonelerine açıktır." },
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
       );
     }
   } else {
-    const hasActivePremium = await isPremiumSubscriptionActive(auth.user.id);
+    const hasActivePremium = await isPremiumSubscriptionActive(auth.user.id, auth.user.email ?? null);
     if (!hasActivePremium) {
       return NextResponse.json(
         { error: "premium_required", detail: "Haftalık premium aboneliğiniz yok veya süresi dolmuş. Erişim için abonelik gereklidir." },

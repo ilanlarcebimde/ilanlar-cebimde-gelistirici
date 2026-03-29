@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
@@ -37,7 +38,10 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
   const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
-  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const resumeHandledRef = useRef(false);
 
   const isJob = isJobCard(post);
@@ -293,7 +297,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
         />
         <PaymentPausedNotice
           variant="modal"
-          open={paymentPausedOpen}
+          open={paymentPausedOpen && !isVipPreviewActive(user?.email)}
           onClose={() => setPaymentPausedOpen(false)}
         />
         {letterWizardState && (

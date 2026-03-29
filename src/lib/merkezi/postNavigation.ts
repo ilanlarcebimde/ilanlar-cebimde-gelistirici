@@ -39,7 +39,7 @@ export async function getCurrentUserPremiumState(): Promise<boolean> {
     const {
       data: { user },
     } = await supabaseUser.auth.getUser();
-    return user ? await isPremiumSubscriptionActive(user.id) : false;
+    return user ? await isPremiumSubscriptionActive(user.id, user.email ?? null) : false;
   } catch {
     return false;
   }

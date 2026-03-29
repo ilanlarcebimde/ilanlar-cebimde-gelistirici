@@ -1,11 +1,14 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 
 /**
  * Haftalık premium: sadece ends_at > now() olan kayıt geçerli.
  * Ödeme yapmamış veya süresi dolmuş kullanıcı false döner.
+ * `userEmail`: geçici VIP önizleme hesabı için isteğe bağlı.
  */
-export async function isPremiumSubscriptionActive(userId: string): Promise<boolean> {
+export async function isPremiumSubscriptionActive(userId: string, userEmail?: string | null): Promise<boolean> {
   if (!userId) return false;
+  if (isVipPreviewActive(userEmail)) return true;
   const nowIso = new Date().toISOString();
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -28,6 +31,6 @@ export async function isPremiumSubscriptionActive(userId: string): Promise<boole
  * Premium abonelik (tier ayrımı yok; haftalık 99 TL = tek Premium).
  * Cover letter ve diğer premium özellikler aynı abonelikle açıktır.
  */
-export async function isPremiumPlusSubscriptionActive(userId: string): Promise<boolean> {
-  return isPremiumSubscriptionActive(userId);
+export async function isPremiumPlusSubscriptionActive(userId: string, userEmail?: string | null): Promise<boolean> {
+  return isPremiumSubscriptionActive(userId, userEmail);
 }

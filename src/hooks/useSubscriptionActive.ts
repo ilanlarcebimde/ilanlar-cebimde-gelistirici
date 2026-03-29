@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  getVipPreviewSubscriptionDetail,
+  isVipPreviewActive,
+} from "@/lib/vipPreviewAccess";
 
 export type SubscriptionDetail = {
   ends_at: string;
@@ -65,12 +69,30 @@ async function fetchSubscriptionActive(userId: string): Promise<{ active: boolea
   return { active, subscription };
 }
 
+async function fetchSubscriptionWithVipMerge(
+  userId: string,
+  userEmail: string | null | undefined
+): Promise<{ active: boolean; subscription: SubscriptionDetail | null }> {
+  const result = await fetchSubscriptionActive(userId);
+  if (result.active && result.subscription) {
+    return result;
+  }
+  if (isVipPreviewActive(userEmail)) {
+    return { active: true, subscription: getVipPreviewSubscriptionDetail() };
+  }
+  return result;
+}
+
 /**
  * Kullanıcı Nasıl Başvururum paneline erişebilir mi?
  * Sadece premium_subscriptions (kupon kodu veya haftalık ödeme başarılı) → aktif.
+ * `userEmail`: geçici VIP önizleme (belirli e-posta + süre).
  * subscription: aktif abonelik varsa bitiş tarihi, ödeme tipi ve kupon kodu (tüm cihazlarda aynı hesaba bağlı).
  */
-export function useSubscriptionActive(userId: string | undefined): {
+export function useSubscriptionActive(
+  userId: string | undefined,
+  userEmail?: string | null | undefined
+): {
   active: boolean;
   loading: boolean;
   refetch: () => Promise<boolean>;
@@ -84,7 +106,7 @@ export function useSubscriptionActive(userId: string | undefined): {
     if (!userId) return false;
     setLoading(true);
     try {
-      const result = await fetchSubscriptionActive(userId);
+      const result = await fetchSubscriptionWithVipMerge(userId, userEmail);
       setActive(result.active);
       setSubscription(result.subscription);
       return result.active;
@@ -96,7 +118,7 @@ export function useSubscriptionActive(userId: string | undefined): {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, userEmail]);
 
   useEffect(() => {
     if (!userId) {
@@ -111,7 +133,7 @@ export function useSubscriptionActive(userId: string | undefined): {
 
     void (async () => {
       try {
-        const result = await fetchSubscriptionActive(userId);
+        const result = await fetchSubscriptionWithVipMerge(userId, userEmail);
         if (!cancelled) {
           setActive(result.active);
           setSubscription(result.subscription);
@@ -130,7 +152,7 @@ export function useSubscriptionActive(userId: string | undefined): {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, userEmail]);
 
   // Ödeme başarılı sayfasından tetiklenen invalidate: tüm hook instance'ları yeniden fetch eder
   useEffect(() => {

@@ -15,6 +15,7 @@ import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { YurtdisiIlanlariSection } from "@/components/home/YurtdisiIlanlariSection";
 import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
+import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 export function HomeClient() {
@@ -34,6 +35,11 @@ export function HomeClient() {
     (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => {
       setWizardModalOpen(false);
       if (PAYMENTS_PAUSED) {
+        if (isVipPreviewActive(user?.email)) {
+          setPaymentPayload(null);
+          setAuthOpen(false);
+          return;
+        }
         setPaymentPausedOpen(true);
         setPaymentPayload(null);
         setAuthOpen(false);
@@ -50,7 +56,7 @@ export function HomeClient() {
       setAuthOpen(false);
       window.location.href = "/odeme";
     },
-    [user?.id]
+    [user?.id, user?.email]
   );
 
   const handleAuthSuccess = useCallback(
@@ -60,6 +66,10 @@ export function HomeClient() {
         const email = loginEmail?.trim() || paymentPayload.email?.trim();
         if (email) {
           if (PAYMENTS_PAUSED) {
+            if (isVipPreviewActive(email)) {
+              setPaymentPayload(null);
+              return;
+            }
             setPaymentPausedOpen(true);
             setPaymentPayload(null);
             return;
@@ -78,7 +88,7 @@ export function HomeClient() {
         }
       }
     },
-    [paymentPayload, user?.id]
+    [paymentPayload, user?.id, user?.email]
   );
 
   const handleGoogleAuth = useCallback(() => {
@@ -129,7 +139,7 @@ export function HomeClient() {
 
       <PaymentPausedNotice
         variant="modal"
-        open={paymentPausedOpen}
+        open={paymentPausedOpen && !isVipPreviewActive(user?.email)}
         onClose={() => setPaymentPausedOpen(false)}
       />
     </>

@@ -40,7 +40,7 @@ export function UcretsizPanelClient() {
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { active: subscriptionActive, loading: subscriptionLoading, refetch: refetchSubscription } =
-    useSubscriptionActive(user?.id);
+    useSubscriptionActive(user?.id, user?.email);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);

@@ -19,7 +19,10 @@ export function YurtdisiPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(user?.id);
+  const { active: subscriptionActive, loading: subscriptionLoading } = useSubscriptionActive(
+    user?.id,
+    user?.email
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);

@@ -29,7 +29,7 @@ export async function POST(
   const { data: { user } } = await supabaseUser.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const premium = await isPremiumSubscriptionActive(user.id);
+  const premium = await isPremiumSubscriptionActive(user.id, user.email ?? null);
   if (!premium) return NextResponse.json({ error: "Premium required" }, { status: 403 });
 
   let form: LetterForm;
