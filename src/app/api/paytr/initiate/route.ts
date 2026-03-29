@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPaytrToken, getSiteUrl } from "@/lib/paytr";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import {
   AMOUNT_YURTDISIIS_DISCOUNTED,
@@ -18,6 +19,12 @@ function getClientIp(req: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (PAYMENTS_PAUSED) {
+    return NextResponse.json(
+      { success: false, error: "payments_paused" },
+      { status: 503 }
+    );
+  }
   try {
     const body = await request.json();
     const {
@@ -120,6 +127,23 @@ export async function POST(request: NextRequest) {
         : null;
 
     const cvOrderId = typeof cv_order_id === "string" && cv_order_id.trim() ? cv_order_id.trim() : null;
+
+    /** Aktif premium varken ikinci bir haftalık ödeme başlatılmaz (CV paketi / mektup paneli hariç). */
+    if (userId && paymentTypeRaw === "weekly") {
+      const { data: activeRows } = await supabase
+        .from("premium_subscriptions")
+        .select("id")
+        .eq("user_id", userId)
+        .gt("ends_at", new Date().toISOString())
+        .limit(1);
+      if (activeRows && activeRows.length > 0) {
+        return NextResponse.json(
+          { success: false, error: "active_premium_subscription" },
+          { status: 409 }
+        );
+      }
+    }
+
     await supabase.from("payments").insert({
       profile_id: null,
       user_id: userId,

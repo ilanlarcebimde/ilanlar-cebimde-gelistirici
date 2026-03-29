@@ -15,6 +15,8 @@ import {
   normalizeTrCouponCode,
   YURTDISIIS_COUPON_CODE,
 } from "@/lib/yurtdisiisCoupon";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
+import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
@@ -49,7 +51,7 @@ export default function OdemePage() {
   const { active: subscriptionActive, loading: subscriptionLoading, subscription, refetch } = useSubscriptionActive(user?.id);
   const paytrIframeRef = useRef<HTMLDivElement>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!PAYMENTS_PAUSED);
   const [error, setError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -448,6 +450,10 @@ export default function OdemePage() {
   }, [couponCode, router, user, refetch, getPostPaymentTarget]);
 
   useEffect(() => {
+    if (PAYMENTS_PAUSED) {
+      setLoading(false);
+      return;
+    }
     const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
     const parsed = pending
       ? (JSON.parse(pending) as {
@@ -587,6 +593,14 @@ export default function OdemePage() {
     );
   }
 
+  /** Ödeme durdurulduğunda aktif abonesi olanlara kupon/iframe ile ikinci ödeme yolu gösterme */
+  const hidePaymentUiForActiveSubscriber =
+    PAYMENTS_PAUSED &&
+    !!user &&
+    !subscriptionLoading &&
+    subscriptionActive &&
+    !!subscription;
+
   return (
     <>
       <Script
@@ -604,6 +618,11 @@ export default function OdemePage() {
         style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
       >
         <div className="mx-auto max-w-2xl">
+          {PAYMENTS_PAUSED && (
+            <div className="mb-6">
+              <PaymentPausedNotice variant="inline" />
+            </div>
+          )}
           {/* Logo + site adı + güven verici bilgiler */}
           <header className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -614,23 +633,27 @@ export default function OdemePage() {
               />
               <div>
                 <p className="font-semibold text-slate-900">İlanlar Cebimde</p>
-                <p className="text-sm text-slate-500">Güvenli ödeme</p>
+                <p className="text-sm text-slate-500">
+                  {hidePaymentUiForActiveSubscriber ? "Hesabınız" : "Güvenli ödeme"}
+                </p>
               </div>
             </div>
-            <ul className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-4 text-xs text-slate-600">
-              <li className="flex items-center gap-1.5">
-                <span className="text-emerald-600" aria-hidden>🔒</span>
-                <span>256-bit SSL ile güvenli</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="text-slate-500" aria-hidden>🛡️</span>
-                <span>3D Secure ödeme</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="text-slate-500" aria-hidden>↩️</span>
-                <span>İstediğin zaman iptal edebilirsin</span>
-              </li>
-            </ul>
+            {!hidePaymentUiForActiveSubscriber && (
+              <ul className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-4 text-xs text-slate-600">
+                <li className="flex items-center gap-1.5">
+                  <span className="text-emerald-600" aria-hidden>🔒</span>
+                  <span>256-bit SSL ile güvenli</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="text-slate-500" aria-hidden>🛡️</span>
+                  <span>3D Secure ödeme</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="text-slate-500" aria-hidden>↩️</span>
+                  <span>İstediğin zaman iptal edebilirsin</span>
+                </li>
+              </ul>
+            )}
           </header>
 
           {/* Abonelik / kupon / ödeme hatırlaması: hesaba bağlı, tüm cihazlarda geçerli */}
@@ -644,6 +667,11 @@ export default function OdemePage() {
               <p className="mt-1 text-xs text-emerald-700">
                 Abonelik, ödeme ve kupon bilgileriniz giriş yaptığınız tüm cihazlarda aynı hesapla geçerlidir.
               </p>
+              {hidePaymentUiForActiveSubscriber && (
+                <p className="mt-3 text-sm text-emerald-900">
+                  Şu an yeni ödeme alınmıyor; mevcut aboneliğiniz geçerlidir.
+                </p>
+              )}
               <Link
                 href="/panel"
                 className="mt-3 inline-block text-sm font-medium text-emerald-800 underline hover:text-emerald-900"
@@ -653,64 +681,68 @@ export default function OdemePage() {
             </div>
           )}
 
-          <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
+          {!hidePaymentUiForActiveSubscriber && (
+            <>
+              <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
 
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <label className="mb-2 block text-sm font-medium text-slate-700">Kupon Kodu</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => {
-                  setCouponCode(e.target.value);
-                  setCouponMessage(null);
-                }}
-                onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
-                placeholder="Kupon kodunu girin"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              />
-              <button
-                type="button"
-                onClick={applyCoupon}
-                className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
-              >
-                Uygula
-              </button>
-            </div>
-            {couponMessage && (
-              <p className={`mt-2 text-sm ${couponMessage.type === "success" ? "text-emerald-600" : "text-red-600"}`}>
-                {couponMessage.text}
-              </p>
-            )}
-          </div>
+              <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <label className="mb-2 block text-sm font-medium text-slate-700">Kupon Kodu</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setCouponMessage(null);
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                    placeholder="Kupon kodunu girin"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
+                  >
+                    Uygula
+                  </button>
+                </div>
+                {couponMessage && (
+                  <p className={`mt-2 text-sm ${couponMessage.type === "success" ? "text-emerald-600" : "text-red-600"}`}>
+                    {couponMessage.text}
+                  </p>
+                )}
+              </div>
 
-          {iframeUrl && (
-            <div ref={paytrIframeRef} className="overflow-visible">
-              <p className="mb-2 text-sm text-slate-600">
-                <span className="font-medium text-slate-700">3D Secure</span> ile korunan ödeme sayfası. Aboneliklerde istediğin zaman iptal edebilirsin.
-              </p>
-              <p className="mb-2 text-xs text-slate-500">
-                Formda &quot;Gerekli değerleri post ediniz&quot; uyarısı görürseniz kart numarası, son kullanma tarihi, CVC ve kart sahibi adını eksiksiz doldurun.
-              </p>
-              {showPayHint && (
-                <p className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
-                  Aşağıdaki güvenli formda &quot;Ödeme Yap&quot; butonuna tıklayın.
-                </p>
+              {iframeUrl && (
+                <div ref={paytrIframeRef} className="overflow-visible">
+                  <p className="mb-2 text-sm text-slate-600">
+                    <span className="font-medium text-slate-700">3D Secure</span> ile korunan ödeme sayfası. Aboneliklerde istediğin zaman iptal edebilirsin.
+                  </p>
+                  <p className="mb-2 text-xs text-slate-500">
+                    Formda &quot;Gerekli değerleri post ediniz&quot; uyarısı görürseniz kart numarası, son kullanma tarihi, CVC ve kart sahibi adını eksiksiz doldurun.
+                  </p>
+                  {showPayHint && (
+                    <p className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                      Aşağıdaki güvenli formda &quot;Ödeme Yap&quot; butonuna tıklayın.
+                    </p>
+                  )}
+                  <iframe
+                    id="paytriframe"
+                    src={iframeUrl}
+                    className="w-full border-0"
+                    style={{ minHeight: "500px" }}
+                    title="PayTR ödeme"
+                  />
+                </div>
               )}
-              <iframe
-                id="paytriframe"
-                src={iframeUrl}
-                className="w-full border-0"
-                style={{ minHeight: "500px" }}
-                title="PayTR ödeme"
-              />
-            </div>
+            </>
           )}
         </div>
       </div>
 
       {/* Sticky CTA: her zaman görünür, klavye açıkken de erişilebilir (safe-area). */}
-      {iframeUrl && !freeWithCoupon && (
+      {iframeUrl && !freeWithCoupon && !hidePaymentUiForActiveSubscriber && (
         <div
           className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-4 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}

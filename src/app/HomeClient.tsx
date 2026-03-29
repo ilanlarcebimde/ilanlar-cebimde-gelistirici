@@ -14,11 +14,14 @@ import { WhatWeSolveSection } from "@/components/WhatWeSolveSection";
 import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { YurtdisiIlanlariSection } from "@/components/home/YurtdisiIlanlariSection";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
+import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 export function HomeClient() {
   const { user } = useAuth();
   const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
   const [paymentPayload, setPaymentPayload] = useState<{ email: string; user_name?: string; user_id?: string; method?: string; country?: string; job_area?: string; job_branch?: string; answers?: Record<string, unknown>; photo_url?: string | null; plan?: "weekly" | "cv_package" } | null>(null);
 
   const handleLoginClick = useCallback(() => setAuthOpen(true), []);
@@ -30,6 +33,12 @@ export function HomeClient() {
   const handlePaymentClick = useCallback(
     (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => {
       setWizardModalOpen(false);
+      if (PAYMENTS_PAUSED) {
+        setPaymentPausedOpen(true);
+        setPaymentPayload(null);
+        setAuthOpen(false);
+        return;
+      }
       sessionStorage.setItem(
         "paytr_pending",
         JSON.stringify({
@@ -50,6 +59,11 @@ export function HomeClient() {
         if (paymentPayload) {
         const email = loginEmail?.trim() || paymentPayload.email?.trim();
         if (email) {
+          if (PAYMENTS_PAUSED) {
+            setPaymentPausedOpen(true);
+            setPaymentPayload(null);
+            return;
+          }
           sessionStorage.setItem(
             "paytr_pending",
             JSON.stringify({
@@ -112,6 +126,12 @@ export function HomeClient() {
           redirectNext={paymentPayload ? "/odeme" : undefined}
         />
       </AnimatePresence>
+
+      <PaymentPausedNotice
+        variant="modal"
+        open={paymentPausedOpen}
+        onClose={() => setPaymentPausedOpen(false)}
+      />
     </>
   );
 }

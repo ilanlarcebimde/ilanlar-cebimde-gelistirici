@@ -165,13 +165,23 @@ export function LetterPanelPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (res.status === 503) {
+        setPayError(
+          "Ödeme işlemi geçici olarak durdurulmuştur. Sizlere daha iyi hizmet vermek için çalışmalarımız sürüyor; lütfen daha sonra tekrar deneyin.",
+        );
+        return;
+      }
       const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
         logPrefix: "[letter-panel paytr]",
       });
       if (data.success && data.iframe_url) {
         setPayIframeUrl(data.iframe_url);
       } else {
-        setPayError(data.error || "Ödeme başlatılamadı.");
+        setPayError(
+          data.error === "payments_paused"
+            ? "Ödeme işlemi geçici olarak durdurulmuştur. Lütfen daha sonra tekrar deneyin."
+            : data.error || "Ödeme başlatılamadı.",
+        );
       }
     } catch {
       setPayError("Bağlantı hatası. Lütfen tekrar deneyin.");

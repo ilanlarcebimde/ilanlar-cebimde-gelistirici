@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
 
@@ -52,6 +53,7 @@ export function PremiumIntroModal({
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -111,35 +113,16 @@ export function PremiumIntroModal({
   const handleWeeklyPay = () => {
     const email = user?.email?.trim();
     if (!email) {
-      router.push("/giris?next=" + encodeURIComponent("/odeme"));
+      router.push("/giris?next=" + encodeURIComponent("/ucretsiz-yurtdisi-is-ilanlari"));
       onClose();
       return;
     }
-    const payload = {
-      email,
-      plan: "weekly",
-      method: "form",
-      country: null,
-      job_area: null,
-      job_branch: null,
-      answers: {},
-      photo_url: null,
-      ...(user?.id && { user_id: user.id }),
-    };
-    sessionStorage.setItem("paytr_pending", JSON.stringify(payload));
-    try {
-      if (initialJobId) {
-        sessionStorage.setItem("premium_pending_job_id", initialJobId);
-        sessionStorage.setItem("premium_after_payment_redirect", "/ucretsiz-yurtdisi-is-ilanlari?openHowTo=" + encodeURIComponent(initialJobId));
-      }
-    } catch {
-      // ignore
-    }
     onClose();
-    router.push("/odeme");
+    setPaymentPausedOpen(true);
   };
 
-  if (!open || !mounted || typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
+  if (!open && !paymentPausedOpen) return null;
 
   const content = (
     <div
@@ -259,5 +242,14 @@ export function PremiumIntroModal({
     </div>
   );
 
-  return createPortal(content, document.body);
+  return (
+    <>
+      {open ? createPortal(content, document.body) : null}
+      <PaymentPausedNotice
+        variant="modal"
+        open={paymentPausedOpen}
+        onClose={() => setPaymentPausedOpen(false)}
+      />
+    </>
+  );
 }

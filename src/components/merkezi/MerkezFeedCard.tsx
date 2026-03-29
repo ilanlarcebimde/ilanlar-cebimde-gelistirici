@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
+import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
@@ -15,6 +16,7 @@ const BASE = "/yurtdisi-is-ilanlari";
 const MAX_TAGS = 4;
 
 const MERKEZI_RESUME_PREMIUM_KEY = "merkezi_resume_premium";
+
 const MERKEZI_RESUME_MAX_AGE_MS = 1000 * 60 * 60 * 24;
 const PREMIUM_APPLY_POLL_ATTEMPTS = 45;
 const PREMIUM_APPLY_POLL_INTERVAL_MS = 500;
@@ -32,6 +34,7 @@ function isJobCard(post: MerkeziPostLandingItem): boolean {
 export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
   const { user } = useAuth();
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
   const [pendingPremiumAction, setPendingPremiumAction] = useState<null | "contact" | "letter">(null);
   const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
@@ -80,29 +83,7 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
       window.location.href = "/giris?next=" + encodeURIComponent(currentPath);
       return;
     }
-    const paytrPending = {
-      email,
-      user_name: (user?.user_metadata?.full_name as string)?.trim() || email.split("@")[0] || "Müşteri",
-      plan: "weekly" as const,
-      ...(user?.id && { user_id: user.id }),
-    };
-    try {
-      sessionStorage.setItem("premium_after_payment_redirect", currentPath);
-      if (pendingPremiumAction) {
-        sessionStorage.setItem(
-          MERKEZI_RESUME_PREMIUM_KEY,
-          JSON.stringify({
-            action: pendingPremiumAction,
-            postId: post.id,
-            ts: Date.now(),
-          }),
-        );
-      }
-    } catch {
-      // ignore
-    }
-    sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
-    window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
+    setPaymentPausedOpen(true);
   };
 
   const handlePremiumApplied = useCallback(async () => {
@@ -309,6 +290,11 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
           onClose={() => setShowPremiumModal(false)}
           onCta={handlePremiumCta}
           onPremiumApplied={handlePremiumApplied}
+        />
+        <PaymentPausedNotice
+          variant="modal"
+          open={paymentPausedOpen}
+          onClose={() => setPaymentPausedOpen(false)}
         />
         {letterWizardState && (
           <CoverLetterWizardModal

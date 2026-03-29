@@ -7,9 +7,11 @@ const PRICE = 469;
 type CvPackageHeroProps = {
   /** Üst şerit vb. ek ofset (px), varsayılan: yalnızca header */
   scrollAnchorOffsetPx?: number;
+  /** Ödeme / form durduğunda fiyat ve ana CTA gizlenir */
+  paymentsPaused?: boolean;
 };
 
-export function CvPackageHero({ scrollAnchorOffsetPx = 72 }: CvPackageHeroProps) {
+export function CvPackageHero({ scrollAnchorOffsetPx = 72, paymentsPaused = false }: CvPackageHeroProps) {
   const scrollToWizard = useCallback(() => {
     if (typeof document === "undefined") return;
     const target = document.getElementById("cv-wizard-start");
@@ -35,49 +37,53 @@ export function CvPackageHero({ scrollAnchorOffsetPx = 72 }: CvPackageHeroProps)
           bir başvuru dosyasıyla sürecinizi güçlendirin.
         </p>
 
-        <div className="mt-8 inline-flex max-w-full flex-col items-stretch gap-5 rounded-2xl border border-slate-700/70 bg-slate-900/65 px-5 py-6 text-left shadow-[0_12px_40px_rgba(15,23,42,0.55)] backdrop-blur-sm sm:mt-9 sm:flex-row sm:items-center sm:gap-8 sm:px-8 sm:py-7">
-          <div className="shrink-0 text-center sm:text-left">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Paket Fiyatı</p>
-            <p className="mt-1 text-3xl font-semibold tabular-nums text-slate-50 sm:text-[2rem]">{PRICE} TL</p>
+        {!paymentsPaused && (
+          <div className="mt-8 inline-flex max-w-full flex-col items-stretch gap-5 rounded-2xl border border-slate-700/70 bg-slate-900/65 px-5 py-6 text-left shadow-[0_12px_40px_rgba(15,23,42,0.55)] backdrop-blur-sm sm:mt-9 sm:flex-row sm:items-center sm:gap-8 sm:px-8 sm:py-7">
+            <div className="shrink-0 text-center sm:text-left">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Paket Fiyatı</p>
+              <p className="mt-1 text-3xl font-semibold tabular-nums text-slate-50 sm:text-[2rem]">{PRICE} TL</p>
+            </div>
+            <ul className="space-y-2 text-sm leading-relaxed text-slate-200 sm:text-[15px]">
+              <li className="flex gap-2">
+                <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
+                  ✓
+                </span>
+                <span>Teknik mesleklere uygun Türkçe CV</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
+                  ✓
+                </span>
+                <span>Uluslararası formatta İngilizce CV</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
+                  ✓
+                </span>
+                <span>Pozisyona uyumlu iş başvuru mektubu</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
+                  ✓
+                </span>
+                <span>Başvurunuzu güçlendiren bütünlüklü dosya yapısı</span>
+              </li>
+            </ul>
           </div>
-          <ul className="space-y-2 text-sm leading-relaxed text-slate-200 sm:text-[15px]">
-            <li className="flex gap-2">
-              <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
-                ✓
-              </span>
-              <span>Teknik mesleklere uygun Türkçe CV</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
-                ✓
-              </span>
-              <span>Uluslararası formatta İngilizce CV</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
-                ✓
-              </span>
-              <span>Pozisyona uyumlu iş başvuru mektubu</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="mt-0.5 shrink-0 text-sky-400/90" aria-hidden>
-                ✓
-              </span>
-              <span>Başvurunuzu güçlendiren bütünlüklü dosya yapısı</span>
-            </li>
-          </ul>
-        </div>
+        )}
 
-        <div className="mt-5 space-y-1 text-xs text-slate-400 sm:mt-6 sm:text-sm">
-          <p>Bilgileriniz güvenle alınır ve başvuru dosyanız profesyonel görünüm odaklı hazırlanır.</p>
-        </div>
+        {!paymentsPaused && (
+          <div className="mt-5 space-y-1 text-xs text-slate-400 sm:mt-6 sm:text-sm">
+            <p>Bilgileriniz güvenle alınır ve başvuru dosyanız profesyonel görünüm odaklı hazırlanır.</p>
+          </div>
+        )}
 
         <button
           type="button"
           onClick={scrollToWizard}
           className="mt-7 inline-flex min-h-[48px] w-full max-w-md items-center justify-center rounded-xl bg-sky-500 px-6 py-3.5 text-[15px] font-semibold text-slate-950 shadow-[0_8px_28px_rgba(56,189,248,0.38)] transition-all hover:bg-sky-400 hover:shadow-[0_10px_32px_rgba(56,189,248,0.45)] focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950 sm:mt-8 sm:min-h-0 sm:w-auto sm:py-3 sm:text-base"
         >
-          Profesyonel Başvurumu Oluşturmaya Başla
+          {paymentsPaused ? "Güncellemeleri görüntüle" : "Profesyonel Başvurumu Oluşturmaya Başla"}
         </button>
       </div>
     </section>

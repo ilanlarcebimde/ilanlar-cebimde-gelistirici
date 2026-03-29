@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { supabase } from "@/lib/supabase";
+import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 const STORAGE_KEY = "merkezi_conversion_popup_dismissed";
 export const MERKEZI_POPUP_COUPON_KEY = "merkezi_popup_coupon";
@@ -16,6 +17,7 @@ export function PremiumConversionPopup() {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -71,36 +73,25 @@ export function PremiumConversionPopup() {
       const email = user?.email?.trim();
 
       if (!email) {
-        window.location.href = "/giris?next=" + encodeURIComponent("/odeme?next=" + currentPath);
+        window.location.href = "/giris?next=" + encodeURIComponent(currentPath);
         return;
       }
 
-      const paytrPending = {
-        email,
-        user_name:
-          (user?.user_metadata?.full_name as string)?.trim() ||
-          email.split("@")[0] ||
-          "Müşteri",
-        plan: "weekly" as const,
-        ...(user?.id && { user_id: user.id }),
-      };
-
       sessionStorage.removeItem(MERKEZI_POPUP_COUPON_KEY);
-      try {
-        sessionStorage.setItem("premium_after_payment_redirect", currentPath);
-      } catch {
-        // ignore
-      }
-      sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
-      window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
+      setVisible(false);
+      setEntered(false);
+      setPaymentPausedOpen(true);
     })();
   };
 
-  if (!mounted || authLoading || subscriptionLoading || subscriptionActive || !visible) {
+  if (!mounted || authLoading || subscriptionLoading || subscriptionActive) {
     return null;
   }
 
-  return createPortal(
+  return (
+    <>
+      {visible
+        ? createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-end justify-center pb-0 md:pb-8"
       role="dialog"
@@ -234,6 +225,14 @@ export function PremiumConversionPopup() {
         </div>
       </div>
     </div>,
-    document.body
+            document.body
+          )
+        : null}
+      <PaymentPausedNotice
+        variant="modal"
+        open={paymentPausedOpen}
+        onClose={() => setPaymentPausedOpen(false)}
+      />
+    </>
   );
 }

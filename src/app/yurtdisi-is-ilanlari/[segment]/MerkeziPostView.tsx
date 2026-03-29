@@ -13,6 +13,7 @@ import { ViewTracker } from "@/components/merkezi/ViewTracker";
 import { FaydaliLinkler } from "@/components/merkezi/FaydaliLinkler";
 import { NasilBasvururum } from "@/components/merkezi/NasilBasvururum";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
+import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
@@ -49,6 +50,7 @@ export function MerkeziPostView({
   const { user } = useAuth();
   const { active: subscriptionActive, loading: subscriptionLoading, refetch } = useSubscriptionActive(user?.id);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [paymentPausedOpen, setPaymentPausedOpen] = useState(false);
   const [contactUnlocked, setContactUnlocked] = useState(!!contact && (isPremium || subscriptionActive));
   const [contactData, setContactData] = useState<MerkeziPostContact | null>(contact);
   const [letterWizardState, setLetterWizardState] = useState<{ open: boolean; token: string } | null>(null);
@@ -105,29 +107,7 @@ export function MerkeziPostView({
       window.location.href = "/giris?next=" + encodeURIComponent(currentPath);
       return;
     }
-    const paytrPending = {
-      email,
-      user_name: (user?.user_metadata?.full_name as string)?.trim() || email.split("@")[0] || "Müşteri",
-      plan: "weekly" as const,
-      ...(user?.id && { user_id: user.id }),
-    };
-    try {
-      sessionStorage.setItem("premium_after_payment_redirect", currentPath);
-      if (pendingPremiumAction) {
-        sessionStorage.setItem(
-          MERKEZI_RESUME_PREMIUM_KEY,
-          JSON.stringify({
-            action: pendingPremiumAction,
-            postId: post.id,
-            ts: Date.now(),
-          }),
-        );
-      }
-    } catch {
-      // ignore
-    }
-    sessionStorage.setItem("paytr_pending", JSON.stringify(paytrPending));
-    window.location.href = "/odeme?next=" + encodeURIComponent(currentPath);
+    setPaymentPausedOpen(true);
   };
 
   const handlePremiumApplied = useCallback(async () => {
@@ -344,6 +324,11 @@ export function MerkeziPostView({
         onClose={() => setShowPremiumModal(false)}
         onCta={handlePremiumCta}
         onPremiumApplied={handlePremiumApplied}
+      />
+      <PaymentPausedNotice
+        variant="modal"
+        open={paymentPausedOpen}
+        onClose={() => setPaymentPausedOpen(false)}
       />
       {letterWizardState && (
         <CoverLetterWizardModal
