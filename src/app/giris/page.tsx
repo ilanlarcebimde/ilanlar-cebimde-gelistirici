@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { toTurkishAuthError } from "@/lib/authErrors";
+import { authErrorParamToMessage, toTurkishAuthError } from "@/lib/authErrors";
+import { getOAuthRedirectOrigin } from "@/lib/appOrigin";
 
 type AuthMode = "login" | "signup" | "forgot";
 
@@ -18,9 +19,11 @@ const GoogleIcon = () => (
 );
 
 function GirisContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/panel";
   const subscribe = searchParams.get("subscribe") ?? "";
+  const authErrParam = searchParams.get("auth_error");
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -29,6 +32,19 @@ function GirisContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [oauthNotice, setOauthNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authErrParam) return;
+    const msg = authErrorParamToMessage(authErrParam);
+    if (msg) setOauthNotice(msg);
+    const qs = new URLSearchParams();
+    const nextV = searchParams.get("next");
+    const subV = searchParams.get("subscribe");
+    if (nextV) qs.set("next", nextV);
+    if (subV) qs.set("subscribe", subV);
+    router.replace(qs.toString() ? `/giris?${qs.toString()}` : "/giris");
+  }, [authErrParam, router, searchParams]);
 
   const resetForm = () => {
     setError("");
@@ -45,7 +61,7 @@ function GirisContent() {
 
   const handleGoogle = async () => {
     setError("");
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const origin = getOAuthRedirectOrigin();
     if (typeof window !== "undefined") {
       sessionStorage.setItem("auth_redirect_next", next);
       if (subscribe) sessionStorage.setItem("auth_redirect_subscribe", subscribe);
@@ -114,7 +130,7 @@ function GirisContent() {
     }
     setLoading(true);
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const origin = getOAuthRedirectOrigin();
       const { error: err } = await supabase.auth.signUp({
         email,
         password,
@@ -137,7 +153,7 @@ function GirisContent() {
     setSuccessMessage("");
     setLoading(true);
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const origin = getOAuthRedirectOrigin();
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/reset-password`,
       });
@@ -177,6 +193,22 @@ function GirisContent() {
         {successMessage ? (
           <div className="mb-4 p-3 rounded-lg bg-green-50 text-green-800 text-sm" role="status">
             {successMessage}
+          </div>
+        ) : null}
+
+        {oauthNotice ? (
+          <div
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+            role="status"
+          >
+            <p>{oauthNotice}</p>
+            <button
+              type="button"
+              className="mt-2 text-xs font-medium text-amber-900 underline hover:no-underline"
+              onClick={() => setOauthNotice(null)}
+            >
+              Tamam
+            </button>
           </div>
         ) : null}
 

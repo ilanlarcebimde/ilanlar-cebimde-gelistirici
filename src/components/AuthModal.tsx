@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toTurkishAuthError } from "@/lib/authErrors";
+import { getOAuthRedirectOrigin } from "@/lib/appOrigin";
 
 type AuthMode = "login" | "signup" | "forgot";
 
@@ -68,7 +69,7 @@ export function AuthModal({
 
   const handleGoogle = async () => {
     setError("");
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const origin = getOAuthRedirectOrigin();
     if (typeof window !== "undefined") {
       sessionStorage.setItem("auth_redirect_next", next);
     }
@@ -120,7 +121,7 @@ export function AuthModal({
     }
     setLoading(true);
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const origin = getOAuthRedirectOrigin();
       const { error: err } = await supabase.auth.signUp({
         email,
         password,
@@ -145,7 +146,7 @@ export function AuthModal({
     setSuccessMessage("");
     setLoading(true);
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const origin = getOAuthRedirectOrigin();
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/reset-password`,
       });

@@ -14,6 +14,10 @@ import {
   LETTER_PANEL_BASKET,
   LETTER_PANEL_PAYMENT_TYPE,
 } from "@/lib/letterPanelUnlock";
+import { IndividualBillingModal } from "@/components/billing/IndividualBillingModal";
+import type { IndividualBillingPayload } from "@/lib/billingIndividual";
+import { buildLetterPanelCheckoutPricing } from "@/lib/odemePaytrPendingPricing";
+import { readLetterPanelBilling, writeLetterPanelBilling } from "@/lib/couponBillingSession";
 
 const WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbCOluF3mFYESfECMG0i";
 
@@ -34,6 +38,7 @@ export function LetterPanelPageClient() {
   const [payError, setPayError] = useState<string | null>(null);
   const [payIframeUrl, setPayIframeUrl] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [billingModalOpen, setBillingModalOpen] = useState(false);
 
   const refreshAccess = useCallback(async (): Promise<boolean> => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -129,60 +134,70 @@ export function LetterPanelPageClient() {
     }
   };
 
+  const runLetterPaytr = async (individual_billing: IndividualBillingPayload) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) {
+      setPayError("E-posta bulunamadı. Lütfen tekrar giriş yapın.");
+      return;
+    }
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const merchant_oid = generateMerchantOid();
+    const body = {
+      merchant_oid,
+      email: session.user.email.trim(),
+      amount: LETTER_PANEL_AMOUNT_TRY,
+      user_name:
+        (session.user.user_metadata?.full_name as string | undefined)?.trim?.() ||
+        session.user.email.split("@")[0] ||
+        "Müşteri",
+      user_address: "Adres girilmedi",
+      user_phone: "5550000000",
+      merchant_ok_url: `${siteUrl}/is-basvuru-mektubu-olustur?paid=1`,
+      merchant_fail_url: `${siteUrl}/is-basvuru-mektubu-olustur?pay=fail`,
+      basket_description: LETTER_PANEL_BASKET,
+      payment_type: LETTER_PANEL_PAYMENT_TYPE,
+      user_id: session.user.id,
+      individual_billing,
+    };
+    const res = await fetch("/api/paytr/initiate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 503) {
+      setPayError(
+        "Ödeme işlemi geçici olarak durdurulmuştur. Sizlere daha iyi hizmet vermek için çalışmalarımız sürüyor; lütfen daha sonra tekrar deneyin.",
+      );
+      return;
+    }
+    const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
+      logPrefix: "[letter-panel paytr]",
+    });
+    if (data.success && data.iframe_url) {
+      setPayIframeUrl(data.iframe_url);
+    } else {
+      setPayError(
+        data.error === "payments_paused"
+          ? "Ödeme işlemi geçici olarak durdurulmuştur. Lütfen daha sonra tekrar deneyin."
+          : data.error || "Ödeme başlatılamadı.",
+      );
+    }
+  };
+
   const handlePay = async () => {
     setPayError(null);
     if (!user) {
       router.push("/giris?next=" + encodeURIComponent("/is-basvuru-mektubu-olustur"));
       return;
     }
+    const saved = readLetterPanelBilling(user.id);
+    if (!saved) {
+      setBillingModalOpen(true);
+      return;
+    }
     setPayLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) {
-        setPayError("E-posta bulunamadı. Lütfen tekrar giriş yapın.");
-        return;
-      }
-      const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
-      const merchant_oid = generateMerchantOid();
-      const body = {
-        merchant_oid,
-        email: session.user.email.trim(),
-        amount: LETTER_PANEL_AMOUNT_TRY,
-        user_name:
-          (session.user.user_metadata?.full_name as string | undefined)?.trim?.() ||
-          session.user.email.split("@")[0] ||
-          "Müşteri",
-        user_address: "Adres girilmedi",
-        user_phone: "5550000000",
-        merchant_ok_url: `${siteUrl}/is-basvuru-mektubu-olustur?paid=1`,
-        merchant_fail_url: `${siteUrl}/is-basvuru-mektubu-olustur?pay=fail`,
-        basket_description: LETTER_PANEL_BASKET,
-        payment_type: LETTER_PANEL_PAYMENT_TYPE,
-        user_id: session.user.id,
-      };
-      const res = await fetch("/api/paytr/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.status === 503) {
-        setPayError(
-          "Ödeme işlemi geçici olarak durdurulmuştur. Sizlere daha iyi hizmet vermek için çalışmalarımız sürüyor; lütfen daha sonra tekrar deneyin.",
-        );
-        return;
-      }
-      const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
-        logPrefix: "[letter-panel paytr]",
-      });
-      if (data.success && data.iframe_url) {
-        setPayIframeUrl(data.iframe_url);
-      } else {
-        setPayError(
-          data.error === "payments_paused"
-            ? "Ödeme işlemi geçici olarak durdurulmuştur. Lütfen daha sonra tekrar deneyin."
-            : data.error || "Ödeme başlatılamadı.",
-        );
-      }
+      await runLetterPaytr(saved);
     } catch {
       setPayError("Bağlantı hatası. Lütfen tekrar deneyin.");
     } finally {
@@ -195,7 +210,27 @@ export function LetterPanelPageClient() {
   const hasSession = !!user && !!accessToken;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100/90 pb-16 pt-4 md:pt-8">
+    <>
+      <IndividualBillingModal
+        open={billingModalOpen && !!user?.email}
+        onClose={() => setBillingModalOpen(false)}
+        paytrEmail={user?.email?.trim() ?? ""}
+        pricing={buildLetterPanelCheckoutPricing()}
+        onSave={async (p) => {
+          if (!user) return;
+          writeLetterPanelBilling(user.id, p);
+          setBillingModalOpen(false);
+          setPayLoading(true);
+          try {
+            await runLetterPaytr(p);
+          } catch {
+            setPayError("Bağlantı hatası. Lütfen tekrar deneyin.");
+          } finally {
+            setPayLoading(false);
+          }
+        }}
+      />
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100/90 pb-16 pt-4 md:pt-8">
       {payIframeUrl ? (
         <Script
           src="https://www.paytr.com/js/iframeResizer.min.js"
@@ -366,5 +401,6 @@ export function LetterPanelPageClient() {
         </div>
       ) : null}
     </div>
+    </>
   );
 }

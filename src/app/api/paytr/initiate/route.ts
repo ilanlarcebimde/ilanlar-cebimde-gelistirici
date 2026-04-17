@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPaytrToken, getSiteUrl } from "@/lib/paytr";
+import { getPaytrToken } from "@/lib/paytr";
 import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import {
@@ -8,7 +8,9 @@ import {
   normalizeTrCouponCode,
 } from "@/lib/yurtdisiisCoupon";
 import { verifyYurtdisiisCanUse } from "@/lib/yurtdisiisCouponServer";
-import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
+import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_BASKET, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
+import { assertBillingMatchesPaytrInitiate, validateIndividualBillingPayload } from "@/lib/billingIndividual";
+import { insertBillingIndividualPaytrPending } from "@/lib/billingIndividualRecord";
 
 function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
       cv_order_id,
       payment_type,
       coupon_code,
+      individual_billing,
     } = body as {
       merchant_oid?: string;
       email?: string;
@@ -64,11 +67,34 @@ export async function POST(request: NextRequest) {
       cv_order_id?: string;
       payment_type?: string;
       coupon_code?: string;
+      individual_billing?: unknown;
     };
 
     const emailTrimmed = typeof email === "string" ? email.trim() : "";
     const userId = typeof body_user_id === "string" && body_user_id.trim() ? body_user_id.trim() : null;
     const paymentTypeRaw = typeof payment_type === "string" ? payment_type.trim() : "";
+
+    if (!merchant_oid || !emailTrimmed || amount == null || amount <= 0) {
+      return NextResponse.json(
+        { success: false, error: "merchant_oid, email ve amount (0'dan büyük) zorunludur." },
+        { status: 400 }
+      );
+    }
+
+    const billingValidated = validateIndividualBillingPayload(individual_billing ?? null, {
+      paytrEmail: emailTrimmed,
+    });
+    if (!billingValidated.ok) {
+      return NextResponse.json({ success: false, error: billingValidated.error }, { status: 400 });
+    }
+    const basketForCheck = typeof basket_description === "string" ? basket_description.trim() : "";
+    const match = assertBillingMatchesPaytrInitiate(billingValidated.data, {
+      amount: Number(amount),
+      basket_description: basketForCheck,
+    });
+    if (!match.ok) {
+      return NextResponse.json({ success: false, error: match.error }, { status: 400 });
+    }
 
     /** İş başvuru mektubu paneli — tek seferlik 79 TL; haftalık premium ile karışmaz */
     if (paymentTypeRaw === LETTER_PANEL_PAYMENT_TYPE) {
@@ -78,19 +104,18 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      if (billingValidated.data.service_name !== LETTER_PANEL_BASKET) {
+        return NextResponse.json(
+          { success: false, error: "Geçersiz sepet / fatura hizmet adı." },
+          { status: 400 }
+        );
+      }
       if (!userId) {
         return NextResponse.json(
           { success: false, error: "Bu ödeme için giriş yapmanız gerekir." },
           { status: 400 }
         );
       }
-    }
-
-    if (!merchant_oid || !emailTrimmed || amount == null || amount <= 0) {
-      return NextResponse.json(
-        { success: false, error: "merchant_oid, email ve amount (0'dan büyük) zorunludur." },
-        { status: 400 }
-      );
     }
 
     const couponRaw = typeof coupon_code === "string" ? coupon_code.trim() : "";
@@ -144,18 +169,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await supabase.from("payments").insert({
-      profile_id: null,
-      user_id: userId,
-      provider: "paytr",
-      status: "started",
-      amount: Number(amount),
-      currency: "TRY",
-      provider_ref: merchant_oid,
-      profile_snapshot: snapshot,
-      payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
-      coupon_code: couponNormalized,
-    });
+    const { data: paymentRow, error: paymentInsertError } = await supabase
+      .from("payments")
+      .insert({
+        profile_id: null,
+        user_id: userId,
+        provider: "paytr",
+        status: "started",
+        amount: Number(amount),
+        currency: "TRY",
+        provider_ref: merchant_oid,
+        profile_snapshot: snapshot,
+        payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
+        coupon_code: couponNormalized,
+      })
+      .select("id")
+      .single();
+    if (paymentInsertError || !paymentRow?.id) {
+      console.error("[PayTR initiate] payments insert failed", paymentInsertError);
+      return NextResponse.json({ success: false, error: "Ödeme kaydı oluşturulamadı." }, { status: 500 });
+    }
 
     // CV paketi siparişi varsa ödeme referansını bağla ki callback'te sipariş statüsü ilerletilebilsin.
     if (cvOrderId) {
@@ -182,6 +215,19 @@ export async function POST(request: NextRequest) {
       },
       getClientIp(request)
     );
+
+    const billingIns = await insertBillingIndividualPaytrPending(supabase, {
+      userId: userId,
+      orderId: cvOrderId,
+      paymentUuid: paymentRow.id,
+      merchantOid: merchant_oid,
+      billing: billingValidated.data,
+      couponCode: couponNormalized,
+      source: paymentTypeRaw || "paytr_initiate",
+    });
+    if (billingIns.error) {
+      console.error("[PayTR initiate] billing insert failed (ödeme token üretildi)", billingIns.error);
+    }
 
     const iframe_url = `https://www.paytr.com/odeme/guvenli/${token.token}`;
     return NextResponse.json({

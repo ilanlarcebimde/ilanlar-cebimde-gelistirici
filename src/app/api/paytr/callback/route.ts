@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { makeCallbackHash } from "@/lib/paytr";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { markBillingIndividualCompletedByPaytrOid } from "@/lib/billingIndividualRecord";
 import { LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
 
     const payment = updatedRows[0];
     const paymentId = payment?.id ?? null;
+
+    await markBillingIndividualCompletedByPaytrOid(supabase, merchant_oid);
     let profileId: string | null = payment?.profile_id ?? null;
     const userId = payment?.user_id ?? null;
     const isLetterPanelUnlock = payment?.payment_type === LETTER_PANEL_PAYMENT_TYPE;

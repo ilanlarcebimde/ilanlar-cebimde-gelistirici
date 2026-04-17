@@ -10,6 +10,7 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get("code");
+    const oauthErr = searchParams.get("error");
     const nextFromUrl = searchParams.get("next");
     const subscribeFromUrl = searchParams.get("subscribe");
     const nextFromStorage =
@@ -24,6 +25,13 @@ function AuthCallbackContent() {
     }
 
     if (!code) {
+      if (oauthErr) {
+        const authErr = oauthErr === "access_denied" ? "google_iptal" : "oauth_failed";
+        window.location.replace(
+          `/giris?auth_error=${encodeURIComponent(authErr)}&next=${encodeURIComponent(next)}`
+        );
+        return;
+      }
       setStatus("error");
       return;
     }

@@ -18,6 +18,22 @@ import {
 import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
 import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { IndividualBillingModal } from "@/components/billing/IndividualBillingModal";
+import type { IndividualBillingPayload } from "@/lib/billingIndividual";
+import {
+  buildOdemeCheckoutPricing,
+  buildAdmin549FreePricing,
+  buildPremiumCouponArchivePricing,
+  type OdemeCheckoutPricing,
+  type PaytrPendingShape,
+} from "@/lib/odemePaytrPendingPricing";
+import { readOdemeBillingFromSession, writeOdemeBillingToSession } from "@/lib/odemeBillingSession";
+import {
+  readFree549Billing,
+  writeFree549Billing,
+  readPremiumCouponBilling,
+  writePremiumCouponBilling,
+} from "@/lib/couponBillingSession";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
@@ -37,8 +53,78 @@ const IYIUSTALAR_COUPON_CODE = "İYİUSTALAR";
 const IYIUSTALAR_DISCOUNT_AMOUNT = 129;
 const AMOUNT_FULL_IYIUSTALAR = AMOUNT_FULL - IYIUSTALAR_DISCOUNT_AMOUNT;
 
+/** sessionStorage `paytr_pending` — ödeme + fatura oturumu */
+type PaytrPendingClient = PaytrPendingShape & {
+  email?: string;
+  user_name?: string;
+  method?: string;
+  country?: string | null;
+  job_area?: string | null;
+  job_branch?: string | null;
+  answers?: Record<string, unknown>;
+  photo_url?: string | null;
+  plan?: string;
+  user_id?: string;
+  cv_order_id?: string;
+  cv79_discount?: boolean;
+  yurtdisiis_discount?: boolean;
+  iyiustalar_discount?: boolean;
+};
+
 function generateMerchantOid(): string {
   return "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
+}
+
+function buildPaytrInitiateRequest(args: {
+  parsed: PaytrPendingClient;
+  pricing: OdemeCheckoutPricing;
+  individual_billing: IndividualBillingPayload;
+}): Record<string, unknown> {
+  const merchant_oid = generateMerchantOid();
+  const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const email = args.parsed.email!.trim();
+  const isWeekly = args.parsed.plan === "weekly";
+  const isCvPackage = args.parsed.plan === "cv_package";
+  const useYurtdisiis = isCvPackage && !!args.parsed.yurtdisiis_discount;
+  const useCv79 = isCvPackage && !!args.parsed.cv79_discount && !useYurtdisiis;
+  const useIyiustalar = !isWeekly && !isCvPackage && !!args.parsed.iyiustalar_discount;
+  const user_name =
+    (args.parsed.user_name && String(args.parsed.user_name).trim()) || email.split("@")[0] || "Müşteri";
+  const profile_snapshot =
+    args.parsed.method != null
+      ? {
+          method: args.parsed.method,
+          country: args.parsed.country ?? null,
+          job_area: args.parsed.job_area ?? null,
+          job_branch: args.parsed.job_branch ?? null,
+          answers: args.parsed.answers ?? {},
+          photo_url: args.parsed.photo_url ?? null,
+        }
+      : undefined;
+  const coupon_code = useYurtdisiis
+    ? normalizeTrCouponCode(YURTDISIIS_COUPON_CODE)
+    : useCv79
+      ? CV_PACKAGE_DISCOUNT_CODE
+      : useIyiustalar
+        ? IYIUSTALAR_COUPON_CODE
+        : null;
+  return {
+    merchant_oid,
+    email,
+    amount: args.pricing.netAmount,
+    user_name: user_name.slice(0, 60),
+    user_address: "Adres girilmedi",
+    user_phone: "5550000000",
+    merchant_ok_url: `${siteUrl}/odeme/basarili`,
+    merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
+    basket_description: args.pricing.serviceName,
+    profile_snapshot,
+    payment_type: isWeekly ? "weekly" : useCv79 || useYurtdisiis || useIyiustalar ? "discounted" : "standard",
+    coupon_code,
+    individual_billing: args.individual_billing,
+    ...(args.parsed.user_id && { user_id: args.parsed.user_id }),
+    ...(args.parsed.cv_order_id && { cv_order_id: args.parsed.cv_order_id }),
+  };
 }
 
 function formatSubscriptionEndDate(iso: string): string {
@@ -64,6 +150,14 @@ export default function OdemePage() {
   const [cv79Applied, setCv79Applied] = useState(false);
   const [yurtdisiisApplied, setYurtdisiisApplied] = useState(false);
   const [iyiustalarApplied, setIyiustalarApplied] = useState(false);
+
+  const [checkout, setCheckout] = useState<null | { parsed: PaytrPendingClient; pricing: OdemeCheckoutPricing }>(null);
+  const [billingPayloadPaytr, setBillingPayloadPaytr] = useState<IndividualBillingPayload | null>(null);
+  const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [billingModalContext, setBillingModalContext] = useState<"paytr" | "free549" | "premium">("paytr");
+  const [premiumCouponCodeForModal, setPremiumCouponCodeForModal] = useState<string | null>(null);
+  /** ADMIN549 modalında e-posta (pending’deki e-posta dahil) */
+  const [billingPayEmailOverride, setBillingPayEmailOverride] = useState<string | null>(null);
 
   const getPostPaymentTarget = useCallback(() => {
     let target = "/premium/job-guides";
@@ -122,6 +216,17 @@ export default function OdemePage() {
         setCouponMessage({ type: "error", text: "Haftalık premium kuponu için giriş yapmanız gerekir." });
         return;
       }
+      const premBill = readPremiumCouponBilling(user.id, code);
+      if (!premBill) {
+        setPremiumCouponCodeForModal(code);
+        setBillingModalContext("premium");
+        setBillingModalOpen(true);
+        setCouponMessage({
+          type: "error",
+          text: "Önce fatura bilgilerinizi doldurup kaydedin; ardından kuponu tekrar uygulayın.",
+        });
+        return;
+      }
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
@@ -137,6 +242,19 @@ export default function OdemePage() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setCouponMessage({ type: "error", text: (data as { error?: string }).error ?? "Kupon uygulanamadı." });
+          return;
+        }
+        const billRes = await fetch("/api/billing/individual/after-premium-coupon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ coupon_code: code, individual_billing: premBill }),
+        });
+        const billData = (await billRes.json().catch(() => ({}))) as { error?: string };
+        if (!billRes.ok) {
+          setCouponMessage({
+            type: "error",
+            text: billData.error ?? "Fatura kaydı oluşturulamadı. Destek ile iletişime geçin.",
+          });
           return;
         }
         // DB yazımı + istemci senkronizasyonu yarış koşulu yaratabiliyor.
@@ -221,44 +339,38 @@ export default function OdemePage() {
           profile_snapshot?: unknown;
           cv_order_id?: string;
         };
-        const emailPay = fullReload?.email?.trim();
-        if (!emailPay) {
+        if (!fullReload?.email?.trim()) {
           setError("E-posta bulunamadı.");
           setLoading(false);
           return;
         }
-        const user_name =
-          (fullReload?.user_name && String(fullReload.user_name).trim()) || emailPay.split("@")[0] || "Müşteri";
-        const profile_snapshot =
-          fullReload?.method != null
-            ? {
-                method: fullReload.method,
-                country: fullReload.country ?? null,
-                job_area: fullReload.job_area ?? null,
-                job_branch: fullReload.job_branch ?? null,
-                answers: fullReload.answers ?? {},
-                photo_url: fullReload.photo_url ?? null,
-              }
-            : undefined;
+        const parsedCb = fullReload as PaytrPendingClient;
+        const ib = readOdemeBillingFromSession(parsedCb);
+        if (!ib) {
+          setBillingModalContext("paytr");
+          setBillingModalOpen(true);
+          setCouponMessage({
+            type: "error",
+            text: "Önce fatura bilgilerinizi doldurup kaydedin; ardından kuponu tekrar uygulayın.",
+          });
+          setLoading(false);
+          return;
+        }
+        const pricingY = buildOdemeCheckoutPricing(parsedCb);
+        if (!pricingY) {
+          setError("Oturum geçersiz.");
+          setLoading(false);
+          return;
+        }
+        const bodyY = buildPaytrInitiateRequest({
+          parsed: parsedCb,
+          pricing: pricingY,
+          individual_billing: ib,
+        });
         const res = await fetch("/api/paytr/initiate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            merchant_oid: "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11),
-            email: emailPay,
-            amount: AMOUNT_YURTDISIIS_DISCOUNTED,
-            user_name: user_name.slice(0, 60),
-            user_address: "Adres girilmedi",
-            user_phone: "5550000000",
-            merchant_ok_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarili`,
-            merchant_fail_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarisiz`,
-            basket_description: BASKET_CV_PACKAGE,
-            profile_snapshot,
-            payment_type: "discounted",
-            coupon_code: normalizeTrCouponCode(YURTDISIIS_COUPON_CODE),
-            ...(fullReload?.user_id && { user_id: fullReload.user_id }),
-            ...(fullReload?.cv_order_id && { cv_order_id: fullReload.cv_order_id }),
-          }),
+          body: JSON.stringify(bodyY),
         });
         const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
           logPrefix: "[paytr/initiate]",
@@ -297,35 +409,38 @@ export default function OdemePage() {
           answers?: Record<string, unknown>; photo_url?: string | null; plan?: string; user_id?: string; profile_snapshot?: unknown;
           cv_order_id?: string;
         };
-        const email = full?.email?.trim();
-        if (!email) {
+        if (!full?.email?.trim()) {
           setError("E-posta bulunamadı.");
           setLoading(false);
           return;
         }
-        const user_name = (full?.user_name && String(full.user_name).trim()) || email.split("@")[0] || "Müşteri";
-        const profile_snapshot = full?.method != null
-          ? { method: full.method, country: full.country ?? null, job_area: full.job_area ?? null, job_branch: full.job_branch ?? null, answers: full.answers ?? {}, photo_url: full.photo_url ?? null }
-          : undefined;
+        const parsedCv = full as PaytrPendingClient;
+        const ibCv = readOdemeBillingFromSession(parsedCv);
+        if (!ibCv) {
+          setBillingModalContext("paytr");
+          setBillingModalOpen(true);
+          setCouponMessage({
+            type: "error",
+            text: "Önce fatura bilgilerinizi doldurup kaydedin; ardından kuponu tekrar uygulayın.",
+          });
+          setLoading(false);
+          return;
+        }
+        const pricingCv = buildOdemeCheckoutPricing(parsedCv);
+        if (!pricingCv) {
+          setError("Oturum geçersiz.");
+          setLoading(false);
+          return;
+        }
+        const bodyCv = buildPaytrInitiateRequest({
+          parsed: parsedCv,
+          pricing: pricingCv,
+          individual_billing: ibCv,
+        });
         const res = await fetch("/api/paytr/initiate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            merchant_oid: "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11),
-            email,
-            amount: AMOUNT_CV_PACKAGE_DISCOUNTED,
-            user_name: user_name.slice(0, 60),
-            user_address: "Adres girilmedi",
-            user_phone: "5550000000",
-            merchant_ok_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarili`,
-            merchant_fail_url: `${typeof window !== "undefined" ? window.location.origin : ""}/odeme/basarisiz`,
-            basket_description: BASKET_CV_PACKAGE,
-            profile_snapshot,
-            payment_type: "discounted",
-            coupon_code: CV_PACKAGE_DISCOUNT_CODE,
-            ...(full?.user_id && { user_id: full.user_id }),
-            ...(full?.cv_order_id && { cv_order_id: full.cv_order_id }),
-          }),
+          body: JSON.stringify(bodyCv),
         });
         const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, { logPrefix: "[paytr/initiate]" });
         if (data.success && data.iframe_url) setIframeUrl(data.iframe_url);
@@ -366,35 +481,38 @@ export default function OdemePage() {
           email?: string; user_name?: string; method?: string; country?: string; job_area?: string; job_branch?: string;
           answers?: Record<string, unknown>; photo_url?: string | null; plan?: string; user_id?: string;
         };
-        const email = full?.email?.trim();
-        if (!email) {
+        if (!full?.email?.trim()) {
           setError("E-posta bulunamadı.");
           setLoading(false);
           return;
         }
-        const user_name = (full?.user_name && String(full.user_name).trim()) || email.split("@")[0] || "Müşteri";
-        const profile_snapshot = full?.method != null
-          ? { method: full.method, country: full.country ?? null, job_area: full.job_area ?? null, job_branch: full.job_branch ?? null, answers: full.answers ?? {}, photo_url: full.photo_url ?? null }
-          : undefined;
-        const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
+        const parsedIy = full as PaytrPendingClient;
+        const ibIy = readOdemeBillingFromSession(parsedIy);
+        if (!ibIy) {
+          setBillingModalContext("paytr");
+          setBillingModalOpen(true);
+          setCouponMessage({
+            type: "error",
+            text: "Önce fatura bilgilerinizi doldurup kaydedin; ardından kuponu tekrar uygulayın.",
+          });
+          setLoading(false);
+          return;
+        }
+        const pricingIy = buildOdemeCheckoutPricing(parsedIy);
+        if (!pricingIy) {
+          setError("Oturum geçersiz.");
+          setLoading(false);
+          return;
+        }
+        const bodyIy = buildPaytrInitiateRequest({
+          parsed: parsedIy,
+          pricing: pricingIy,
+          individual_billing: ibIy,
+        });
         const res = await fetch("/api/paytr/initiate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            merchant_oid: generateMerchantOid(),
-            email,
-            amount: AMOUNT_FULL_IYIUSTALAR,
-            user_name: user_name.slice(0, 60),
-            user_address: "Adres girilmedi",
-            user_phone: "5550000000",
-            merchant_ok_url: `${siteUrl}/odeme/basarili`,
-            merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
-            basket_description: BASKET_FULL,
-            profile_snapshot,
-            payment_type: "discounted",
-            coupon_code: IYIUSTALAR_COUPON_CODE,
-            ...(full?.user_id && { user_id: full.user_id }),
-          }),
+          body: JSON.stringify(bodyIy),
         });
         const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, { logPrefix: "[paytr/initiate]" });
         if (data.success && data.iframe_url) setIframeUrl(data.iframe_url);
@@ -424,6 +542,31 @@ export default function OdemePage() {
         setFreeWithCoupon(false);
         return;
       }
+      let emailFromPending = "";
+      try {
+        const pj = pending ? (JSON.parse(pending) as { email?: string }) : null;
+        emailFromPending = pj?.email?.trim() ?? "";
+      } catch {
+        /* ignore */
+      }
+      const payEmail = (user?.email ?? "").trim() || emailFromPending;
+      if (!payEmail) {
+        setCouponMessage({ type: "error", text: "Fatura için e-posta gerekli. Lütfen giriş yapın veya oturumu yenileyin." });
+        setFreeWithCoupon(false);
+        return;
+      }
+      const fb = readFree549Billing(user?.id ?? null);
+      if (!fb) {
+        setBillingPayEmailOverride(payEmail);
+        setBillingModalContext("free549");
+        setBillingModalOpen(true);
+        setCouponMessage({
+          type: "error",
+          text: "Önce fatura bilgilerinizi doldurup kaydedin; ardından kuponu tekrar uygulayın.",
+        });
+        setFreeWithCoupon(false);
+        return;
+      }
       try {
         const body = {
           method: parsed.method,
@@ -440,7 +583,24 @@ export default function OdemePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        await safeParseJsonResponse(res, { logPrefix: "[complete-coupon]" });
+        const done = await safeParseJsonResponse<{ success?: boolean; profile_id?: string }>(res, { logPrefix: "[complete-coupon]" });
+        const profileId = typeof done?.profile_id === "string" ? done.profile_id.trim() : "";
+        if (profileId) {
+          const billRes = await fetch("/api/billing/individual/after-free-profile-coupon", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ profile_id: profileId, individual_billing: fb }),
+          });
+          const billData = (await billRes.json().catch(() => ({}))) as { error?: string };
+          if (!billRes.ok) {
+            setCouponMessage({
+              type: "error",
+              text: billData.error ?? "Fatura kaydı oluşturulamadı. Destek ile iletişime geçin.",
+            });
+            setFreeWithCoupon(false);
+            return;
+          }
+        }
         sessionStorage.removeItem("paytr_pending");
         router.replace("/odeme/basarili");
       } catch (e) {
@@ -453,120 +613,82 @@ export default function OdemePage() {
     setCouponMessage({ type: "error", text: "Geçersiz kupon kodu." });
   }, [couponCode, router, user, refetch, getPostPaymentTarget]);
 
+  /** Oturum + sepet hazırlığı; PayTR yalnızca fatura formu kaydedildikten sonra başlar. */
   useEffect(() => {
     if (PAYMENTS_PAUSED) {
       setLoading(false);
       return;
     }
-    const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
-    const parsed = pending
-      ? (JSON.parse(pending) as {
-          email?: string;
-          user_name?: string;
-          method?: string;
-          country?: string | null;
-          job_area?: string | null;
-          job_branch?: string | null;
-          answers?: Record<string, unknown>;
-          photo_url?: string | null;
-          plan?: string;
-          user_id?: string;
-          cv_order_id?: string;
-          cv79_discount?: boolean;
-          yurtdisiis_discount?: boolean;
-          iyiustalar_discount?: boolean;
-        })
-      : null;
-    const email = parsed?.email?.trim() ?? null;
-    if (!email) {
-      router.replace("/");
-      return;
+    try {
+      const pending = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+      const parsed = pending ? (JSON.parse(pending) as PaytrPendingClient) : null;
+      const email = parsed?.email?.trim() ?? null;
+      if (!email) {
+        router.replace("/");
+        return;
+      }
+      const pricing = buildOdemeCheckoutPricing(parsed as PaytrPendingShape);
+      if (!pricing) {
+        setError("Ödeme oturumu geçersiz.");
+        setLoading(false);
+        return;
+      }
+      const isWeekly = parsed?.plan === "weekly";
+      const isCvPackage = parsed?.plan === "cv_package";
+      const useYurtdisiis = isCvPackage && !!parsed?.yurtdisiis_discount;
+      const useCv79 = isCvPackage && !!parsed?.cv79_discount && !useYurtdisiis;
+      const useIyiustalar = !isWeekly && !isCvPackage && !!parsed?.iyiustalar_discount;
+      setCv79Applied(!!useCv79);
+      setYurtdisiisApplied(!!useYurtdisiis);
+      setIyiustalarApplied(!!useIyiustalar);
+      setCheckout({ parsed: parsed!, pricing });
+      const saved = readOdemeBillingFromSession(parsed as PaytrPendingShape);
+      if (saved) {
+        setBillingPayloadPaytr(saved);
+        setBillingModalOpen(false);
+      } else {
+        setBillingModalContext("paytr");
+        setBillingModalOpen(true);
+      }
+    } catch {
+      setError("Ödeme oturumu okunamadı.");
+    } finally {
+      setLoading(false);
     }
+  }, [router]);
 
-    const isWeekly = parsed?.plan === "weekly";
-    const isCvPackage = parsed?.plan === "cv_package";
-    const useYurtdisiis = isCvPackage && !!parsed?.yurtdisiis_discount;
-    const useCv79 = isCvPackage && !!parsed?.cv79_discount && !useYurtdisiis;
-    const useIyiustalar = !isWeekly && !isCvPackage && !!parsed?.iyiustalar_discount;
-    const amount = isWeekly
-      ? AMOUNT_WEEKLY
-      : isCvPackage
-        ? useYurtdisiis
-          ? AMOUNT_YURTDISIIS_DISCOUNTED
-          : useCv79
-            ? AMOUNT_CV_PACKAGE_DISCOUNTED
-            : AMOUNT_CV_PACKAGE
-        : useIyiustalar
-          ? AMOUNT_FULL_IYIUSTALAR
-          : AMOUNT_FULL;
-    const basketDescription = isWeekly ? BASKET_WEEKLY : isCvPackage ? BASKET_CV_PACKAGE : BASKET_FULL;
-    setCv79Applied(!!useCv79);
-    setYurtdisiisApplied(!!useYurtdisiis);
-    setIyiustalarApplied(!!useIyiustalar);
-
-    const user_name =
-      (parsed?.user_name && String(parsed.user_name).trim()) ||
-      email.split("@")[0] ||
-      "Müşteri";
-
-    const merchant_oid = generateMerchantOid();
-    const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const profile_snapshot =
-      parsed?.method != null
-        ? {
-            method: parsed.method,
-            country: parsed.country ?? null,
-            job_area: parsed.job_area ?? null,
-            job_branch: parsed.job_branch ?? null,
-            answers: parsed.answers ?? {},
-            photo_url: parsed.photo_url ?? null,
-          }
-        : undefined;
-
-    const body = {
-      merchant_oid,
-      email: email.trim(),
-      amount,
-      user_name: user_name.trim().slice(0, 60),
-      user_address: "Adres girilmedi",
-      user_phone: "5550000000",
-      merchant_ok_url: `${siteUrl}/odeme/basarili`,
-      merchant_fail_url: `${siteUrl}/odeme/basarisiz`,
-      basket_description: basketDescription,
-      profile_snapshot,
-      payment_type: isWeekly ? "weekly" : useCv79 || useYurtdisiis || useIyiustalar ? "discounted" : "standard",
-      coupon_code: useYurtdisiis
-        ? normalizeTrCouponCode(YURTDISIIS_COUPON_CODE)
-        : useCv79
-          ? CV_PACKAGE_DISCOUNT_CODE
-          : useIyiustalar
-            ? IYIUSTALAR_COUPON_CODE
-            : null,
-      ...(parsed?.user_id && { user_id: parsed.user_id }),
-      ...(parsed?.cv_order_id && { cv_order_id: parsed.cv_order_id }),
-    };
-
-    fetch("/api/paytr/initiate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
-      .then(async (res) => {
+  /** Fatura kaydı sonrası PayTR iframe (çift tetiklemeyi oturum kilidiyle engeller). */
+  useEffect(() => {
+    if (PAYMENTS_PAUSED || !checkout || !billingPayloadPaytr || iframeUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const body = buildPaytrInitiateRequest({
+          parsed: checkout.parsed,
+          pricing: checkout.pricing,
+          individual_billing: billingPayloadPaytr,
+        });
+        const res = await fetch("/api/paytr/initiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
         const data = await safeParseJsonResponse<{ success?: boolean; iframe_url?: string; error?: string }>(res, {
           logPrefix: "[paytr/initiate]",
         });
-        if (data.success && data.iframe_url) {
-          setIframeUrl(data.iframe_url);
-        } else {
-          setError(data.error || "Ödeme başlatılamadı");
+        if (cancelled) return;
+        if (data.success && data.iframe_url) setIframeUrl(data.iframe_url);
+        else setError(data.error || "Ödeme başlatılamadı");
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Ödeme sayfası yüklenemedi. Lütfen tekrar deneyin.");
         }
-      })
-      .catch((e) => {
-        const message = e instanceof Error ? e.message : "Ödeme sayfası yüklenemedi. Lütfen tekrar deneyin.";
-        setError(message);
-      })
-      .finally(() => setLoading(false));
-  }, [router]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkout, billingPayloadPaytr, iframeUrl]);
 
   if (loading) {
     return (
@@ -607,6 +729,47 @@ export default function OdemePage() {
 
   return (
     <>
+      <IndividualBillingModal
+        open={billingModalOpen}
+        onClose={() => {
+          setBillingModalOpen(false);
+          setBillingPayEmailOverride(null);
+        }}
+        paytrEmail={
+          billingModalContext === "free549"
+            ? (user?.email ?? "").trim() || (billingPayEmailOverride ?? "")
+            : billingModalContext === "premium"
+              ? (user?.email ?? "").trim()
+              : checkout?.parsed.email?.trim() ?? ""
+        }
+        pricing={
+          billingModalContext === "free549"
+            ? buildAdmin549FreePricing()
+            : billingModalContext === "premium" && premiumCouponCodeForModal
+              ? buildPremiumCouponArchivePricing(premiumCouponCodeForModal)
+              : checkout?.pricing ?? {
+                  serviceName: BASKET_WEEKLY,
+                  grossAmount: AMOUNT_WEEKLY,
+                  discountAmount: 0,
+                  netAmount: AMOUNT_WEEKLY,
+                  couponCode: null,
+                }
+        }
+        onSave={async (p) => {
+          if (billingModalContext === "paytr" && checkout) {
+            writeOdemeBillingToSession(checkout.parsed as PaytrPendingShape, p);
+            setBillingPayloadPaytr(p);
+            setBillingModalOpen(false);
+          } else if (billingModalContext === "free549") {
+            writeFree549Billing(user?.id ?? null, p);
+            setBillingModalOpen(false);
+            setBillingPayEmailOverride(null);
+          } else if (billingModalContext === "premium" && user && premiumCouponCodeForModal) {
+            writePremiumCouponBilling(user.id, premiumCouponCodeForModal, p);
+            setBillingModalOpen(false);
+          }
+        }}
+      />
       <Script
         src="https://www.paytr.com/js/iframeResizer.min.js"
         strategy="afterInteractive"
@@ -688,6 +851,25 @@ export default function OdemePage() {
           {!hidePaymentUiForActiveSubscriber && (
             <>
               <h1 className="text-xl font-bold text-slate-900 mb-4">Güvenli Ödeme</h1>
+
+              {checkout && !iframeUrl && !PAYMENTS_PAUSED ? (
+                <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+                  <p className="font-medium text-slate-900">Fatura bilgileri</p>
+                  <p className="mt-1 text-slate-600">
+                    PayTR ödeme ekranından önce yasal fatura için iletişim bilgileriniz alınır.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBillingModalContext("paytr");
+                      setBillingModalOpen(true);
+                    }}
+                    className="mt-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                  >
+                    {billingPayloadPaytr ? "Fatura bilgilerini düzenle" : "Fatura bilgilerini gir"}
+                  </button>
+                </div>
+              ) : null}
 
               <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <label className="mb-2 block text-sm font-medium text-slate-700">Kupon Kodu</label>

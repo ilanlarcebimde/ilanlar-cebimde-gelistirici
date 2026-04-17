@@ -48,7 +48,14 @@ function scrollToCvAnchor() {
   window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
-export function CvCampaignProvider({ children }: { children: React.ReactNode }) {
+export function CvCampaignProvider({
+  children,
+  /** false: alt kampanya popup’ı ve otomatik zamanlayıcı kapalı (Yurtdışı CV Paketi sayfası). */
+  campaignPopupEnabled = true,
+}: {
+  children: React.ReactNode;
+  campaignPopupEnabled?: boolean;
+}) {
   const [popupOpen, setPopupOpen] = useState(false);
   const hasAutoShownRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,13 +66,15 @@ export function CvCampaignProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const tryShowAuto = useCallback(() => {
+    if (!campaignPopupEnabled) return;
     if (isDismissed()) return;
     if (hasAutoShownRef.current) return;
     hasAutoShownRef.current = true;
     setPopupOpen(true);
-  }, [isDismissed]);
+  }, [campaignPopupEnabled, isDismissed]);
 
   useEffect(() => {
+    if (!campaignPopupEnabled) return;
     if (typeof window === "undefined") return;
     if (isDismissed()) return;
     const delayMs = 5000 + Math.random() * 3000;
@@ -73,7 +82,7 @@ export function CvCampaignProvider({ children }: { children: React.ReactNode }) 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isDismissed, tryShowAuto]);
+  }, [campaignPopupEnabled, isDismissed, tryShowAuto]);
 
   const closePopup = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -84,8 +93,8 @@ export function CvCampaignProvider({ children }: { children: React.ReactNode }) 
 
   const openFromBar = useCallback(() => {
     scrollToCvAnchor();
-    setPopupOpen(true);
-  }, []);
+    if (campaignPopupEnabled) setPopupOpen(true);
+  }, [campaignPopupEnabled]);
 
   const notifyLeaveFirstStep = useCallback(() => {
     if (timerRef.current) {
@@ -102,14 +111,14 @@ export function CvCampaignProvider({ children }: { children: React.ReactNode }) 
 
   const value = useMemo<CvCampaignContextValue>(
     () => ({
-      popupOpen,
+      popupOpen: campaignPopupEnabled && popupOpen,
       closePopup,
       openFromBar,
       notifyLeaveFirstStep,
       advanceWithAdvantage,
-      mainBottomPadding: popupOpen,
+      mainBottomPadding: campaignPopupEnabled && popupOpen,
     }),
-    [popupOpen, closePopup, openFromBar, notifyLeaveFirstStep, advanceWithAdvantage]
+    [campaignPopupEnabled, popupOpen, closePopup, openFromBar, notifyLeaveFirstStep, advanceWithAdvantage]
   );
 
   return <CvCampaignContext.Provider value={value}>{children}</CvCampaignContext.Provider>;

@@ -7,8 +7,8 @@ import { supabase } from "@/lib/supabase";
 /**
  * Supabase bazen OAuth sonrası token'ı callback yerine ana sayfaya hash ile gönderir
  * (#access_token=...&refresh_token=...). Bu bileşen hash'i okuyup oturumu kurar ve
- * panele yönlendirir. Ayrıca Supabase Dashboard'da Redirect URL olarak
- * http://localhost:3000/auth/callback eklenmeli (PKCE için).
+ * panele yönlendirir. OAuth iptal / hata (`?error=access_denied` veya hash içinde) için
+ * URL temizlenip /giris'e yönlendirilir.
  */
 export function AuthHashHandler() {
   const router = useRouter();
@@ -16,7 +16,26 @@ export function AuthHashHandler() {
 
   useEffect(() => {
     if (typeof window === "undefined" || handled.current) return;
-    const hash = window.location.hash?.replace(/^#/, "");
+
+    const search = new URLSearchParams(window.location.search);
+    const qError = search.get("error");
+    const hashRaw = window.location.hash?.replace(/^#/, "") ?? "";
+    const hashParams = hashRaw ? new URLSearchParams(hashRaw) : new URLSearchParams();
+    const hError = hashParams.get("error");
+    const oauthError = qError || hError;
+    if (oauthError) {
+      handled.current = true;
+      const nextStored = sessionStorage.getItem("auth_redirect_next") ?? "/panel";
+      sessionStorage.removeItem("auth_redirect_next");
+      window.history.replaceState(null, "", window.location.pathname);
+      const authErr = oauthError === "access_denied" ? "google_iptal" : "oauth_failed";
+      router.replace(
+        `/giris?auth_error=${encodeURIComponent(authErr)}&next=${encodeURIComponent(nextStored)}`
+      );
+      return;
+    }
+
+    const hash = hashRaw;
     if (!hash) return;
 
     const params = new URLSearchParams(hash);

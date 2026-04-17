@@ -1,3 +1,15 @@
+/** URL’deki `auth_error` (OAuth iptal vb.) için kısa Türkçe metin. */
+export function authErrorParamToMessage(code: string | null): string | null {
+  if (!code) return null;
+  if (code === "access_denied" || code === "google_iptal") {
+    return "Google ile giriş iptal edildi veya izin verilmedi. İsterseniz tekrar deneyebilirsiniz.";
+  }
+  if (code === "oauth_failed") {
+    return "Giriş tamamlanamadı. Lütfen tekrar deneyin veya e-posta ile giriş yapın.";
+  }
+  return "Giriş tamamlanamadı. Lütfen tekrar deneyin veya e-posta ile giriş yapın.";
+}
+
 /** Supabase auth hata mesajını kısa Türkçe uyarıya çevirir. */
 export function toTurkishAuthError(message: string): string {
   const m = message?.toLowerCase() ?? "";

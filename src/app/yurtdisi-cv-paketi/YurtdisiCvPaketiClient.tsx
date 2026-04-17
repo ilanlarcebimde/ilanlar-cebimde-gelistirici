@@ -8,7 +8,6 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CvPackageHero } from "@/components/cv/CvPackageHero";
 import { CvWizard } from "@/components/cv/CvWizard";
-import { BottomPopup } from "@/components/cv/campaign/BottomPopup";
 import { CvCampaignProvider, useCvCampaign } from "@/components/cv/campaign/CvCampaignContext";
 import { TopCampaignBar, useCvCampaignBarHeightSync } from "@/components/cv/campaign/TopCampaignBar";
 import { CV_CAMPAIGN_BAR_HEIGHT_PX } from "@/components/cv/campaign/cvCampaignConstants";
@@ -41,7 +40,6 @@ function YurtdisiCvPaketiInner() {
       <div className={mainBottomPadding ? "pb-24 sm:pb-28" : ""}>
         <Footer />
       </div>
-      <BottomPopup />
     </>
   );
 }
@@ -110,7 +108,7 @@ export function YurtdisiCvPaketiClient() {
   }
 
   return (
-    <CvCampaignProvider>
+    <CvCampaignProvider campaignPopupEnabled={false}>
       <YurtdisiCvPaketiInner />
     </CvCampaignProvider>
   );
