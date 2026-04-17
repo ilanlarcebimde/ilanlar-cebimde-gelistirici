@@ -8,7 +8,9 @@ import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
 import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
+import { startWeeklyPremiumCheckout } from "@/lib/weeklyPremiumCheckout";
 
 const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
 
@@ -122,8 +124,20 @@ export function PremiumIntroModal({
       onClose();
       return;
     }
+    if (PAYMENTS_PAUSED) {
+      onClose();
+      setPaymentPausedOpen(true);
+      return;
+    }
     onClose();
-    setPaymentPausedOpen(true);
+    const meta = user?.user_metadata as { full_name?: string } | undefined;
+    startWeeklyPremiumCheckout({
+      email,
+      userId: user?.id,
+      userName: typeof meta?.full_name === "string" ? meta.full_name : undefined,
+      returnHref: "/ucretsiz-yurtdisi-is-ilanlari",
+      pendingJobId: initialJobId ?? undefined,
+    });
   };
 
   if (!mounted || typeof document === "undefined") return null;

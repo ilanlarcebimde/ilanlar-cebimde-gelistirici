@@ -6,7 +6,9 @@ import Link from "next/link";
 import { PremiumUpsellModal } from "./PremiumUpsellModal";
 import { CoverLetterWizardModal } from "@/components/apply/cover-letter/CoverLetterWizardModal";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
 import { isVipPreviewActive } from "@/lib/vipPreviewAccess";
+import { startWeeklyPremiumCheckout } from "@/lib/weeklyPremiumCheckout";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { humanizeSlug } from "@/lib/slugify";
@@ -87,7 +89,18 @@ export function MerkezFeedCard({ post, tags }: MerkezFeedCardProps) {
       window.location.href = "/giris?next=" + encodeURIComponent(currentPath);
       return;
     }
-    setPaymentPausedOpen(true);
+    if (PAYMENTS_PAUSED) {
+      setPaymentPausedOpen(true);
+      return;
+    }
+    const meta = user?.user_metadata as { full_name?: string } | undefined;
+    startWeeklyPremiumCheckout({
+      email,
+      userId: user?.id,
+      userName: typeof meta?.full_name === "string" ? meta.full_name : undefined,
+      returnHref: `${BASE}/${post.slug}`,
+      pendingJobId: post.id,
+    });
   };
 
   const handlePremiumApplied = useCallback(async () => {

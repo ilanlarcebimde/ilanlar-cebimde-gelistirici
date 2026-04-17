@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
 
 const COPY = {
   badge: "Bilgilendirme",
@@ -32,6 +33,7 @@ export function PaymentPausedNotice({
   }, []);
 
   useEffect(() => {
+    if (!PAYMENTS_PAUSED) return;
     if (variant !== "modal" || !open) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -43,6 +45,8 @@ export function PaymentPausedNotice({
       document.body.style.overflow = originalOverflow;
     };
   }, [variant, open]);
+
+  if (!PAYMENTS_PAUSED) return null;
 
   const card = (
     <div

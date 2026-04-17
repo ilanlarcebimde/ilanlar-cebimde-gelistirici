@@ -5,6 +5,18 @@ import { AuthHashHandler } from "@/components/AuthHashHandler";
 
 const GA_ID = "G-NVM52S3EHT";
 
+/** n8n Chat Trigger “/chat” uç noktası; tarayıcıdan doğrudan çağrılır (CORS n8n’de izin verilmeli). */
+const N8N_CHAT_WEBHOOK_URL =
+  process.env.NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL?.trim() ||
+  "https://s02c0alq.rcld.app/webhook/8cdedc3b-fbaa-47f3-b118-76e0c3da64f0/chat";
+/** `false` ise widget hiç yüklenmez (yerel geliştirme, “Failed to fetch” gürültüsü). */
+const N8N_CHAT_ENABLED = process.env.NEXT_PUBLIC_N8N_CHAT_ENABLED !== "false";
+/**
+ * Streaming çoğu kurulumda ek uç nokta / CORS gerektirir; kapalıyken klasik POST ile daha az “Failed to fetch”.
+ * Açmak için: NEXT_PUBLIC_N8N_CHAT_STREAMING=true
+ */
+const N8N_CHAT_STREAMING = process.env.NEXT_PUBLIC_N8N_CHAT_STREAMING === "true";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.ilanlarcebimde.com"),
   title:
@@ -37,10 +49,9 @@ export default function RootLayout({
     <html lang="tr">
       <head>
         <meta name="google-adsense-account" content="ca-pub-3494435772981222" />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css"
-        />
+        {N8N_CHAT_ENABLED ? (
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
+        ) : null}
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3494435772981222"
           strategy="beforeInteractive"
@@ -63,18 +74,21 @@ export default function RootLayout({
       <body className="antialiased font-sans bg-[var(--background)] text-[var(--foreground)] overflow-x-hidden">
         <AuthHashHandler />
         {children}
-        <div id="n8n-chat" />
+        {N8N_CHAT_ENABLED ? <div id="n8n-chat" /> : null}
+        {N8N_CHAT_ENABLED ? (
         <Script id="n8n-chat-init" strategy="afterInteractive" type="module">
           {`
             if (!window.__ilanlarCebimdeN8nChatInitialized) {
               window.__ilanlarCebimdeN8nChatInitialized = true;
 
               var LOGO_URL = "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/logo21.jpg";
+              var WEBHOOK_URL = ${JSON.stringify(N8N_CHAT_WEBHOOK_URL)};
+              var ENABLE_STREAMING = ${N8N_CHAT_STREAMING ? "true" : "false"};
 
               import("https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js")
                 .then(({ createChat }) => {
                   createChat({
-                    webhookUrl: "https://s02c0alq.rcld.app/webhook/8cdedc3b-fbaa-47f3-b118-76e0c3da64f0/chat",
+                    webhookUrl: WEBHOOK_URL,
                     target: "#n8n-chat",
                     mode: "window",
                     chatInputKey: "chatInput",
@@ -82,7 +96,7 @@ export default function RootLayout({
                     loadPreviousSession: true,
                     showWelcomeScreen: true,
                     defaultLanguage: "tr",
-                    enableStreaming: true,
+                    enableStreaming: ENABLE_STREAMING,
                     metadata: {
                       source: "ilanlar-cebimde-web",
                       locale: "tr",
@@ -112,7 +126,7 @@ export default function RootLayout({
                     if (header.querySelector(".ilanlar-header-row")) return;
                     var wrapper = document.createElement("div");
                     wrapper.className = "ilanlar-header-row";
-                    wrapper.innerHTML = "<div class=\\"ilanlar-logo-wrap\\"><img class=\\"ilanlar-logo\\" src=\\"\" + LOGO_URL + "\\" alt=\\"İlanlar Cebimde Logo\\" /></div><div class=\\"ilanlar-header-text\\"><strong>İlanlar Cebimde Destek</strong><span>Başvuru araçları, premium özellikler ve platform kullanımı hakkında hızlı yardım alın.</span></div>";
+                    wrapper.innerHTML = '<div class="ilanlar-logo-wrap"><img class="ilanlar-logo" src="' + LOGO_URL + '" alt="İlanlar Cebimde Logo" /></div><div class="ilanlar-header-text"><strong>İlanlar Cebimde Destek</strong><span>Başvuru araçları, premium özellikler ve platform kullanımı hakkında hızlı yardım alın.</span></div>';
                     header.prepend(wrapper);
                   }
 
@@ -124,11 +138,13 @@ export default function RootLayout({
                   setTimeout(function () { injectCustomHeader(); }, 1000);
                 })
                 .catch((error) => {
-                  console.error("n8n chat widget could not be initialized", error);
+                  console.warn("[n8n chat] widget yüklenemedi", error && error.message ? error.message : error);
                 });
             }
           `}
         </Script>
+        ) : null}
+        {N8N_CHAT_ENABLED ? (
         <Script id="ilanlar-chat-fixes" strategy="afterInteractive">
           {`
             (function() {
@@ -167,6 +183,7 @@ export default function RootLayout({
             })();
           `}
         </Script>
+        ) : null}
       </body>
     </html>
   );

@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionActive } from "@/hooks/useSubscriptionActive";
 import { supabase } from "@/lib/supabase";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
+import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
+import { startWeeklyPremiumCheckout } from "@/lib/weeklyPremiumCheckout";
 
 const STORAGE_KEY = "merkezi_conversion_popup_dismissed";
 export const MERKEZI_POPUP_COUPON_KEY = "merkezi_popup_coupon";
@@ -82,7 +84,17 @@ export function PremiumConversionPopup() {
       sessionStorage.removeItem(MERKEZI_POPUP_COUPON_KEY);
       setVisible(false);
       setEntered(false);
-      setPaymentPausedOpen(true);
+      if (PAYMENTS_PAUSED) {
+        setPaymentPausedOpen(true);
+        return;
+      }
+      const meta = user?.user_metadata as { full_name?: string } | undefined;
+      startWeeklyPremiumCheckout({
+        email,
+        userId: user?.id,
+        userName: typeof meta?.full_name === "string" ? meta.full_name : undefined,
+        returnHref: currentPath.startsWith("/") ? currentPath : "/yurtdisi-is-basvuru-merkezi",
+      });
     })();
   };
 
