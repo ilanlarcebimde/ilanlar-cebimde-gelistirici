@@ -10,7 +10,7 @@ import {
   type PaytrPendingShape,
 } from "@/lib/odemePaytrPendingPricing";
 import { insertBillingIndividualPaytrPending } from "@/lib/billingIndividualRecord";
-import { executePaytrSuccessSideEffects } from "@/lib/paytrSuccessAfterPayment";
+import { executePaytrSuccessSideEffects, type PaytrSuccessPaymentRow } from "@/lib/paytrSuccessAfterPayment";
 import { LETTER_PANEL_BASKET, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 
 export const runtime = "nodejs";
@@ -147,6 +147,43 @@ async function insertPaymentStarted(
   return { ok: true, paymentId: paymentRow.id };
 }
 
+/**
+ * started → success; `status=started` filtresi kullanılmaz (çift istek / yarışta 0 satır dönmesini önler).
+ * Zaten success ise satır okunup devam edilir (idempotent).
+ */
+async function markPaymentSuccessForAdminsuper(
+  admin: SupabaseClient,
+  paymentId: string
+): Promise<{ ok: true; row: PaytrSuccessPaymentRow } | { ok: false }> {
+  const { data: updated, error: updErr } = await admin
+    .from("payments")
+    .update({ status: "success" })
+    .eq("id", paymentId)
+    .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code");
+
+  if (updErr) {
+    console.error("[adminsuper2026] payments -> success update error", { paymentId, updErr });
+    return { ok: false };
+  }
+  if (updated?.[0]) {
+    return { ok: true, row: updated[0] as PaytrSuccessPaymentRow };
+  }
+
+  const { data: existing } = await admin
+    .from("payments")
+    .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code, status")
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  if (existing && existing.status === "success") {
+    const { status: _s, ...row } = existing;
+    return { ok: true, row: row as PaytrSuccessPaymentRow };
+  }
+
+  console.error("[adminsuper2026] payment row missing after success update", { paymentId, existing });
+  return { ok: false };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -219,21 +256,15 @@ export async function POST(req: NextRequest) {
       });
       if (billIns.error) console.error("[adminsuper2026] billing insert failed", billIns.error);
 
-      const { data: succRows } = await admin
-        .from("payments")
-        .update({ status: "success" })
-        .eq("id", ins.paymentId)
-        .eq("status", "started")
-        .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code");
-
-      if (!succRows?.[0]) {
+      const marked = await markPaymentSuccessForAdminsuper(admin, ins.paymentId);
+      if (!marked.ok) {
         return NextResponse.json({ success: false, error: "Ödeme onayı yazılamadı." }, { status: 500 });
       }
 
       await executePaytrSuccessSideEffects(admin, {
         merchant_oid,
         total_amount: String(amountClean),
-        payment: succRows[0],
+        payment: marked.row,
       });
 
       return NextResponse.json({ success: true });
@@ -335,21 +366,15 @@ export async function POST(req: NextRequest) {
     });
     if (billIns.error) console.error("[adminsuper2026] billing insert failed", billIns.error);
 
-    const { data: succRows } = await admin
-      .from("payments")
-      .update({ status: "success" })
-      .eq("id", ins.paymentId)
-      .eq("status", "started")
-      .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code");
-
-    if (!succRows?.[0]) {
+    const markedOdeme = await markPaymentSuccessForAdminsuper(admin, ins.paymentId);
+    if (!markedOdeme.ok) {
       return NextResponse.json({ success: false, error: "Ödeme onayı yazılamadı." }, { status: 500 });
     }
 
     await executePaytrSuccessSideEffects(admin, {
       merchant_oid,
       total_amount: String(amountClean),
-      payment: succRows[0],
+      payment: markedOdeme.row,
     });
 
     return NextResponse.json({ success: true });
