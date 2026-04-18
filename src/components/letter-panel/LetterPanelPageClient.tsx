@@ -215,11 +215,15 @@ export function LetterPanelPageClient() {
           individual_billing: saved,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        retry_after_minutes?: number;
+      };
       if (!res.ok) {
         setPayError(
           data.error === "Bu kupon kullanılamıyor."
-            ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir."
+            ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir (ilanlarcebimde@gmail.com veya ADMINSUPER2026_ALLOWED_EMAILS)."
             : data.error ?? "İşlem tamamlanamadı."
         );
         return;

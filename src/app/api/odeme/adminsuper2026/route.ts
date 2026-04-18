@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseForUser } from "@/lib/supabase/server";
-import { ADMINSUPER2026_CODE, isAdminsuper2026EmailAllowed } from "@/lib/adminsuper2026";
+import {
+  ADMINSUPER2026_CODE,
+  ADMINSUPER2026_COOLDOWN_MS,
+  getAdminsuperServiceKey,
+  isAdminsuper2026EmailAllowed,
+} from "@/lib/adminsuper2026";
 import { assertBillingMatchesPaytrInitiate, validateIndividualBillingPayload } from "@/lib/billingIndividual";
 import {
   buildLetterPanelCheckoutPricing,
@@ -184,6 +189,46 @@ async function markPaymentSuccessForAdminsuper(
   return { ok: false };
 }
 
+async function checkAdminsuperCooldown(
+  admin: SupabaseClient,
+  userId: string,
+  serviceKey: string
+): Promise<{ ok: true } | { ok: false; retryAfterMinutes: number }> {
+  const { data: row, error } = await admin
+    .from("adminsuper_test_usage")
+    .select("last_used_at")
+    .eq("user_id", userId)
+    .eq("service_key", serviceKey)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[adminsuper2026] adminsuper_test_usage okunamadı — 059 migration veya service_role; bekleme atlanıyor.", error);
+    return { ok: true };
+  }
+
+  if (!row?.last_used_at) return { ok: true };
+
+  const elapsed = Date.now() - new Date(row.last_used_at).getTime();
+  if (elapsed >= ADMINSUPER2026_COOLDOWN_MS) return { ok: true };
+
+  const retryAfterMinutes = Math.max(1, Math.ceil((ADMINSUPER2026_COOLDOWN_MS - elapsed) / 60000));
+  return { ok: false, retryAfterMinutes };
+}
+
+async function recordAdminsuperCooldown(admin: SupabaseClient, userId: string, serviceKey: string) {
+  const { error } = await admin.from("adminsuper_test_usage").upsert(
+    {
+      user_id: userId,
+      service_key: serviceKey,
+      last_used_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,service_key" }
+  );
+  if (error) {
+    console.error("[adminsuper2026] adminsuper_test_usage yazılamadı", error);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -231,6 +276,19 @@ export async function POST(req: NextRequest) {
       });
       if (!match.ok) return NextResponse.json({ success: false, error: match.error }, { status: 400 });
 
+      const serviceKeyLetter = getAdminsuperServiceKey({ letterPanel: true, pending: null });
+      const coolLetter = await checkAdminsuperCooldown(admin, user.id, serviceKeyLetter);
+      if (!coolLetter.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Bu hizmet için test kuponu yaklaşık ${coolLetter.retryAfterMinutes} dk sonra tekrar kullanılabilir.`,
+            retry_after_minutes: coolLetter.retryAfterMinutes,
+          },
+          { status: 429 }
+        );
+      }
+
       const merchant_oid = `ord_adm2026_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const amountClean = roundTryAmount(pricing.netAmount);
 
@@ -266,6 +324,8 @@ export async function POST(req: NextRequest) {
         total_amount: String(amountClean),
         payment: marked.row,
       });
+
+      await recordAdminsuperCooldown(admin, user.id, serviceKeyLetter);
 
       return NextResponse.json({ success: true });
     }
@@ -311,6 +371,19 @@ export async function POST(req: NextRequest) {
       if (activeRows && activeRows.length > 0) {
         return NextResponse.json({ success: false, error: "active_premium_subscription" }, { status: 409 });
       }
+    }
+
+    const serviceKeyOdeme = getAdminsuperServiceKey({ letterPanel: false, pending: pending as PaytrPendingShape });
+    const coolOdeme = await checkAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
+    if (!coolOdeme.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Bu hizmet için test kuponu yaklaşık ${coolOdeme.retryAfterMinutes} dk sonra tekrar kullanılabilir.`,
+          retry_after_minutes: coolOdeme.retryAfterMinutes,
+        },
+        { status: 429 }
+      );
     }
 
     const cvOrderId = parseUuid(pending.cv_order_id);
@@ -376,6 +449,8 @@ export async function POST(req: NextRequest) {
       total_amount: String(amountClean),
       payment: markedOdeme.row,
     });
+
+    await recordAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
 
     return NextResponse.json({ success: true });
   } catch (e) {
