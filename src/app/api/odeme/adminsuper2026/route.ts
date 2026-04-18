@@ -62,7 +62,13 @@ function safeProfileSnapshotForDb(
   }
 }
 
-async function insertPaymentStarted(
+const PAYMENT_SUCCESS_ROW_SELECT = "id, profile_id, profile_snapshot, user_id, payment_type, coupon_code";
+
+/**
+ * PayTR simülasyonu: satır doğrudan `success` olarak yazılır (started→update yok; prod’da UPDATE/SELECT birleşiminden
+ * kaynaklanan “Ödeme onayı yazılamadı” riskini kaldırır).
+ */
+async function insertAdminsuperPaymentSuccessRow(
   supabase: SupabaseClient,
   args: {
     merchant_oid: string;
@@ -72,24 +78,28 @@ async function insertPaymentStarted(
     payment_type: string | null;
     coupon_code: string;
   }
-): Promise<{ ok: true; paymentId: string } | { ok: false; error: string }> {
-  const fullRow = {
+): Promise<{ ok: true; row: PaytrSuccessPaymentRow } | { ok: false; error: string }> {
+  const base = {
     profile_id: null as string | null,
     user_id: args.userId,
     provider: "paytr" as const,
-    status: "started" as const,
+    status: "success" as const,
     amount: args.amountClean,
     currency: "TRY",
     provider_ref: args.merchant_oid,
+  };
+
+  const fullRow = {
+    ...base,
     profile_snapshot: args.snapshot,
     payment_type: args.payment_type,
     coupon_code: args.coupon_code,
   };
 
   let { data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(fullRow).select("id");
-  let paymentRow = paymentRows?.[0];
+  let paymentId = paymentRows?.[0]?.id;
 
-  if (!paymentInsertError && !paymentRow?.id) {
+  if (!paymentInsertError && !paymentId) {
     const { data: r } = await supabase
       .from("payments")
       .select("id")
@@ -98,31 +108,30 @@ async function insertPaymentStarted(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (r?.id) paymentRow = r;
+    if (r?.id) paymentId = r.id;
   }
 
-  if (!paymentInsertError && paymentRow?.id) {
-    return { ok: true, paymentId: paymentRow.id };
+  if (!paymentInsertError && paymentId) {
+    const { data: row, error: fetchErr } = await supabase
+      .from("payments")
+      .select(PAYMENT_SUCCESS_ROW_SELECT)
+      .eq("id", paymentId)
+      .single();
+    if (!fetchErr && row) {
+      return { ok: true, row: row as PaytrSuccessPaymentRow };
+    }
+    console.error("[adminsuper2026] fetch row after full insert(success)", { paymentId, fetchErr });
+    return { ok: false, error: "Ödeme onayı yazılamadı." };
   }
 
   if (paymentInsertError) {
-    console.error("[adminsuper2026] payments full insert failed", JSON.stringify(paymentInsertError));
+    console.error("[adminsuper2026] payments insert(success) full failed", JSON.stringify(paymentInsertError));
   }
 
-  const minimalRow = {
-    profile_id: null as string | null,
-    user_id: args.userId,
-    provider: "paytr" as const,
-    status: "started" as const,
-    amount: args.amountClean,
-    currency: "TRY",
-    provider_ref: args.merchant_oid,
-  };
+  ({ data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(base).select("id"));
+  paymentId = paymentRows?.[0]?.id;
 
-  ({ data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(minimalRow).select("id"));
-  paymentRow = paymentRows?.[0];
-
-  if (!paymentInsertError && !paymentRow?.id) {
+  if (!paymentInsertError && !paymentId) {
     const { data: r } = await supabase
       .from("payments")
       .select("id")
@@ -131,10 +140,11 @@ async function insertPaymentStarted(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (r?.id) paymentRow = r;
+    if (r?.id) paymentId = r.id;
   }
 
-  if (paymentInsertError || !paymentRow?.id) {
+  if (paymentInsertError || !paymentId) {
+    console.error("[adminsuper2026] payments insert(success) minimal failed", paymentInsertError);
     return { ok: false, error: "Ödeme kaydı oluşturulamadı." };
   }
 
@@ -143,50 +153,24 @@ async function insertPaymentStarted(
   if (args.payment_type) patch.payment_type = args.payment_type;
   patch.coupon_code = args.coupon_code;
   if (Object.keys(patch).length > 0) {
-    const { error: patchErr } = await supabase.from("payments").update(patch).eq("id", paymentRow.id);
+    const { error: patchErr } = await supabase.from("payments").update(patch).eq("id", paymentId);
     if (patchErr) {
-      console.warn("[adminsuper2026] payments patch failed", JSON.stringify(patchErr));
+      console.warn("[adminsuper2026] payments patch after minimal insert(success)", JSON.stringify(patchErr));
     }
   }
 
-  return { ok: true, paymentId: paymentRow.id };
-}
-
-/**
- * started → success; `status=started` filtresi kullanılmaz (çift istek / yarışta 0 satır dönmesini önler).
- * Zaten success ise satır okunup devam edilir (idempotent).
- */
-async function markPaymentSuccessForAdminsuper(
-  admin: SupabaseClient,
-  paymentId: string
-): Promise<{ ok: true; row: PaytrSuccessPaymentRow } | { ok: false }> {
-  const { data: updated, error: updErr } = await admin
+  const { data: row, error: fetchErr2 } = await supabase
     .from("payments")
-    .update({ status: "success" })
+    .select(PAYMENT_SUCCESS_ROW_SELECT)
     .eq("id", paymentId)
-    .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code");
+    .single();
 
-  if (updErr) {
-    console.error("[adminsuper2026] payments -> success update error", { paymentId, updErr });
-    return { ok: false };
-  }
-  if (updated?.[0]) {
-    return { ok: true, row: updated[0] as PaytrSuccessPaymentRow };
+  if (fetchErr2 || !row) {
+    console.error("[adminsuper2026] payments fetch after minimal insert(success)", { paymentId, fetchErr2 });
+    return { ok: false, error: "Ödeme onayı yazılamadı." };
   }
 
-  const { data: existing } = await admin
-    .from("payments")
-    .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code, status")
-    .eq("id", paymentId)
-    .maybeSingle();
-
-  if (existing && existing.status === "success") {
-    const { status: _s, ...row } = existing;
-    return { ok: true, row: row as PaytrSuccessPaymentRow };
-  }
-
-  console.error("[adminsuper2026] payment row missing after success update", { paymentId, existing });
-  return { ok: false };
+  return { ok: true, row: row as PaytrSuccessPaymentRow };
 }
 
 async function checkAdminsuperCooldown(
@@ -292,7 +276,7 @@ export async function POST(req: NextRequest) {
       const merchant_oid = `ord_adm2026_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const amountClean = roundTryAmount(pricing.netAmount);
 
-      const ins = await insertPaymentStarted(admin, {
+      const paymentDoneLetter = await insertAdminsuperPaymentSuccessRow(admin, {
         merchant_oid,
         userId: user.id,
         amountClean,
@@ -300,12 +284,14 @@ export async function POST(req: NextRequest) {
         payment_type: LETTER_PANEL_PAYMENT_TYPE,
         coupon_code: ADMINSUPER2026_CODE,
       });
-      if (!ins.ok) return NextResponse.json({ success: false, error: ins.error }, { status: 500 });
+      if (!paymentDoneLetter.ok) {
+        return NextResponse.json({ success: false, error: paymentDoneLetter.error }, { status: 500 });
+      }
 
       const billIns = await insertBillingIndividualPaytrPending(admin, {
         userId: user.id,
         orderId: null,
-        paymentUuid: ins.paymentId,
+        paymentUuid: paymentDoneLetter.row.id,
         merchantOid: merchant_oid,
         billing: v.data,
         couponCode: ADMINSUPER2026_CODE,
@@ -314,15 +300,10 @@ export async function POST(req: NextRequest) {
       });
       if (billIns.error) console.error("[adminsuper2026] billing insert failed", billIns.error);
 
-      const marked = await markPaymentSuccessForAdminsuper(admin, ins.paymentId);
-      if (!marked.ok) {
-        return NextResponse.json({ success: false, error: "Ödeme onayı yazılamadı." }, { status: 500 });
-      }
-
       await executePaytrSuccessSideEffects(admin, {
         merchant_oid,
         total_amount: String(amountClean),
-        payment: marked.row,
+        payment: paymentDoneLetter.row,
       });
 
       await recordAdminsuperCooldown(admin, user.id, serviceKeyLetter);
@@ -407,7 +388,7 @@ export async function POST(req: NextRequest) {
     const merchant_oid = `ord_adm2026_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const amountClean = roundTryAmount(pricing.netAmount);
 
-    const ins = await insertPaymentStarted(admin, {
+    const paymentDoneOdeme = await insertAdminsuperPaymentSuccessRow(admin, {
       merchant_oid,
       userId: resolvedUserId,
       amountClean,
@@ -415,7 +396,9 @@ export async function POST(req: NextRequest) {
       payment_type: paymentTypeStr,
       coupon_code: ADMINSUPER2026_CODE,
     });
-    if (!ins.ok) return NextResponse.json({ success: false, error: ins.error }, { status: 500 });
+    if (!paymentDoneOdeme.ok) {
+      return NextResponse.json({ success: false, error: paymentDoneOdeme.error }, { status: 500 });
+    }
 
     if (cvOrderId) {
       await admin
@@ -430,7 +413,7 @@ export async function POST(req: NextRequest) {
     const billIns = await insertBillingIndividualPaytrPending(admin, {
       userId: resolvedUserId,
       orderId: cvOrderId,
-      paymentUuid: ins.paymentId,
+      paymentUuid: paymentDoneOdeme.row.id,
       merchantOid: merchant_oid,
       billing: v.data,
       couponCode: ADMINSUPER2026_CODE,
@@ -439,15 +422,10 @@ export async function POST(req: NextRequest) {
     });
     if (billIns.error) console.error("[adminsuper2026] billing insert failed", billIns.error);
 
-    const markedOdeme = await markPaymentSuccessForAdminsuper(admin, ins.paymentId);
-    if (!markedOdeme.ok) {
-      return NextResponse.json({ success: false, error: "Ödeme onayı yazılamadı." }, { status: 500 });
-    }
-
     await executePaytrSuccessSideEffects(admin, {
       merchant_oid,
       total_amount: String(amountClean),
-      payment: markedOdeme.row,
+      payment: paymentDoneOdeme.row,
     });
 
     await recordAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
