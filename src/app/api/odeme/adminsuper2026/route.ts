@@ -14,7 +14,10 @@ import {
   getPaymentTypeFromPending,
   type PaytrPendingShape,
 } from "@/lib/odemePaytrPendingPricing";
-import { insertBillingIndividualPaytrPending } from "@/lib/billingIndividualRecord";
+import {
+  insertBillingIndividualPaytrCompletedFallback,
+  insertBillingIndividualPaytrPending,
+} from "@/lib/billingIndividualRecord";
 import { executePaytrSuccessSideEffects, type PaytrSuccessPaymentRow } from "@/lib/paytrSuccessAfterPayment";
 import { LETTER_PANEL_BASKET, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 
@@ -292,7 +295,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: paymentDoneLetter.error }, { status: 500 });
       }
 
-      const billIns = await insertBillingIndividualPaytrPending(admin, {
+      let billIns = await insertBillingIndividualPaytrPending(admin, {
         userId: user.id,
         orderId: null,
         paymentUuid: paymentDoneLetter.row.id,
@@ -302,7 +305,22 @@ export async function POST(req: NextRequest) {
         source: "adminsuper2026_letter_panel",
         paymentType: LETTER_PANEL_PAYMENT_TYPE,
       });
-      if (billIns.error) console.error("[adminsuper2026] billing insert failed", billIns.error);
+      if (billIns.error) {
+        billIns = await insertBillingIndividualPaytrCompletedFallback(admin, {
+          userId: user.id,
+          orderId: null,
+          paymentUuid: paymentDoneLetter.row.id,
+          merchantOid: merchant_oid,
+          billing: v.data,
+          couponCode: ADMINSUPER2026_CODE,
+          source: "adminsuper2026_letter_panel",
+          paymentType: LETTER_PANEL_PAYMENT_TYPE,
+          paytrTotalAmount: String(amountClean),
+        });
+      }
+      if (billIns.error) {
+        return NextResponse.json({ success: false, error: billIns.error }, { status: 500 });
+      }
 
       await executePaytrSuccessSideEffects(admin, {
         merchant_oid,
@@ -414,7 +432,7 @@ export async function POST(req: NextRequest) {
         .eq("id", cvOrderId);
     }
 
-    const billIns = await insertBillingIndividualPaytrPending(admin, {
+    let billIns = await insertBillingIndividualPaytrPending(admin, {
       userId: resolvedUserId,
       orderId: cvOrderId,
       paymentUuid: paymentDoneOdeme.row.id,
@@ -424,7 +442,22 @@ export async function POST(req: NextRequest) {
       source: "adminsuper2026_odeme",
       paymentType: paymentTypeStr,
     });
-    if (billIns.error) console.error("[adminsuper2026] billing insert failed", billIns.error);
+    if (billIns.error) {
+      billIns = await insertBillingIndividualPaytrCompletedFallback(admin, {
+        userId: resolvedUserId,
+        orderId: cvOrderId,
+        paymentUuid: paymentDoneOdeme.row.id,
+        merchantOid: merchant_oid,
+        billing: v.data,
+        couponCode: ADMINSUPER2026_CODE,
+        source: "adminsuper2026_odeme",
+        paymentType: paymentTypeStr,
+        paytrTotalAmount: String(amountClean),
+      });
+    }
+    if (billIns.error) {
+      return NextResponse.json({ success: false, error: billIns.error }, { status: 500 });
+    }
 
     await executePaytrSuccessSideEffects(admin, {
       merchant_oid,
