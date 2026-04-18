@@ -12,6 +12,8 @@ import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_BASKET, LETTER_PANEL_PAYMENT_TYPE
 import { assertBillingMatchesPaytrInitiate, validateIndividualBillingPayload } from "@/lib/billingIndividual";
 import { insertBillingIndividualPaytrPending } from "@/lib/billingIndividualRecord";
 
+export const runtime = "nodejs";
+
 /** Postgres uuid metni — auth.users.id ile uyumlu (v1–v5). */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,16 +23,68 @@ function parseOptionalUuid(raw: string | null | undefined): string | null {
   return UUID_REGEX.test(t) ? t : null;
 }
 
-function mapPaymentsInsertError(err: { code?: string; message?: string } | null): string {
+function mapPaymentsInsertError(err: { code?: string; message?: string; details?: string; hint?: string } | null): string {
   if (!err) return "Ödeme kaydı oluşturulamadı.";
   const c = err.code ?? "";
-  if (c === "23503") {
+  const msg = (err.message ?? "").toLowerCase();
+  if (c === "23503" || msg.includes("foreign key")) {
     return "Oturum veya sipariş referansı geçersiz. Çıkış yapıp tekrar giriş yapın veya sayfayı yenileyin.";
   }
-  if (c === "PGRST116" || (err.message ?? "").includes("0 rows")) {
+  if (c === "23505" || msg.includes("unique constraint")) {
+    return "Bu sipariş referansı zaten kullanıldı. Sayfayı yenileyip tekrar deneyin.";
+  }
+  if (c === "23502" || msg.includes("not-null")) {
+    return "Ödeme kaydı eksik alan nedeniyle oluşturulamadı. Veritabanı güncellemesi gerekebilir; destek ile iletişime geçin.";
+  }
+  if (c === "22P02" || msg.includes("invalid input syntax")) {
+    return "Geçersiz veri formatı. Sayfayı yenileyip tekrar deneyin.";
+  }
+  if (c === "42703" || (msg.includes("column") && msg.includes("does not exist"))) {
+    return "Veritabanı şeması güncel değil (eksik sütun). Yöneticiye bildirin.";
+  }
+  if (c === "42501" || msg.includes("permission denied")) {
+    return "Sunucu veritabanı yetkisi eksik. SUPABASE_SERVICE_ROLE_KEY ortam değişkenini kontrol edin.";
+  }
+  if (c === "PGRST116" || msg.includes("0 rows")) {
     return "Ödeme kaydı doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin.";
   }
+  if (c && c.startsWith("PGRST")) {
+    return `Ödeme kaydı oluşturulamadı (ref: ${c}).`;
+  }
   return "Ödeme kaydı oluşturulamadı.";
+}
+
+/** jsonb / PostgREST için güvenli nesne; hatalı snapshot ödemeyi düşürmesin. */
+function safeProfileSnapshotForDb(
+  profile_snapshot: {
+    method?: string;
+    country?: string | null;
+    job_area?: string | null;
+    job_branch?: string | null;
+    answers?: Record<string, unknown>;
+    photo_url?: string | null;
+  } | null | undefined
+): Record<string, unknown> | null {
+  if (!profile_snapshot || typeof profile_snapshot !== "object") return null;
+  try {
+    const normalized = {
+      method: profile_snapshot.method === "voice" || profile_snapshot.method === "chat" ? profile_snapshot.method : "form",
+      country: profile_snapshot.country ?? null,
+      job_area: profile_snapshot.job_area ?? null,
+      job_branch: profile_snapshot.job_branch ?? null,
+      answers: profile_snapshot.answers && typeof profile_snapshot.answers === "object" ? profile_snapshot.answers : {},
+      photo_url: profile_snapshot.photo_url ?? null,
+    };
+    const s = JSON.stringify(normalized);
+    if (s.length > 1_200_000) {
+      console.warn("[PayTR initiate] profile_snapshot çok büyük, kısaltılıyor");
+      return { method: normalized.method, country: normalized.country, answers: {}, photo_url: null };
+    }
+    return JSON.parse(s) as Record<string, unknown>;
+  } catch (e) {
+    console.warn("[PayTR initiate] profile_snapshot serileştirilemedi, null yazılıyor", e);
+    return null;
+  }
 }
 
 function getClientIp(req: NextRequest): string {
@@ -166,17 +220,9 @@ export async function POST(request: NextRequest) {
     const user_phone_val = typeof user_phone === "string" && user_phone.trim() ? user_phone.trim().slice(0, 20) : "5550000000";
 
     const supabase = getSupabaseAdmin();
-    const snapshot =
-      profile_snapshot && typeof profile_snapshot === "object"
-        ? {
-            method: profile_snapshot.method === "voice" || profile_snapshot.method === "chat" ? profile_snapshot.method : "form",
-            country: profile_snapshot.country ?? null,
-            job_area: profile_snapshot.job_area ?? null,
-            job_branch: profile_snapshot.job_branch ?? null,
-            answers: profile_snapshot.answers && typeof profile_snapshot.answers === "object" ? profile_snapshot.answers : {},
-            photo_url: profile_snapshot.photo_url ?? null,
-          }
-        : null;
+    const snapshot = safeProfileSnapshotForDb(
+      profile_snapshot && typeof profile_snapshot === "object" ? profile_snapshot : undefined
+    );
 
     /** Aktif premium varken ikinci bir haftalık ödeme başlatılmaz (CV paketi / mektup paneli hariç). */
     if (userId && paymentTypeRaw === "weekly") {
@@ -209,16 +255,38 @@ export async function POST(request: NextRequest) {
         coupon_code: couponNormalized,
       })
       .select("id");
-    const paymentRow = paymentRows?.[0];
+
+    let paymentRow = paymentRows?.[0];
+
     if (paymentInsertError) {
-      console.error("[PayTR initiate] payments insert failed", paymentInsertError);
+      console.error("[PayTR initiate] payments insert failed", JSON.stringify(paymentInsertError));
       return NextResponse.json(
         { success: false, error: mapPaymentsInsertError(paymentInsertError) },
         { status: 500 }
       );
     }
+
+    /** Bazı ortamlarda INSERT … RETURNING boş döner; satır yine yazılmış olabilir — provider_ref ile yakala. */
     if (!paymentRow?.id) {
-      console.error("[PayTR initiate] payments insert returned no id", { paymentRows });
+      const { data: refetched, error: refetchErr } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("provider_ref", merchant_oid)
+        .eq("provider", "paytr")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (refetchErr) {
+        console.error("[PayTR initiate] payments refetch by provider_ref failed", refetchErr);
+      }
+      if (refetched?.id) {
+        paymentRow = refetched;
+        console.warn("[PayTR initiate] insert select boştu; provider_ref ile ödeme id alındı");
+      }
+    }
+
+    if (!paymentRow?.id) {
+      console.error("[PayTR initiate] payments insert returned no id", { paymentRows, merchant_oid });
       return NextResponse.json(
         { success: false, error: mapPaymentsInsertError({ code: "PGRST116" }) },
         { status: 500 }
