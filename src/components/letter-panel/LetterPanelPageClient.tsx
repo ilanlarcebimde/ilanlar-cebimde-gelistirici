@@ -18,6 +18,7 @@ import { IndividualBillingModal } from "@/components/billing/IndividualBillingMo
 import type { IndividualBillingPayload } from "@/lib/billingIndividual";
 import { buildLetterPanelCheckoutPricing } from "@/lib/odemePaytrPendingPricing";
 import { readLetterPanelBilling, writeLetterPanelBilling } from "@/lib/couponBillingSession";
+import { ADMINSUPER2026_CODE } from "@/lib/adminsuper2026";
 
 const WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbCOluF3mFYESfECMG0i";
 
@@ -39,6 +40,8 @@ export function LetterPanelPageClient() {
   const [payIframeUrl, setPayIframeUrl] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [adminCouponInput, setAdminCouponInput] = useState("");
+  const [adminCouponLoading, setAdminCouponLoading] = useState(false);
 
   const refreshAccess = useCallback(async (): Promise<boolean> => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -181,6 +184,60 @@ export function LetterPanelPageClient() {
           ? "Ödeme işlemi geçici olarak durdurulmuştur. Lütfen daha sonra tekrar deneyin."
           : data.error || "Ödeme başlatılamadı.",
       );
+    }
+  };
+
+  const applyAdminSuper2026 = async () => {
+    const raw = adminCouponInput.trim().toUpperCase();
+    if (raw !== ADMINSUPER2026_CODE) {
+      setPayError("Geçersiz kod.");
+      return;
+    }
+    if (!user || !accessToken) {
+      setPayError("Oturum gerekli.");
+      return;
+    }
+    const saved = readLetterPanelBilling(user.id);
+    if (!saved) {
+      setPayError("Önce fatura bilgilerinizi kaydedin (Ödeme Yap ile formu açın veya kaydedin).");
+      setBillingModalOpen(true);
+      return;
+    }
+    setPayError(null);
+    setAdminCouponLoading(true);
+    try {
+      const res = await fetch("/api/odeme/adminsuper2026", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          code: ADMINSUPER2026_CODE,
+          letter_panel: true,
+          individual_billing: saved,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok) {
+        setPayError(
+          data.error === "Bu kupon kullanılamıyor."
+            ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir."
+            : data.error ?? "İşlem tamamlanamadı."
+        );
+        return;
+      }
+      if (!data.success) {
+        setPayError(data.error ?? "İşlem tamamlanamadı.");
+        return;
+      }
+      setAdminCouponInput("");
+      for (let i = 0; i < 12; i += 1) {
+        const ok = await refreshAccess();
+        if (ok) break;
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    } catch {
+      setPayError("Bağlantı hatası.");
+    } finally {
+      setAdminCouponLoading(false);
     }
   };
 
@@ -331,6 +388,28 @@ export function LetterPanelPageClient() {
                     {payLoading ? "Yönlendiriliyor…" : "79 TL Tek Seferlik Ödeme Yap"}
                   </button>
                   {payError ? <p className="mt-2 text-center text-sm text-red-600">{payError}</p> : null}
+
+                  <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-3 text-left">
+                    <p className="text-xs font-medium text-slate-500">Yetkili kupon (test)</p>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        type="text"
+                        autoComplete="off"
+                        placeholder="Kod"
+                        value={adminCouponInput}
+                        onChange={(e) => setAdminCouponInput(e.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void applyAdminSuper2026()}
+                        disabled={adminCouponLoading || !user}
+                        className="shrink-0 rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {adminCouponLoading ? "…" : "Uygula"}
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="my-6 flex items-center gap-3">
                     <div className="h-px flex-1 bg-slate-200" />

@@ -126,3 +126,16 @@ export function buildPremiumCouponArchivePricing(couponCode: string): OdemeCheck
     couponCode,
   };
 }
+
+/** `/api/paytr/initiate` ile aynı `payment_type` eşlemesi */
+export function getPaymentTypeFromPending(parsed: PaytrPendingShape | null): string {
+  if (!parsed) return "standard";
+  const isWeekly = parsed.plan === "weekly";
+  const isCvPackage = parsed.plan === "cv_package";
+  const useYurtdisiis = isCvPackage && !!parsed.yurtdisiis_discount;
+  const useCv79 = isCvPackage && !!parsed.cv79_discount && !useYurtdisiis;
+  const useIyiustalar = !isWeekly && !isCvPackage && !!parsed.iyiustalar_discount;
+  if (isWeekly) return "weekly";
+  if (useCv79 || useYurtdisiis || useIyiustalar) return "discounted";
+  return "standard";
+}

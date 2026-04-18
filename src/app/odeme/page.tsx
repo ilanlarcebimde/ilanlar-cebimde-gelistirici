@@ -34,6 +34,7 @@ import {
   readPremiumCouponBilling,
   writePremiumCouponBilling,
 } from "@/lib/couponBillingSession";
+import { ADMINSUPER2026_CODE } from "@/lib/adminsuper2026";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
@@ -210,6 +211,78 @@ export default function OdemePage() {
       return;
     }
     const code = rawCoupon.toUpperCase();
+    if (code === ADMINSUPER2026_CODE) {
+      setCouponMessage({ type: "success", text: "İşlem yapılıyor…" });
+      if (!user) {
+        setCouponMessage({ type: "error", text: "Bu kupon için giriş yapmanız gerekir." });
+        return;
+      }
+      const pendingRaw = typeof window !== "undefined" ? sessionStorage.getItem("paytr_pending") : null;
+      let parsedPending: PaytrPendingClient | null = null;
+      try {
+        parsedPending = pendingRaw ? (JSON.parse(pendingRaw) as PaytrPendingClient) : null;
+      } catch {
+        setCouponMessage({ type: "error", text: "Ödeme oturumu okunamadı. Sayfayı yenileyin." });
+        return;
+      }
+      if (!parsedPending?.email?.trim()) {
+        setCouponMessage({ type: "error", text: "Ödeme oturumu bulunamadı. Ana akıştan tekrar gelin." });
+        return;
+      }
+      const ibAdmin = readOdemeBillingFromSession(parsedPending as PaytrPendingShape);
+      if (!ibAdmin) {
+        setBillingModalContext("paytr");
+        setBillingModalOpen(true);
+        setCouponMessage({
+          type: "error",
+          text: "Önce fatura bilgilerinizi doldurup kaydedin; ardından kuponu tekrar uygulayın.",
+        });
+        return;
+      }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setCouponMessage({ type: "error", text: "Oturum bulunamadı. Lütfen tekrar giriş yapın." });
+          return;
+        }
+        const res = await fetch("/api/odeme/adminsuper2026", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            code: ADMINSUPER2026_CODE,
+            individual_billing: ibAdmin,
+            pending: parsedPending,
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        if (!res.ok) {
+          const err = data.error ?? "İşlem tamamlanamadı.";
+          setCouponMessage({
+            type: "error",
+            text:
+              err === "active_premium_subscription"
+                ? "Zaten aktif bir haftalık aboneliğiniz var."
+                : err === "Bu kupon kullanılamıyor."
+                  ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir (sunucu e-posta listesi)."
+                  : err,
+          });
+          return;
+        }
+        if (!data.success) {
+          setCouponMessage({ type: "error", text: data.error ?? "İşlem tamamlanamadı." });
+          return;
+        }
+        setCouponMessage({ type: "success", text: "Ödeme kaydedildi. Yönlendiriliyorsunuz…" });
+        sessionStorage.removeItem("paytr_pending");
+        window.dispatchEvent(new Event("premium-subscription-invalidate"));
+        const target = getPostPaymentTarget();
+        window.location.href = target;
+      } catch {
+        setCouponMessage({ type: "error", text: "Bağlantı hatası. Lütfen tekrar deneyin." });
+      }
+      return;
+    }
     if (PREMIUM_COUPON_CODES.includes(code)) {
       setCouponMessage({ type: "success", text: "Kupon uygulanıyor…" });
       if (!user) {
