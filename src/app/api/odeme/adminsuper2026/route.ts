@@ -62,11 +62,57 @@ function safeProfileSnapshotForDb(
   }
 }
 
-const PAYMENT_SUCCESS_ROW_SELECT = "id, profile_id, profile_snapshot, user_id, payment_type, coupon_code";
+/**
+ * Eski DB şemalarında (048 öncesi) `payment_type` / `coupon_code` olmayabilir — SELECT yalnızca var olan kolonlarla yapılır.
+ */
+async function fetchPaymentRowFlexible(
+  supabase: SupabaseClient,
+  paymentId: string
+): Promise<PaytrSuccessPaymentRow | null> {
+  const full = await supabase
+    .from("payments")
+    .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (!full.error && full.data) {
+    return full.data as PaytrSuccessPaymentRow;
+  }
+
+  const mid = await supabase
+    .from("payments")
+    .select("id, profile_id, profile_snapshot, user_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (!mid.error && mid.data) {
+    return {
+      ...(mid.data as Omit<PaytrSuccessPaymentRow, "payment_type" | "coupon_code">),
+      payment_type: null,
+      coupon_code: null,
+    };
+  }
+
+  const min = await supabase
+    .from("payments")
+    .select("id, profile_id, user_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (!min.error && min.data) {
+    return {
+      id: min.data.id,
+      profile_id: min.data.profile_id,
+      profile_snapshot: null,
+      user_id: min.data.user_id,
+      payment_type: null,
+      coupon_code: null,
+    };
+  }
+
+  return null;
+}
 
 /**
- * PayTR simülasyonu: satır doğrudan `success` olarak yazılır (started→update yok; prod’da UPDATE/SELECT birleşiminden
- * kaynaklanan “Ödeme onayı yazılamadı” riskini kaldırır).
+ * PayTR simülasyonu: satır doğrudan `success` olarak yazılır.
+ * Önce yalnızca çekirdek kolonlar (002 şeması); 007/048 kolonları ayrı PATCH ile (yoksa sessizce atlanır).
  */
 async function insertAdminsuperPaymentSuccessRow(
   supabase: SupabaseClient,
@@ -89,14 +135,7 @@ async function insertAdminsuperPaymentSuccessRow(
     provider_ref: args.merchant_oid,
   };
 
-  const fullRow = {
-    ...base,
-    profile_snapshot: args.snapshot,
-    payment_type: args.payment_type,
-    coupon_code: args.coupon_code,
-  };
-
-  let { data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(fullRow).select("id");
+  let { data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(base).select("id");
   let paymentId = paymentRows?.[0]?.id;
 
   if (!paymentInsertError && !paymentId) {
@@ -111,66 +150,31 @@ async function insertAdminsuperPaymentSuccessRow(
     if (r?.id) paymentId = r.id;
   }
 
-  if (!paymentInsertError && paymentId) {
-    const { data: row, error: fetchErr } = await supabase
-      .from("payments")
-      .select(PAYMENT_SUCCESS_ROW_SELECT)
-      .eq("id", paymentId)
-      .single();
-    if (!fetchErr && row) {
-      return { ok: true, row: row as PaytrSuccessPaymentRow };
-    }
-    console.error("[adminsuper2026] fetch row after full insert(success)", { paymentId, fetchErr });
-    return { ok: false, error: "Ödeme onayı yazılamadı." };
-  }
-
-  if (paymentInsertError) {
-    console.error("[adminsuper2026] payments insert(success) full failed", JSON.stringify(paymentInsertError));
-  }
-
-  ({ data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(base).select("id"));
-  paymentId = paymentRows?.[0]?.id;
-
-  if (!paymentInsertError && !paymentId) {
-    const { data: r } = await supabase
-      .from("payments")
-      .select("id")
-      .eq("provider_ref", args.merchant_oid)
-      .eq("provider", "paytr")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (r?.id) paymentId = r.id;
-  }
-
   if (paymentInsertError || !paymentId) {
-    console.error("[adminsuper2026] payments insert(success) minimal failed", paymentInsertError);
+    console.error("[adminsuper2026] payments insert(success) core failed", paymentInsertError);
     return { ok: false, error: "Ödeme kaydı oluşturulamadı." };
   }
 
-  const patch: Record<string, unknown> = {};
-  if (args.snapshot) patch.profile_snapshot = args.snapshot;
-  if (args.payment_type) patch.payment_type = args.payment_type;
-  patch.coupon_code = args.coupon_code;
-  if (Object.keys(patch).length > 0) {
-    const { error: patchErr } = await supabase.from("payments").update(patch).eq("id", paymentId);
-    if (patchErr) {
-      console.warn("[adminsuper2026] payments patch after minimal insert(success)", JSON.stringify(patchErr));
-    }
+  if (args.snapshot) {
+    const { error: e } = await supabase.from("payments").update({ profile_snapshot: args.snapshot }).eq("id", paymentId);
+    if (e) console.warn("[adminsuper2026] optional profile_snapshot skipped", JSON.stringify(e));
+  }
+  if (args.payment_type) {
+    const { error: e } = await supabase.from("payments").update({ payment_type: args.payment_type }).eq("id", paymentId);
+    if (e) console.warn("[adminsuper2026] optional payment_type skipped", JSON.stringify(e));
+  }
+  {
+    const { error: e } = await supabase.from("payments").update({ coupon_code: args.coupon_code }).eq("id", paymentId);
+    if (e) console.warn("[adminsuper2026] optional coupon_code skipped", JSON.stringify(e));
   }
 
-  const { data: row, error: fetchErr2 } = await supabase
-    .from("payments")
-    .select(PAYMENT_SUCCESS_ROW_SELECT)
-    .eq("id", paymentId)
-    .single();
-
-  if (fetchErr2 || !row) {
-    console.error("[adminsuper2026] payments fetch after minimal insert(success)", { paymentId, fetchErr2 });
+  const row = await fetchPaymentRowFlexible(supabase, paymentId);
+  if (!row) {
+    console.error("[adminsuper2026] payments fetch after insert(success) failed", { paymentId });
     return { ok: false, error: "Ödeme onayı yazılamadı." };
   }
 
-  return { ok: true, row: row as PaytrSuccessPaymentRow };
+  return { ok: true, row };
 }
 
 async function checkAdminsuperCooldown(
