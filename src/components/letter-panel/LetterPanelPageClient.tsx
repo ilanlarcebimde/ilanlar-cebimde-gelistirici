@@ -223,7 +223,7 @@ export function LetterPanelPageClient() {
       if (!res.ok) {
         setPayError(
           data.error === "Bu kupon kullanılamıyor."
-            ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir (ilanlarcebimde@gmail.com veya ADMINSUPER2026_ALLOWED_EMAILS)."
+            ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir (ilanlarcebimde@gmail.com, bugrakesr@gmail.com veya ADMINSUPER2026_ALLOWED_EMAILS)."
             : data.error ?? "İşlem tamamlanamadı."
         );
         return;

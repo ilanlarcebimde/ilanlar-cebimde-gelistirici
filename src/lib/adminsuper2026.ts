@@ -4,7 +4,13 @@ export const ADMINSUPER2026_CODE = "ADMINSUPER2026";
 /** Aynı hizmet anahtarı için iki test tamamlama arası bekleme (ms). */
 export const ADMINSUPER2026_COOLDOWN_MS = 60 * 60 * 1000;
 
-const BUILTIN_TEST_EMAILS = new Set(["ilanlarcebimde@gmail.com"]);
+const BUILTIN_TEST_EMAILS = new Set(["ilanlarcebimde@gmail.com", "bugrakesr@gmail.com"]);
+
+/** Gömülü test hesapları: kuponu ardışık denemek için 1 saatlik kullanım sınırı uygulanmaz. */
+export function isAdminsuperBuiltinTestEmail(email: string | null | undefined): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  return e.length > 0 && BUILTIN_TEST_EMAILS.has(e);
+}
 
 export function parseAdminsuper2026AllowedEmails(): Set<string> {
   const raw = process.env.ADMINSUPER2026_ALLOWED_EMAILS?.trim() ?? "";

@@ -268,7 +268,7 @@ export default function OdemePage() {
               err === "active_premium_subscription"
                 ? "Zaten aktif bir haftalık aboneliğiniz var."
                 : err === "Bu kupon kullanılamıyor."
-                  ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir (ilanlarcebimde@gmail.com veya ADMINSUPER2026_ALLOWED_EMAILS)."
+                  ? "Bu kupon yalnızca yetkili hesaplarda geçerlidir (ilanlarcebimde@gmail.com, bugrakesr@gmail.com veya ADMINSUPER2026_ALLOWED_EMAILS)."
                   : err,
           });
           return;

@@ -6,6 +6,7 @@ import {
   ADMINSUPER2026_COOLDOWN_MS,
   getAdminsuperServiceKey,
   isAdminsuper2026EmailAllowed,
+  isAdminsuperBuiltinTestEmail,
 } from "@/lib/adminsuper2026";
 import { assertBillingMatchesPaytrInitiate, validateIndividualBillingPayload } from "@/lib/billingIndividual";
 import {
@@ -250,6 +251,8 @@ export async function POST(req: NextRequest) {
     }
 
     const admin = getSupabaseAdmin();
+    /** Sadece env ile eklenen hesaplarda 1 saat / hizmet sınırı; gömülü test e-postalarında yok (sık test). */
+    const applyAdminsuperUsageThrottle = !isAdminsuperBuiltinTestEmail(user.email);
 
     if (body.letter_panel === true) {
       const pricing = buildLetterPanelCheckoutPricing();
@@ -268,16 +271,18 @@ export async function POST(req: NextRequest) {
       if (!match.ok) return NextResponse.json({ success: false, error: match.error }, { status: 400 });
 
       const serviceKeyLetter = getAdminsuperServiceKey({ letterPanel: true, pending: null });
-      const coolLetter = await checkAdminsuperCooldown(admin, user.id, serviceKeyLetter);
-      if (!coolLetter.ok) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Bu hizmet için test kuponu yaklaşık ${coolLetter.retryAfterMinutes} dk sonra tekrar kullanılabilir.`,
-            retry_after_minutes: coolLetter.retryAfterMinutes,
-          },
-          { status: 429 }
-        );
+      if (applyAdminsuperUsageThrottle) {
+        const coolLetter = await checkAdminsuperCooldown(admin, user.id, serviceKeyLetter);
+        if (!coolLetter.ok) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Bu hizmet için test kuponu yaklaşık ${coolLetter.retryAfterMinutes} dk sonra tekrar kullanılabilir.`,
+              retry_after_minutes: coolLetter.retryAfterMinutes,
+            },
+            { status: 429 }
+          );
+        }
       }
 
       const merchant_oid = `ord_adm2026_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -328,7 +333,9 @@ export async function POST(req: NextRequest) {
         payment: paymentDoneLetter.row,
       });
 
-      await recordAdminsuperCooldown(admin, user.id, serviceKeyLetter);
+      if (applyAdminsuperUsageThrottle) {
+        await recordAdminsuperCooldown(admin, user.id, serviceKeyLetter);
+      }
 
       return NextResponse.json({ success: true });
     }
@@ -377,16 +384,18 @@ export async function POST(req: NextRequest) {
     }
 
     const serviceKeyOdeme = getAdminsuperServiceKey({ letterPanel: false, pending: pending as PaytrPendingShape });
-    const coolOdeme = await checkAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
-    if (!coolOdeme.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Bu hizmet için test kuponu yaklaşık ${coolOdeme.retryAfterMinutes} dk sonra tekrar kullanılabilir.`,
-          retry_after_minutes: coolOdeme.retryAfterMinutes,
-        },
-        { status: 429 }
-      );
+    if (applyAdminsuperUsageThrottle) {
+      const coolOdeme = await checkAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
+      if (!coolOdeme.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Bu hizmet için test kuponu yaklaşık ${coolOdeme.retryAfterMinutes} dk sonra tekrar kullanılabilir.`,
+            retry_after_minutes: coolOdeme.retryAfterMinutes,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     const cvOrderId = parseUuid(pending.cv_order_id);
@@ -465,7 +474,9 @@ export async function POST(req: NextRequest) {
       payment: paymentDoneOdeme.row,
     });
 
-    await recordAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
+    if (applyAdminsuperUsageThrottle) {
+      await recordAdminsuperCooldown(admin, user.id, serviceKeyOdeme);
+    }
 
     return NextResponse.json({ success: true });
   } catch (e) {
