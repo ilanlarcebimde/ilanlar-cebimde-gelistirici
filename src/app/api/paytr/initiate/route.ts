@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { getPaytrToken } from "@/lib/paytr";
 import { PAYMENTS_PAUSED } from "@/lib/paymentsPaused";
@@ -93,6 +94,110 @@ function getClientIp(req: NextRequest): string {
   if (forwarded) return forwarded.split(",")[0].trim();
   if (realIp) return realIp;
   return "127.0.0.1";
+}
+
+/** TRY için kuruş hassasiyeti — float kayması insert’i bozmasın */
+function roundTryAmount(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+async function refetchPaymentIdByOid(
+  supabase: SupabaseClient,
+  merchant_oid: string
+): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("provider_ref", merchant_oid)
+    .eq("provider", "paytr")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.id) return null;
+  return { id: data.id };
+}
+
+/**
+ * Tam satır bazen jsonb / ek sütun yüzünden düşer; o zaman yalnızca zorunlu kolonlarla yaz + PATCH.
+ */
+async function insertPaymentRowWithFallback(
+  supabase: SupabaseClient,
+  args: {
+    userId: string | null;
+    merchant_oid: string;
+    amountNum: number;
+    snapshot: Record<string, unknown> | null;
+    payment_type: string | null;
+    couponNormalized: string | null;
+  }
+): Promise<
+  | { ok: true; paymentId: string }
+  | { ok: false; error: { code?: string; message?: string } | null }
+> {
+  const amountClean = roundTryAmount(args.amountNum);
+  const fullRow = {
+    profile_id: null as string | null,
+    user_id: args.userId,
+    provider: "paytr" as const,
+    status: "started" as const,
+    amount: amountClean,
+    currency: "TRY",
+    provider_ref: args.merchant_oid,
+    profile_snapshot: args.snapshot,
+    payment_type: args.payment_type,
+    coupon_code: args.couponNormalized,
+  };
+
+  let { data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(fullRow).select("id");
+  let paymentRow = paymentRows?.[0];
+
+  if (!paymentInsertError && !paymentRow?.id) {
+    const r = await refetchPaymentIdByOid(supabase, args.merchant_oid);
+    if (r) paymentRow = r;
+  }
+
+  if (!paymentInsertError && paymentRow?.id) {
+    return { ok: true, paymentId: paymentRow.id };
+  }
+
+  if (paymentInsertError) {
+    console.error("[PayTR initiate] payments full insert failed", JSON.stringify(paymentInsertError));
+  }
+
+  const minimalRow = {
+    profile_id: null as string | null,
+    user_id: args.userId,
+    provider: "paytr" as const,
+    status: "started" as const,
+    amount: amountClean,
+    currency: "TRY",
+    provider_ref: args.merchant_oid,
+  };
+
+  ({ data: paymentRows, error: paymentInsertError } = await supabase.from("payments").insert(minimalRow).select("id"));
+  paymentRow = paymentRows?.[0];
+
+  if (!paymentInsertError && !paymentRow?.id) {
+    const r = await refetchPaymentIdByOid(supabase, args.merchant_oid);
+    if (r) paymentRow = r;
+  }
+
+  if (paymentInsertError || !paymentRow?.id) {
+    return { ok: false, error: paymentInsertError };
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (args.snapshot) patch.profile_snapshot = args.snapshot;
+  if (args.payment_type) patch.payment_type = args.payment_type;
+  if (args.couponNormalized) patch.coupon_code = args.couponNormalized;
+  if (Object.keys(patch).length > 0) {
+    const { error: patchErr } = await supabase.from("payments").update(patch).eq("id", paymentRow.id);
+    if (patchErr) {
+      console.warn("[PayTR initiate] payments ek alanlar patch edilemedi (ödeme satırı var)", JSON.stringify(patchErr));
+    }
+  }
+
+  return { ok: true, paymentId: paymentRow.id };
 }
 
 export async function POST(request: NextRequest) {
@@ -240,58 +345,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: paymentRows, error: paymentInsertError } = await supabase
-      .from("payments")
-      .insert({
-        profile_id: null,
-        user_id: userId,
-        provider: "paytr",
-        status: "started",
-        amount: amountNum,
-        currency: "TRY",
-        provider_ref: merchant_oid,
-        profile_snapshot: snapshot,
-        payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
-        coupon_code: couponNormalized,
-      })
-      .select("id");
+    const paymentIns = await insertPaymentRowWithFallback(supabase, {
+      userId,
+      merchant_oid,
+      amountNum,
+      snapshot,
+      payment_type: typeof payment_type === "string" && payment_type.trim() ? payment_type.trim() : null,
+      couponNormalized,
+    });
 
-    let paymentRow = paymentRows?.[0];
-
-    if (paymentInsertError) {
-      console.error("[PayTR initiate] payments insert failed", JSON.stringify(paymentInsertError));
+    if (!paymentIns.ok) {
+      console.error("[PayTR initiate] payments insert (full+minimal) failed", JSON.stringify(paymentIns.error));
       return NextResponse.json(
-        { success: false, error: mapPaymentsInsertError(paymentInsertError) },
+        { success: false, error: mapPaymentsInsertError(paymentIns.error) },
         { status: 500 }
       );
     }
 
-    /** Bazı ortamlarda INSERT … RETURNING boş döner; satır yine yazılmış olabilir — provider_ref ile yakala. */
-    if (!paymentRow?.id) {
-      const { data: refetched, error: refetchErr } = await supabase
-        .from("payments")
-        .select("id")
-        .eq("provider_ref", merchant_oid)
-        .eq("provider", "paytr")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (refetchErr) {
-        console.error("[PayTR initiate] payments refetch by provider_ref failed", refetchErr);
-      }
-      if (refetched?.id) {
-        paymentRow = refetched;
-        console.warn("[PayTR initiate] insert select boştu; provider_ref ile ödeme id alındı");
-      }
-    }
-
-    if (!paymentRow?.id) {
-      console.error("[PayTR initiate] payments insert returned no id", { paymentRows, merchant_oid });
-      return NextResponse.json(
-        { success: false, error: mapPaymentsInsertError({ code: "PGRST116" }) },
-        { status: 500 }
-      );
-    }
+    const paymentRow = { id: paymentIns.paymentId };
 
     // CV paketi siparişi varsa ödeme referansını bağla ki callback'te sipariş statüsü ilerletilebilsin.
     if (cvOrderId) {
@@ -308,7 +379,7 @@ export async function POST(request: NextRequest) {
       {
         merchant_oid,
         email: emailTrimmed,
-        amount: amountNum,
+        amount: roundTryAmount(amountNum),
         user_name: user_name_val || "Müşteri",
         user_address: user_address_val,
         user_phone: user_phone_val,
