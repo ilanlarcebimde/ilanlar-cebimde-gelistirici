@@ -9,8 +9,8 @@ const GA_ID = "G-NVM52S3EHT";
 const N8N_CHAT_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL?.trim() ||
   "https://s02c0alq.rcld.app/webhook/8cdedc3b-fbaa-47f3-b118-76e0c3da64f0/chat";
-/** `false` ise widget hiç yüklenmez (yerel geliştirme, “Failed to fetch” gürültüsü). */
-const N8N_CHAT_ENABLED = process.env.NEXT_PUBLIC_N8N_CHAT_ENABLED !== "false";
+/** Yalnızca `true` iken widget yüklenir (varsayılan: kapalı — sohbet botu gizli). */
+const N8N_CHAT_ENABLED = process.env.NEXT_PUBLIC_N8N_CHAT_ENABLED === "true";
 /**
  * Streaming çoğu kurulumda ek uç nokta / CORS gerektirir; kapalıyken klasik POST ile daha az “Failed to fetch”.
  * Açmak için: NEXT_PUBLIC_N8N_CHAT_STREAMING=true

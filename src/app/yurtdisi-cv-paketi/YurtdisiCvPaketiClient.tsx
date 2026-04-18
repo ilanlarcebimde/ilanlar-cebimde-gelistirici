@@ -9,15 +9,12 @@ import { Footer } from "@/components/layout/Footer";
 import { CvPackageHero } from "@/components/cv/CvPackageHero";
 import { CvWizard } from "@/components/cv/CvWizard";
 import { CvCampaignProvider, useCvCampaign } from "@/components/cv/campaign/CvCampaignContext";
-import { TopCampaignBar, useCvCampaignBarHeightSync } from "@/components/cv/campaign/TopCampaignBar";
-import { CV_CAMPAIGN_BAR_HEIGHT_PX } from "@/components/cv/campaign/cvCampaignConstants";
 import { PaymentPausedNotice } from "@/components/platform/PaymentPausedNotice";
 
 const headerApproxPx = 72;
 
 function YurtdisiCvPaketiInner() {
-  const barHeightPx = useCvCampaignBarHeightSync();
-  const HERO_SCROLL_OFFSET_PX = headerApproxPx + (barHeightPx || CV_CAMPAIGN_BAR_HEIGHT_PX);
+  const HERO_SCROLL_OFFSET_PX = headerApproxPx;
   const { notifyLeaveFirstStep, mainBottomPadding } = useCvCampaign();
 
   const handleLoginClick = () => {
@@ -26,8 +23,7 @@ function YurtdisiCvPaketiInner() {
 
   return (
     <>
-      <TopCampaignBar />
-      <Header onLoginClick={handleLoginClick} stickyTopClassName="top-[var(--cv-campaign-bar-height)]" />
+      <Header onLoginClick={handleLoginClick} stickyTopClassName="top-0" />
       <main
         className={`bg-slate-50 ${mainBottomPadding ? "pb-80 sm:pb-96" : ""}`}
       >
@@ -55,18 +51,41 @@ export function YurtdisiCvPaketiClient() {
   );
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-      setUserEmail(data.user?.email ?? null);
-      setAuthLoading(false);
-    });
+    let cancelled = false;
+    const AUTH_WAIT_MS = 8000;
+
+    void (async () => {
+      try {
+        const result = await Promise.race([
+          supabase.auth.getUser(),
+          new Promise<{ data: { user: null } }>((resolve) =>
+            setTimeout(() => resolve({ data: { user: null } }), AUTH_WAIT_MS)
+          ),
+        ]);
+        if (cancelled) return;
+        const u = result.data.user;
+        setUserId(u?.id ?? null);
+        setUserEmail(u?.email ?? null);
+      } catch {
+        if (!cancelled) {
+          setUserId(null);
+          setUserEmail(null);
+        }
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    })();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id ?? null);
       setUserEmail(session?.user?.email ?? null);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLoginClick = () => {
