@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IndividualBillingPayload } from "@/lib/billingIndividual";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** PayTR öncesi: ödeme satırı uuid + merchant_oid ile bekleyen fatura kaydı. */
 export async function insertBillingIndividualPaytrPending(
   supabase: SupabaseClient,
@@ -12,6 +14,7 @@ export async function insertBillingIndividualPaytrPending(
     billing: IndividualBillingPayload;
     couponCode: string | null;
     source: string | null;
+    paymentType?: string | null;
   }
 ): Promise<{ error: string | null }> {
   const b = args.billing;
@@ -43,6 +46,12 @@ export async function insertBillingIndividualPaytrPending(
     confirm_invoice_accuracy: b.confirm_invoice_accuracy,
     confirm_terms: b.confirm_terms,
     updated_at: new Date().toISOString(),
+    metadata: {
+      stage: "pending_paytr",
+      payments_uuid: args.paymentUuid,
+      payment_type: args.paymentType ?? null,
+      merchant_oid: args.merchantOid,
+    },
   };
   const { error } = await supabase.from("billing_individual_details").insert(row);
   if (error) {
@@ -62,9 +71,18 @@ export async function insertBillingIndividualCouponCompleted(
     billing: IndividualBillingPayload;
     couponCode: string | null;
     source: string | null;
+    profileId?: string | null;
+    premiumSubscriptionId?: string | null;
+    metadata?: Record<string, unknown> | null;
   }
 ): Promise<{ error: string | null }> {
   const b = args.billing;
+  const meta = {
+    stage: "coupon_completed",
+    source: args.source,
+    payment_id_key: args.paymentIdKey,
+    ...(args.metadata && typeof args.metadata === "object" ? args.metadata : {}),
+  };
   const row = {
     user_id: args.userId,
     order_id: args.orderId,
@@ -93,6 +111,10 @@ export async function insertBillingIndividualCouponCompleted(
     confirm_invoice_accuracy: b.confirm_invoice_accuracy,
     confirm_terms: b.confirm_terms,
     updated_at: new Date().toISOString(),
+    profile_id: args.profileId && UUID_RE.test(args.profileId) ? args.profileId : null,
+    premium_subscription_id:
+      args.premiumSubscriptionId && UUID_RE.test(args.premiumSubscriptionId) ? args.premiumSubscriptionId : null,
+    metadata: meta,
   };
   const { error } = await supabase.from("billing_individual_details").insert(row);
   if (error) {
@@ -105,15 +127,47 @@ export async function insertBillingIndividualCouponCompleted(
   return { error: null };
 }
 
-export async function markBillingIndividualCompletedByPaytrOid(
+/**
+ * PayTR callback başarı — fatura satırına ödeme tamamlandı + abonelik/profil/sipariş bağları ve metadata.
+ * (initiate’te oluşan pending satırı güncellenir.)
+ */
+export async function syncBillingIndividualPaytrCompleted(
   supabase: SupabaseClient,
-  merchantOid: string
+  args: {
+    merchantOid: string;
+    paytrTotalAmount?: string;
+    paymentsUuid?: string | null;
+    paymentType?: string | null;
+    couponCode?: string | null;
+    profileId?: string | null;
+    premiumSubscriptionId?: string | null;
+    orderId?: string | null;
+    userId?: string | null;
+    extraMetadata?: Record<string, unknown>;
+  }
 ): Promise<void> {
-  await supabase
-    .from("billing_individual_details")
-    .update({
-      payment_status: "completed",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("paytr_callback_reference", merchantOid);
+  const metadata: Record<string, unknown> = {
+    stage: "paytr_completed",
+    paytr_total_amount: args.paytrTotalAmount ?? null,
+    payments_uuid: args.paymentsUuid ?? null,
+    payment_type: args.paymentType ?? null,
+    coupon_code: args.couponCode ?? null,
+    ...args.extraMetadata,
+  };
+  const patch: Record<string, unknown> = {
+    payment_status: "completed",
+    metadata,
+    updated_at: new Date().toISOString(),
+  };
+  if (args.profileId && UUID_RE.test(args.profileId)) patch.profile_id = args.profileId;
+  if (args.premiumSubscriptionId && UUID_RE.test(args.premiumSubscriptionId)) {
+    patch.premium_subscription_id = args.premiumSubscriptionId;
+  }
+  if (args.orderId && UUID_RE.test(args.orderId)) patch.order_id = args.orderId;
+  if (args.userId && UUID_RE.test(args.userId)) patch.user_id = args.userId;
+
+  const { error } = await supabase.from("billing_individual_details").update(patch).eq("paytr_callback_reference", args.merchantOid);
+  if (error) {
+    console.error("[billing] sync paytr completed failed", error);
+  }
 }

@@ -47,29 +47,38 @@ export async function POST(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
     const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-    const { error: insertError } = await admin.from("premium_subscriptions").insert({
-      user_id: user.id,
-      profile_id: null,
-      payment_id: null,
-      ends_at: endsAt,
-      payment_type: "coupon",
-      coupon_code: code,
-    });
-    if (insertError) {
-      // Eski şema uyumluluğu: payment_type/coupon_code kolonları yoksa minimum insert ile devam et.
-      const { error: fallbackError } = await admin.from("premium_subscriptions").insert({
+    const { data: subRow, error: insertError } = await admin
+      .from("premium_subscriptions")
+      .insert({
         user_id: user.id,
         profile_id: null,
         payment_id: null,
         ends_at: endsAt,
-      });
+        payment_type: "coupon",
+        coupon_code: code,
+      })
+      .select("id")
+      .maybeSingle();
+    if (insertError) {
+      // Eski şema uyumluluğu: payment_type/coupon_code kolonları yoksa minimum insert ile devam et.
+      const { data: fbRow, error: fallbackError } = await admin
+        .from("premium_subscriptions")
+        .insert({
+          user_id: user.id,
+          profile_id: null,
+          payment_id: null,
+          ends_at: endsAt,
+        })
+        .select("id")
+        .maybeSingle();
       if (fallbackError) {
         console.error("[premium/apply-coupon] insert failed", { insertError, fallbackError, userId: user.id });
         return NextResponse.json({ error: "Premium kaydı oluşturulamadı" }, { status: 500 });
       }
+      return NextResponse.json({ success: true, ends_at: endsAt, subscription_id: fbRow?.id ?? null });
     }
 
-    return NextResponse.json({ success: true, ends_at: endsAt });
+    return NextResponse.json({ success: true, ends_at: endsAt, subscription_id: subRow?.id ?? null });
   } catch (e) {
     console.error("[premium/apply-coupon]", e);
     return NextResponse.json({ error: "İşlem başarısız" }, { status: 500 });

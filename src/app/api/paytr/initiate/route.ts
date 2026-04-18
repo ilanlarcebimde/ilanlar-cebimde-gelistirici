@@ -398,6 +398,7 @@ export async function POST(request: NextRequest) {
       billing: billingValidated.data,
       couponCode: couponNormalized,
       source: paymentTypeRaw || "paytr_initiate",
+      paymentType: paymentTypeRaw || null,
     });
     if (billingIns.error) {
       console.error("[PayTR initiate] billing insert failed (ödeme token üretildi)", billingIns.error);

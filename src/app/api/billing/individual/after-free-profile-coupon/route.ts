@@ -60,6 +60,7 @@ export async function POST(req: Request) {
       billing: b,
       couponCode: "ADMIN549",
       source: "free_profile_coupon",
+      profileId,
     });
     if (ins.error) {
       return NextResponse.json({ success: false, error: ins.error }, { status: 500 });

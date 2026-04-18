@@ -239,15 +239,29 @@ export default function OdemePage() {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ code }),
         });
-        const data = await res.json().catch(() => ({}));
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          subscription_id?: string | null;
+        };
         if (!res.ok) {
-          setCouponMessage({ type: "error", text: (data as { error?: string }).error ?? "Kupon uygulanamadı." });
+          setCouponMessage({ type: "error", text: data.error ?? "Kupon uygulanamadı." });
+          return;
+        }
+        if (!data.subscription_id) {
+          setCouponMessage({
+            type: "error",
+            text: "Abonelik kaydı alınamadı. Lütfen tekrar deneyin veya destek ile iletişime geçin.",
+          });
           return;
         }
         const billRes = await fetch("/api/billing/individual/after-premium-coupon", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ coupon_code: code, individual_billing: premBill }),
+          body: JSON.stringify({
+            coupon_code: code,
+            individual_billing: premBill,
+            premium_subscription_id: data.subscription_id,
+          }),
         });
         const billData = (await billRes.json().catch(() => ({}))) as { error?: string };
         if (!billRes.ok) {

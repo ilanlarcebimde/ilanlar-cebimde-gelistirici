@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { makeCallbackHash } from "@/lib/paytr";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { markBillingIndividualCompletedByPaytrOid } from "@/lib/billingIndividualRecord";
+import { syncBillingIndividualPaytrCompleted } from "@/lib/billingIndividualRecord";
 import { LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     const payment = updatedRows[0];
     const paymentId = payment?.id ?? null;
 
-    await markBillingIndividualCompletedByPaytrOid(supabase, merchant_oid);
     let profileId: string | null = payment?.profile_id ?? null;
+    let premiumSubscriptionId: string | null = null;
     const userId = payment?.user_id ?? null;
     const isLetterPanelUnlock = payment?.payment_type === LETTER_PANEL_PAYMENT_TYPE;
 
@@ -75,24 +75,39 @@ export async function POST(request: NextRequest) {
       })
       .eq("merchant_oid", merchant_oid);
 
+    const { data: cvOrderForBilling } = await supabase
+      .from("cv_orders")
+      .select("id")
+      .eq("merchant_oid", merchant_oid)
+      .maybeSingle();
+    const billingOrderId = cvOrderForBilling?.id ?? null;
+
     // Haftalık premium: 7 gün sonra abonelik otomatik sonlanır (tek seferlik panel erişimi bu kapsama girmez)
     if (userId && paymentId && !isLetterPanelUnlock) {
       const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { error: insertError } = await supabase.from("premium_subscriptions").insert({
-        user_id: userId,
-        profile_id: profileId,
-        payment_id: paymentId,
-        ends_at: endsAt,
-        payment_type: payment?.payment_type ?? "standard",
-        coupon_code: payment?.coupon_code ?? null,
-      });
-      if (insertError) {
-        const { error: fallbackError } = await supabase.from("premium_subscriptions").insert({
+      const { data: premRow, error: insertError } = await supabase
+        .from("premium_subscriptions")
+        .insert({
           user_id: userId,
           profile_id: profileId,
           payment_id: paymentId,
           ends_at: endsAt,
-        });
+          payment_type: payment?.payment_type ?? "standard",
+          coupon_code: payment?.coupon_code ?? null,
+        })
+        .select("id")
+        .maybeSingle();
+      if (insertError || !premRow?.id) {
+        const { data: fbPrem, error: fallbackError } = await supabase
+          .from("premium_subscriptions")
+          .insert({
+            user_id: userId,
+            profile_id: profileId,
+            payment_id: paymentId,
+            ends_at: endsAt,
+          })
+          .select("id")
+          .maybeSingle();
         if (fallbackError) {
           console.error("[PAYTR] premium_subscriptions insert failed", {
             userId,
@@ -100,7 +115,11 @@ export async function POST(request: NextRequest) {
             insertError,
             fallbackError,
           });
+        } else {
+          premiumSubscriptionId = fbPrem?.id ?? null;
         }
+      } else {
+        premiumSubscriptionId = premRow.id;
       }
     }
 
@@ -151,6 +170,18 @@ export async function POST(request: NextRequest) {
         payload: { merchant_oid, total_amount },
       });
     }
+
+    await syncBillingIndividualPaytrCompleted(supabase, {
+      merchantOid: merchant_oid,
+      paytrTotalAmount: total_amount,
+      paymentsUuid: paymentId,
+      paymentType: payment?.payment_type ?? null,
+      couponCode: payment?.coupon_code ?? null,
+      profileId,
+      premiumSubscriptionId,
+      orderId: billingOrderId,
+      userId,
+    });
 
     const webhookUrl = process.env.N8N_CV_WEBHOOK_URL?.trim() || "";
     console.log("[PAYTR] success branch", { profileId, webhookUrl: webhookUrl ? "set" : "missing" });

@@ -5,6 +5,7 @@ import { buildPremiumCouponArchivePricing, ODEME_BASKET_WEEKLY } from "@/lib/ode
 import { insertBillingIndividualCouponCompleted } from "@/lib/billingIndividualRecord";
 
 const ALLOWED = new Set(["ADMIN89", "99TLDENEME", "ICMERKEZI14"]);
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Haftalık premium kupon (apply-coupon) sonrası fatura arşivi. */
 export async function POST(req: NextRequest) {
@@ -19,7 +20,11 @@ export async function POST(req: NextRequest) {
     if (!user?.id || !user.email) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
-    const body = (await req.json()) as { individual_billing?: unknown; coupon_code?: string };
+    const body = (await req.json()) as {
+      individual_billing?: unknown;
+      coupon_code?: string;
+      premium_subscription_id?: string;
+    };
     const code = (body.coupon_code ?? "").trim().toUpperCase();
     if (!ALLOWED.has(code)) {
       return NextResponse.json({ success: false, error: "Geçersiz kupon." }, { status: 400 });
@@ -46,7 +51,21 @@ export async function POST(req: NextRequest) {
     if ((b.pricing.coupon_code ?? "").trim().toUpperCase() !== code) {
       return NextResponse.json({ success: false, error: "Kupon kodu özeti uyuşmuyor." }, { status: 400 });
     }
+    const subIdRaw = typeof body.premium_subscription_id === "string" ? body.premium_subscription_id.trim() : "";
+    const premiumSubscriptionId = subIdRaw && UUID_REGEX.test(subIdRaw) ? subIdRaw : null;
+    if (!premiumSubscriptionId) {
+      return NextResponse.json({ success: false, error: "Abonelik kimliği gerekli." }, { status: 400 });
+    }
     const admin = getSupabaseAdmin();
+    const { data: subOk, error: subErr } = await admin
+      .from("premium_subscriptions")
+      .select("id")
+      .eq("id", premiumSubscriptionId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (subErr || !subOk?.id) {
+      return NextResponse.json({ success: false, error: "Abonelik doğrulanamadı." }, { status: 400 });
+    }
     const paymentIdKey = `coupon_premium:${user.id}:${code}:${Date.now()}`;
     const ins = await insertBillingIndividualCouponCompleted(admin, {
       userId: user.id,
@@ -55,6 +74,7 @@ export async function POST(req: NextRequest) {
       billing: b,
       couponCode: code,
       source: "premium_apply_coupon",
+      premiumSubscriptionId,
     });
     if (ins.error) {
       return NextResponse.json({ success: false, error: ins.error }, { status: 500 });
