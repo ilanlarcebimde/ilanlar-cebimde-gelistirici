@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { FeedPostCard, type FeedPost } from "@/components/kanal/FeedPostCard";
 import { FeedSkeleton } from "@/components/kanal/FeedSkeleton";
@@ -49,15 +49,15 @@ export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyE
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [channelMap, setChannelMap] = useState<Record<string, ChannelInfo>>({});
   const [loading, setLoading] = useState(true);
-  const [pageLoading, setPageLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextPage, setNextPage] = useState(2);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const channelIdForFilter = selectedChip
     ? channels.find((c) => c.slug === selectedChip)?.id ?? null
     : null;
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const fetchPage = useCallback(
     async (page: number) => {
@@ -71,8 +71,8 @@ export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyE
     [channelIdForFilter, searchQuery]
   );
 
-  const loadPage = useCallback(
-    async (page: number) => {
+  const loadFirstPage = useCallback(
+    async () => {
       setLoading(true);
       const map: Record<string, ChannelInfo> = {};
       channels.forEach((c) => {
@@ -83,37 +83,55 @@ export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyE
       if (subscribedOnlyEmpty && channels.length === 0) {
         setPosts([]);
         setTotalCount(0);
+        setHasMore(false);
+        setNextPage(2);
         setLoading(false);
         return;
       }
 
-      const { data, count } = await fetchPage(page);
+      const { data, count } = await fetchPage(1);
       setPosts(data);
       setTotalCount(count);
-      setCurrentPage(page);
+      setHasMore(data.length < count);
+      setNextPage(2);
       setLoading(false);
     },
     [channels, fetchPage, subscribedOnlyEmpty]
   );
 
   useEffect(() => {
-    loadPage(1);
-  }, [loadPage]);
+    loadFirstPage();
+  }, [loadFirstPage]);
 
-  const goToPage = useCallback(
-    (page: number) => {
-      if (page < 1 || page > totalPages || pageLoading) return;
-      setPageLoading(true);
-      fetchPage(page).then(({ data, count }) => {
-        setPosts(data);
-        setTotalCount(count);
-        setCurrentPage(page);
-        setPageLoading(false);
-      });
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    },
-    [fetchPage, totalPages, pageLoading]
-  );
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const { data, count } = await fetchPage(nextPage);
+    setPosts((prev) => [...prev, ...data]);
+    setTotalCount(count);
+    const loadedCount = (nextPage - 1) * PAGE_SIZE + data.length;
+    setHasMore(loadedCount < count && data.length > 0);
+    setNextPage((prev) => prev + 1);
+    setLoadingMore(false);
+  }, [fetchPage, hasMore, loading, loadingMore, nextPage]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    const node = loadMoreRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadMore();
+        }
+      },
+      { root: null, rootMargin: "240px 0px", threshold: 0.01 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   if (subscribedOnlyEmpty && channels.length === 0) {
     return (
@@ -167,8 +185,6 @@ export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyE
     );
   }
 
-  const showPagination = totalCount > PAGE_SIZE;
-
   return (
     <div className="flex flex-1 flex-col overflow-y-auto bg-[#f8fafc]">
       <div className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-6">
@@ -185,47 +201,25 @@ export function PanelFeed({ channels, selectedChip, searchQuery, subscribedOnlyE
             })}
           </ul>
 
-        {showPagination && (
-          <nav
-            className="mt-8 flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 pt-6"
-            aria-label="Sayfa numaraları"
-          >
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage <= 1 || pageLoading}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
-            >
-              Önceki
-            </button>
-            <div className="flex flex-wrap items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        {totalCount > PAGE_SIZE ? (
+          <div className="mt-8 border-t border-slate-200 pt-6">
+            <div ref={loadMoreRef} className="h-1 w-full" aria-hidden />
+            {hasMore ? (
+              <div className="flex justify-center">
                 <button
-                  key={p}
                   type="button"
-                  onClick={() => goToPage(p)}
-                  disabled={pageLoading}
-                  className={`min-w-[2.25rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-                    p === currentPage
-                      ? "bg-brand-600 text-white"
-                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                  aria-current={p === currentPage ? "page" : undefined}
+                  onClick={() => void loadMore()}
+                  disabled={loadingMore}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
                 >
-                  {p}
+                  {loadingMore ? "Yükleniyor..." : "Daha fazla ilan yükle"}
                 </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage >= totalPages || pageLoading}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
-            >
-              Sonraki
-            </button>
-          </nav>
-        )}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-slate-500">Tüm ilanlar yüklendi.</p>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );
