@@ -4,6 +4,7 @@ import {
   BriefcaseBusiness,
   Compass,
   FileText,
+  LifeBuoy,
   Newspaper,
   UserCircle2,
   X,
@@ -145,6 +146,12 @@ export function MobileMenuSheet({
                 href="/yurtdisi-is-basvuru-merkezi"
                 label="Yurtdışı İş Başvuru Merkezi"
                 icon={Compass}
+                onClick={onClose}
+              />
+              <MobileMenuItem
+                href="/yurtdisi-is-basvuru-destegi"
+                label="Yurtdışı İş Başvuru Desteği"
+                icon={LifeBuoy}
                 onClick={onClose}
               />
             </MobileMenuSection>

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       .eq("provider_ref", merchant_oid)
       .eq("provider", "paytr")
       .eq("status", "started")
-      .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code");
+      .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code, amount");
 
     if (!updatedRows || updatedRows.length === 0) {
       console.log("[PAYTR] already processed, skip webhook", merchant_oid);

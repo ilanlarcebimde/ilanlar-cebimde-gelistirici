@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 :root {
+  /* Viewport üstünden site header'ının alt sınırına — SSR + ölçüm yok: Header ile uyumlu tahmin; client'ta piksel güncellenir */
+  --site-header-occupancy: 3.5rem;
+  /* Tam ekran sihirbaz / overlay: header altı boşluk (profesyonel nefes) */
+  --site-wizard-below-header-gap: 1rem;
+
   /* Yurtdışı CV kampanya şeridi — JS ölçümü gelene kadar güvenli varsayılan */
   --cv-campaign-bar-height: 5rem;
   --background: #f8fafc;

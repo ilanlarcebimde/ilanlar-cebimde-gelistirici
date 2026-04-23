@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Bell } from "lucide-react";
@@ -24,6 +24,39 @@ export function Header({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  const syncHeaderOccupancy = useCallback(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const { bottom } = el.getBoundingClientRect();
+    document.documentElement.style.setProperty("--site-header-occupancy", `${bottom}px`);
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    syncHeaderOccupancy();
+    const ro = new ResizeObserver(() => syncHeaderOccupancy());
+    ro.observe(el);
+    window.addEventListener("scroll", syncHeaderOccupancy, { passive: true });
+    window.addEventListener("resize", syncHeaderOccupancy);
+    try {
+      window.visualViewport?.addEventListener("resize", syncHeaderOccupancy);
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("scroll", syncHeaderOccupancy);
+      window.removeEventListener("resize", syncHeaderOccupancy);
+      try {
+        window.visualViewport?.removeEventListener("resize", syncHeaderOccupancy);
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [syncHeaderOccupancy]);
   const { user, loading } = useAuth();
   const { isSubscribed, isSupported, subscribe, unsubscribe, isLoading: pushLoading } = usePushSubscription();
 
@@ -69,6 +102,8 @@ export function Header({
   return (
     <>
       <header
+        ref={headerRef}
+        data-site-header
         className={`sticky ${stickyTopClassName} z-[1000] w-full border-b bg-white/95 backdrop-blur-md transition-shadow duration-200 ${
           scrolled ? "border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "border-transparent"
         }`}
@@ -118,6 +153,12 @@ export function Header({
               className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               Yurtdışı İş Başvuru Merkezi
+            </Link>
+            <Link
+              href="/yurtdisi-is-basvuru-destegi"
+              className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
+            >
+              Yurtdışı İş Başvuru Desteği
             </Link>
             <Link
               href={FEED_PATH}

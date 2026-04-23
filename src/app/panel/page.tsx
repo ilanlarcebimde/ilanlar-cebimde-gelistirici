@@ -6,6 +6,11 @@ import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase, normalizeProfileRow } from "@/lib/supabase";
 import { Copy, RefreshCw } from "lucide-react";
+import {
+  YurtdisiBasvuruPurchaseCard,
+  type YurtdisiPanelApplicationRow,
+} from "@/components/panel/YurtdisiBasvuruPurchaseCard";
+import { YURTDISI_BASVURU_PAYMENT_TYPE } from "@/lib/yurtdisiIsBasvuruDestegi/paytr";
 
 type ProfileRow = {
   id: string;
@@ -75,6 +80,8 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   coupon: "Kupon",
   discounted: "İndirimli",
   standard: "Standart",
+  letter_panel_unlock: "İş başvuru mektubu paneli",
+  yurtdisi_is_basvuru_destegi: "Yurtdışı iş başvuru desteği",
 };
 
 function formatDate(iso: string) {
@@ -133,6 +140,7 @@ export default function PanelPage() {
   const [loading, setLoading] = useState(true);
   const [unsubscribing, setUnsubscribing] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [yurtdisiBasvurular, setYurtdisiBasvurular] = useState<YurtdisiPanelApplicationRow[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -196,6 +204,20 @@ export default function PanelPage() {
         channels: Array.isArray(item.channels) ? item.channels[0] : item.channels,
       })) as SubWithChannel[];
       setSubscriptions(subData);
+
+      const yb = await supabase
+        .from("yurtdisi_basvuru_applications")
+        .select("id, status, profession_label, country_count, listing_package_id, amount_try, created_at, payment_id, full_payload")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false });
+      if (yb.error) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[panel] yurtdisi_basvuru_applications", yb.error.message);
+        }
+        setYurtdisiBasvurular([]);
+      } else {
+        setYurtdisiBasvurular((yb.data as YurtdisiPanelApplicationRow[]) ?? []);
+      }
     } catch {
       setFetchError("Veriler yüklenirken bir hata oluştu.");
     } finally {
@@ -267,20 +289,31 @@ export default function PanelPage() {
         coupon_code: s.coupon_code ?? null,
       })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  /** Başarılı yurtdışı başvuru desteği üst bölümde kartla gösterildiği için aşağıdaki listeden düşer. */
+  const paymentsExcludingYurtdisi = displayPayments.filter(
+    (p) =>
+      p.payment_type !== YURTDISI_BASVURU_PAYMENT_TYPE || p.status !== "success"
+  );
   const activityItems = [
     ...payments.map((pay) => ({
       id: `payment-${pay.id}`,
       created_at: pay.created_at,
       kind: "payment" as const,
-      title: `Ödeme ${pay.status === "success" ? "başarılı" : pay.status === "fail" ? "başarısız" : "işlemde"}`,
-      detail: `${pay.amount} ${pay.currency} · ${PAYMENT_TYPE_LABELS[pay.payment_type ?? "standard"] ?? "Standart"}${pay.coupon_code ? ` · Kupon: ${pay.coupon_code}` : ""}`,
+      title:
+        pay.payment_type === YURTDISI_BASVURU_PAYMENT_TYPE
+          ? "Yurtdışı Başvuru Desteği — satın alım"
+          : `Ödeme ${pay.status === "success" ? "başarılı" : pay.status === "fail" ? "başarısız" : "işlemde"}`,
+      detail:
+        pay.payment_type === YURTDISI_BASVURU_PAYMENT_TYPE
+          ? `${pay.amount} ${pay.currency} · Ayrıntılı kart üstte “Yurtdışı İş Başvuru Desteği” bölümünde`
+          : `${pay.amount} ${pay.currency} · ${PAYMENT_TYPE_LABELS[pay.payment_type ?? "standard"] ?? "Standart"}${pay.coupon_code ? ` · Kupon: ${pay.coupon_code}` : ""}`,
       tone:
         pay.status === "success"
           ? "bg-emerald-100 text-emerald-700"
           : pay.status === "fail"
             ? "bg-red-100 text-red-700"
             : "bg-slate-100 text-slate-700",
-      badge: "Ödeme",
+      badge: pay.payment_type === YURTDISI_BASVURU_PAYMENT_TYPE ? "Hizmet" : "Ödeme",
     })),
     ...premiumSubscriptions.map((sub) => {
       const paymentRow = Array.isArray(sub.payments) ? sub.payments[0] ?? null : sub.payments ?? null;
@@ -484,6 +517,37 @@ export default function PanelPage() {
               )}
             </section>
 
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Yurtdışı İş Başvuru Desteği</h2>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">Satın alım kartınız</p>
+                </div>
+                <Link
+                  href="/yurtdisi-is-basvuru-destegi"
+                  className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  Hizmet sayfası →
+                </Link>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Hizmet durumu, ödeme özeti ve başvuru kapsamı aşağıdaki premium kartlarda ayrıntılı gösterilir; sıradan
+                ödeme satırlarından ayrılmıştır.
+              </p>
+              {yurtdisiBasvurular.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="font-medium text-slate-700">Bu hizmete ait kayıt yok</p>
+                  <p className="mt-1 text-sm text-slate-500">Ödeme tamamlandığında kartınız burada listelenir.</p>
+                </div>
+              ) : (
+                <div className="mt-5 flex flex-col gap-5">
+                  {yurtdisiBasvurular.map((row) => (
+                    <YurtdisiBasvuruPurchaseCard key={row.id} row={row} />
+                  ))}
+                </div>
+              )}
+            </section>
+
             {/* Aboneliklerim */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -617,17 +681,23 @@ export default function PanelPage() {
 
             {/* Ödemelerim */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Ödemelerim</h2>
-              {displayPayments.length === 0 ? (
+              <h2 className="text-lg font-semibold text-slate-900">Diğer ödemelerim</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Yurtdışı İş Başvuru Desteği <span className="font-medium">başarılı</span> ödemeleri yukarıdaki
+                hizmet kartlarındadır. Burada yalnızca diğer ürünler veya yarım kalan / başarısız yurtdışı denemeleri
+                listelenir.
+              </p>
+              {paymentsExcludingYurtdisi.length === 0 ? (
                 <div className="py-6 text-center">
-                  <p className="font-medium text-slate-700">Henüz ödeme kaydın yok</p>
+                  <p className="font-medium text-slate-700">Gösterilecek başka ödeme satırı yok</p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Bir işlem yaptığında burada görünecek.
+                    Sadece Yurtdışı Başvuru Desteği aldıysanız özet yukarıdadır; diğer işlemleriniz eklendikçe burada
+                    görünür.
                   </p>
                 </div>
               ) : (
                 <ul className="mt-4 space-y-0 divide-y divide-slate-100">
-                  {displayPayments.map((pay) => (
+                  {paymentsExcludingYurtdisi.map((pay) => (
                     <li
                       key={pay.id}
                       className="flex min-w-0 flex-wrap items-center gap-3 py-4 first:pt-0 sm:flex-nowrap"

@@ -10,6 +10,10 @@ import {
 } from "@/lib/yurtdisiisCoupon";
 import { verifyYurtdisiisCanUse } from "@/lib/yurtdisiisCouponServer";
 import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_BASKET, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
+import { YURTDISI_BASVURU_BASKET, YURTDISI_BASVURU_PAYMENT_TYPE } from "@/lib/yurtdisiIsBasvuruDestegi/paytr";
+import { assertAmountMatchesBasvuruPricing } from "@/lib/yurtdisiIsBasvuruDestegi/pricing";
+import { buildBasvuruDestegiSnapshot, basvuruProfileSnapshotForDb } from "@/lib/yurtdisiIsBasvuruDestegi/snapshot";
+import { assertBasvuruWizardReadyForPayment } from "@/lib/yurtdisiIsBasvuruDestegi/validateWizardForPaytr";
 import { assertBillingMatchesPaytrInitiate, validateIndividualBillingPayload } from "@/lib/billingIndividual";
 import { insertBillingIndividualPaytrPending } from "@/lib/billingIndividualRecord";
 
@@ -304,6 +308,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (paymentTypeRaw === YURTDISI_BASVURU_PAYMENT_TYPE) {
+      if (billingValidated.data.service_name !== YURTDISI_BASVURU_BASKET) {
+        return NextResponse.json(
+          { success: false, error: "Geçersiz sepet / fatura hizmet adı." },
+          { status: 400 }
+        );
+      }
+      if (!userId) {
+        return NextResponse.json(
+          { success: false, error: "Bu ödeme için giriş yapmanız gerekir." },
+          { status: 400 }
+        );
+      }
+    }
+
     const couponRaw = typeof coupon_code === "string" ? coupon_code.trim() : "";
     if (couponRaw && isYurtdisiisCouponCode(couponRaw)) {
       if (amountNum !== AMOUNT_YURTDISIIS_DISCOUNTED) {
@@ -325,9 +344,43 @@ export async function POST(request: NextRequest) {
     const user_phone_val = typeof user_phone === "string" && user_phone.trim() ? user_phone.trim().slice(0, 20) : "5550000000";
 
     const supabase = getSupabaseAdmin();
-    const snapshot = safeProfileSnapshotForDb(
-      profile_snapshot && typeof profile_snapshot === "object" ? profile_snapshot : undefined
-    );
+
+    const bodyWithBasvuru = body as {
+      yurtdisi_basvuru?: { pricing?: unknown; form?: unknown };
+    };
+    let snapshot: Record<string, unknown> | null;
+    if (paymentTypeRaw === YURTDISI_BASVURU_PAYMENT_TYPE) {
+      const yb = bodyWithBasvuru.yurtdisi_basvuru;
+      if (!yb || typeof yb !== "object") {
+        return NextResponse.json(
+          { success: false, error: "Başvuru verisi eksik. Sayfayı yenileyin." },
+          { status: 400 }
+        );
+      }
+      const check = assertAmountMatchesBasvuruPricing(yb.pricing, amountNum);
+      if (!check.ok) {
+        return NextResponse.json({ success: false, error: check.error }, { status: 400 });
+      }
+      if (!yb.form || typeof yb.form !== "object") {
+        return NextResponse.json(
+          { success: false, error: "Form verisi geçersiz." },
+          { status: 400 }
+        );
+      }
+      const ready = assertBasvuruWizardReadyForPayment(yb.form, check.input, userId!);
+      if (!ready.ok) {
+        return NextResponse.json({ success: false, error: ready.error }, { status: 400 });
+      }
+      const built = buildBasvuruDestegiSnapshot(ready.form, check.input);
+      if (Math.abs(built.priceBreakdown.totalTry - amountNum) > 0.009) {
+        return NextResponse.json({ success: false, error: "Tutar doğrulaması başarısız." }, { status: 400 });
+      }
+      snapshot = basvuruProfileSnapshotForDb(built);
+    } else {
+      snapshot = safeProfileSnapshotForDb(
+        profile_snapshot && typeof profile_snapshot === "object" ? profile_snapshot : undefined
+      );
+    }
 
     /** Aktif premium varken ikinci bir haftalık ödeme başlatılmaz (CV paketi / mektup paneli hariç). */
     if (userId && paymentTypeRaw === "weekly") {

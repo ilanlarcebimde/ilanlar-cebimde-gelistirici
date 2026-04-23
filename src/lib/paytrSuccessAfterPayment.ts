@@ -1,11 +1,30 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { syncBillingIndividualPaytrCompleted } from "@/lib/billingIndividualRecord";
 import { LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
+import { YURTDISI_BASVURU_PAYMENT_TYPE } from "@/lib/yurtdisiIsBasvuruDestegi/paytr";
+import type { BasvuruDestegiStoredSnapshot } from "@/lib/yurtdisiIsBasvuruDestegi/snapshot";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isValidProfileId(id: string | null): id is string {
   return typeof id === "string" && UUID_REGEX.test(id);
+}
+
+function collectBasvuruDocumentMetadata(
+  form: BasvuruDestegiStoredSnapshot["form"]
+): { path: string; category: string; originalName: string; size: number }[] {
+  const out: { path: string; category: string; originalName: string; size: number }[] = [];
+  for (const [cat, list] of Object.entries(form.filesByCategory)) {
+    for (const f of list) {
+      out.push({
+        path: f.path,
+        category: cat,
+        originalName: f.originalName,
+        size: f.size,
+      });
+    }
+  }
+  return out;
 }
 
 export type PaytrSuccessPaymentRow = {
@@ -15,6 +34,8 @@ export type PaytrSuccessPaymentRow = {
   user_id: string | null;
   payment_type: string | null;
   coupon_code: string | null;
+  /** payments.amount (TRY) — callback kuruş ile çapraz doğrulama */
+  amount?: number | null;
 };
 
 /**
@@ -36,6 +57,7 @@ export async function executePaytrSuccessSideEffects(
   let premiumSubscriptionId: string | null = null;
   const userId = payment?.user_id ?? null;
   const isLetterPanelUnlock = payment?.payment_type === LETTER_PANEL_PAYMENT_TYPE;
+  const isYurtdisiBasvuruDestegi = payment?.payment_type === YURTDISI_BASVURU_PAYMENT_TYPE;
 
   await supabase
     .from("cv_orders")
@@ -53,7 +75,7 @@ export async function executePaytrSuccessSideEffects(
     .maybeSingle();
   const billingOrderId = cvOrderForBilling?.id ?? null;
 
-  if (userId && paymentId && !isLetterPanelUnlock) {
+  if (userId && paymentId && !isLetterPanelUnlock && !isYurtdisiBasvuruDestegi) {
     const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: premRow, error: insertError } = await supabase
       .from("premium_subscriptions")
@@ -93,7 +115,14 @@ export async function executePaytrSuccessSideEffects(
     }
   }
 
-  if (!profileId && payment?.profile_snapshot && typeof payment.profile_snapshot === "object") {
+  const rawProfileSnap = payment?.profile_snapshot;
+  const isBasvuruDestegiSnap =
+    rawProfileSnap &&
+    typeof rawProfileSnap === "object" &&
+    rawProfileSnap !== null &&
+    "basvuru_destegi" in (rawProfileSnap as object);
+
+  if (!profileId && !isBasvuruDestegiSnap && payment?.profile_snapshot && typeof payment.profile_snapshot === "object") {
     const snap = payment.profile_snapshot as {
       method?: string;
       country?: string | null;
@@ -130,6 +159,53 @@ export async function executePaytrSuccessSideEffects(
     }
   } else if (profileId) {
     await supabase.from("profiles").update({ status: "paid", updated_at: new Date().toISOString() }).eq("id", profileId);
+  }
+
+  if (isYurtdisiBasvuruDestegi && userId && paymentId) {
+    const root = payment.profile_snapshot;
+    if (root && typeof root === "object" && root !== null) {
+      const bd = (root as { basvuru_destegi?: BasvuruDestegiStoredSnapshot }).basvuru_destegi;
+      if (bd?.pricing && bd.form && typeof bd.form === "object") {
+        const kuruCallback = parseInt(String(total_amount).trim(), 10);
+        const kuruFromDb =
+          payment.amount != null && Number.isFinite(Number(payment.amount))
+            ? Math.round(Number(payment.amount) * 100)
+            : NaN;
+        if (Number.isFinite(kuruFromDb) && Number.isFinite(kuruCallback) && kuruFromDb !== kuruCallback) {
+          console.error("[paytr success] yurtdisi PayTR total_amount vs payments.amount mismatch", {
+            merchant_oid,
+            kuruCallback,
+            kuruFromDb,
+          });
+        }
+        const amountTryFromDb =
+          payment.amount != null && Number.isFinite(Number(payment.amount)) ? Number(payment.amount) : 0;
+        const amountTry =
+          amountTryFromDb > 0
+            ? amountTryFromDb
+            : Number.isFinite(kuruCallback)
+              ? kuruCallback / 100
+              : 0;
+        const docMeta = collectBasvuruDocumentMetadata(bd.form);
+        const { error: ybErr } = await supabase.from("yurtdisi_basvuru_applications").insert({
+          user_id: userId,
+          payment_id: paymentId,
+          merchant_oid,
+          status: "beklemede",
+          amount_try: amountTry,
+          profession_id: bd.pricing.profession_id,
+          profession_label: bd.profession_label,
+          country_count: bd.pricing.country_keys.length,
+          listing_package_id: bd.pricing.listing_package_id,
+          listing_count: bd.pricing.listing_package_id,
+          full_payload: bd as unknown as Record<string, unknown>,
+          document_metadata: docMeta,
+        });
+        if (ybErr && ybErr.code !== "23505") {
+          console.error("[paytr success] yurtdisi_basvuru_applications insert failed", ybErr);
+        }
+      }
+    }
   }
 
   if (profileId) {

@@ -52,11 +52,14 @@ export default function RootLayout({
         {N8N_CHAT_ENABLED ? (
           <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
         ) : null}
+        {/*
+          beforeInteractive: SSR ile client arasında Script DOM'u farklı üretebiliyor (hydration uyarısı).
+          AdSense afterInteractive ile yüklenir; sayfa hidrasyonu tamamlandıktan sonra enjekte edilir.
+        */}
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3494435772981222"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
           crossOrigin="anonymous"
-          async
         />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
