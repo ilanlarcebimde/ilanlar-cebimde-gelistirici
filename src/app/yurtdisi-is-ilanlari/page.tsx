@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { buildPageMetadata } from "@/lib/seo/defaultMetadata";
 import { YurtdisiPanelClient } from "./YurtdisiPanelClient";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Yurtdışı İş İlanları | İlanlar Cebimde",
   description:
     "Biz sizin için araştırıyor, doğruluyor ve tek merkezde sunuyoruz. Güncel iş ilanları, resmi duyurular ve güvenli başvuru bağlantıları.",
-  openGraph: {
-    title: "Yurtdışı İş İlanları | İlanlar Cebimde",
-    description:
-      "Ülke bazlı kanallara abone olun. Güncel yurtdışı iş ilanları tek merkezde.",
-  },
-};
+  path: "/yurtdisi-is-ilanlari",
+});
 
 export default function YurtdisiIsIlanlariPage() {
   return (

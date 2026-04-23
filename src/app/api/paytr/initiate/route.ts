@@ -11,11 +11,20 @@ import {
 import { verifyYurtdisiisCanUse } from "@/lib/yurtdisiisCouponServer";
 import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_BASKET, LETTER_PANEL_PAYMENT_TYPE } from "@/lib/letterPanelUnlock";
 import { YURTDISI_BASVURU_BASKET, YURTDISI_BASVURU_PAYMENT_TYPE } from "@/lib/yurtdisiIsBasvuruDestegi/paytr";
-import { assertAmountMatchesBasvuruPricing } from "@/lib/yurtdisiIsBasvuruDestegi/pricing";
+import {
+  assertAmountMatchesBasvuruPricing,
+  computeBasvuruDestegiPrice,
+  parseBasvuruPricingInput,
+} from "@/lib/yurtdisiIsBasvuruDestegi/pricing";
+import {
+  isAdminBasvuruFreeUnlimitedCoupon,
+  isAdminBasvuruFreeUnlimitedCouponEnabled,
+} from "@/lib/yurtdisiIsBasvuruDestegi/adminBasvuruTestCoupon";
 import { buildBasvuruDestegiSnapshot, basvuruProfileSnapshotForDb } from "@/lib/yurtdisiIsBasvuruDestegi/snapshot";
 import { assertBasvuruWizardReadyForPayment } from "@/lib/yurtdisiIsBasvuruDestegi/validateWizardForPaytr";
 import { assertBillingMatchesPaytrInitiate, validateIndividualBillingPayload } from "@/lib/billingIndividual";
 import { insertBillingIndividualPaytrPending } from "@/lib/billingIndividualRecord";
+import { executePaytrSuccessSideEffects, type PaytrSuccessPaymentRow } from "@/lib/paytrSuccessAfterPayment";
 
 export const runtime = "nodejs";
 
@@ -262,11 +271,28 @@ export async function POST(request: NextRequest) {
     }
     const cvOrderId = parseOptionalUuid(typeof cv_order_id === "string" ? cv_order_id : null);
     const paymentTypeRaw = typeof payment_type === "string" ? payment_type.trim() : "";
+    const couponRaw = typeof coupon_code === "string" ? coupon_code.trim() : "";
+    const isBasvuruInstantFree =
+      paymentTypeRaw === YURTDISI_BASVURU_PAYMENT_TYPE &&
+      isAdminBasvuruFreeUnlimitedCouponEnabled() &&
+      isAdminBasvuruFreeUnlimitedCoupon(couponRaw);
 
     const amountNum = Number(amount);
-    if (!merchant_oid || !emailTrimmed || amount == null || !Number.isFinite(amountNum) || amountNum <= 0) {
+    if (!merchant_oid || !emailTrimmed || amount == null || !Number.isFinite(amountNum)) {
+      return NextResponse.json(
+        { success: false, error: "merchant_oid, email ve geçerli tutar zorunludur." },
+        { status: 400 }
+      );
+    }
+    if (!isBasvuruInstantFree && amountNum <= 0) {
       return NextResponse.json(
         { success: false, error: "merchant_oid, email ve geçerli tutar (0'dan büyük) zorunludur." },
+        { status: 400 }
+      );
+    }
+    if (isBasvuruInstantFree && amountNum !== 0) {
+      return NextResponse.json(
+        { success: false, error: "ADMIN_FREE_UNLIMITED kuponu ile ödeme tutarı 0 olmalıdır." },
         { status: 400 }
       );
     }
@@ -323,7 +349,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const couponRaw = typeof coupon_code === "string" ? coupon_code.trim() : "";
     if (couponRaw && isYurtdisiisCouponCode(couponRaw)) {
       if (amountNum !== AMOUNT_YURTDISIIS_DISCOUNTED) {
         return NextResponse.json(
@@ -357,25 +382,68 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const check = assertAmountMatchesBasvuruPricing(yb.pricing, amountNum);
-      if (!check.ok) {
-        return NextResponse.json({ success: false, error: check.error }, { status: 400 });
-      }
       if (!yb.form || typeof yb.form !== "object") {
         return NextResponse.json(
           { success: false, error: "Form verisi geçersiz." },
           { status: 400 }
         );
       }
-      const ready = assertBasvuruWizardReadyForPayment(yb.form, check.input, userId!);
-      if (!ready.ok) {
-        return NextResponse.json({ success: false, error: ready.error }, { status: 400 });
+
+      if (isBasvuruInstantFree) {
+        const parsed = parseBasvuruPricingInput(yb.pricing);
+        if (!parsed.ok) {
+          return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
+        }
+        const computed = computeBasvuruDestegiPrice(parsed.data);
+        const pr = billingValidated.data.pricing;
+        if (Math.abs(pr.gross_amount - computed.totalTry) > 0.009) {
+          return NextResponse.json(
+            { success: false, error: "Fatura brüt tutarı ile sihirbaz tutarı uyuşmuyor." },
+            { status: 400 }
+          );
+        }
+        if (Math.abs(pr.discount_amount - computed.totalTry) > 0.009) {
+          return NextResponse.json(
+            { success: false, error: "Kupon indirimi hesaplanan toplamla uyuşmuyor." },
+            { status: 400 }
+          );
+        }
+        if (Math.abs(pr.net_amount) > 0.009) {
+          return NextResponse.json(
+            { success: false, error: "Bu kupon ile net tutar 0 olmalıdır." },
+            { status: 400 }
+          );
+        }
+        if (!isAdminBasvuruFreeUnlimitedCoupon(pr.coupon_code ?? couponRaw)) {
+          return NextResponse.json(
+            { success: false, error: "Geçersiz veya eksik admin test kuponu." },
+            { status: 400 }
+          );
+        }
+        const ready = assertBasvuruWizardReadyForPayment(yb.form, parsed.data, userId!);
+        if (!ready.ok) {
+          return NextResponse.json({ success: false, error: ready.error }, { status: 400 });
+        }
+        const built = buildBasvuruDestegiSnapshot(ready.form, parsed.data);
+        if (Math.abs(built.priceBreakdown.totalTry - computed.totalTry) > 0.009) {
+          return NextResponse.json({ success: false, error: "Tutar doğrulaması başarısız." }, { status: 400 });
+        }
+        snapshot = basvuruProfileSnapshotForDb(built);
+      } else {
+        const check = assertAmountMatchesBasvuruPricing(yb.pricing, amountNum);
+        if (!check.ok) {
+          return NextResponse.json({ success: false, error: check.error }, { status: 400 });
+        }
+        const ready = assertBasvuruWizardReadyForPayment(yb.form, check.input, userId!);
+        if (!ready.ok) {
+          return NextResponse.json({ success: false, error: ready.error }, { status: 400 });
+        }
+        const built = buildBasvuruDestegiSnapshot(ready.form, check.input);
+        if (Math.abs(built.priceBreakdown.totalTry - amountNum) > 0.009) {
+          return NextResponse.json({ success: false, error: "Tutar doğrulaması başarısız." }, { status: 400 });
+        }
+        snapshot = basvuruProfileSnapshotForDb(built);
       }
-      const built = buildBasvuruDestegiSnapshot(ready.form, check.input);
-      if (Math.abs(built.priceBreakdown.totalTry - amountNum) > 0.009) {
-        return NextResponse.json({ success: false, error: "Tutar doğrulaması başarısız." }, { status: 400 });
-      }
-      snapshot = basvuruProfileSnapshotForDb(built);
     } else {
       snapshot = safeProfileSnapshotForDb(
         profile_snapshot && typeof profile_snapshot === "object" ? profile_snapshot : undefined
@@ -426,6 +494,51 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", cvOrderId);
+    }
+
+    if (isBasvuruInstantFree) {
+      const billingInsInstant = await insertBillingIndividualPaytrPending(supabase, {
+        userId: userId,
+        orderId: cvOrderId,
+        paymentUuid: paymentRow.id,
+        merchantOid: merchant_oid,
+        billing: billingValidated.data,
+        couponCode: couponNormalized,
+        source: "yurtdisi_basvuru_admin_free_coupon",
+        paymentType: paymentTypeRaw || null,
+      });
+      if (billingInsInstant.error) {
+        console.error("[PayTR initiate] billing insert failed (admin ücretsiz)", billingInsInstant.error);
+      }
+
+      const { data: paySuccessRow, error: succErr } = await supabase
+        .from("payments")
+        .update({ status: "success" })
+        .eq("id", paymentRow.id)
+        .eq("status", "started")
+        .select("id, profile_id, profile_snapshot, user_id, payment_type, coupon_code, amount")
+        .maybeSingle();
+
+      if (succErr || !paySuccessRow) {
+        console.error("[PayTR initiate] admin ücretsiz ödeme success güncellenemedi", succErr);
+        return NextResponse.json(
+          { success: false, error: "Ödeme tamamlanamadı. Destek ile iletişime geçin." },
+          { status: 500 }
+        );
+      }
+
+      await executePaytrSuccessSideEffects(supabase, {
+        merchant_oid,
+        total_amount: "0",
+        payment: paySuccessRow as PaytrSuccessPaymentRow,
+      });
+
+      return NextResponse.json({
+        success: true,
+        completed_without_paytr: true,
+        iframe_url: null,
+        token: null,
+      });
     }
 
     const token = await getPaytrToken(

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { UcretsizPanelClient } from "./UcretsizPanelClient";
-import { DEFAULT_OG_IMAGE } from "@/lib/og";
+import { buildPageMetadata } from "@/lib/seo/defaultMetadata";
 
 const CANONICAL = "https://www.ilanlarcebimde.com/ucretsiz-yurtdisi-is-ilanlari";
 const TITLE = "Ücretsiz Yurtdışı İş İlanları | İlanlar Cebimde";
@@ -27,28 +27,20 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const { c } = await searchParams;
   const slug = typeof c === "string" ? c.trim().toLowerCase() : "";
   const hasCountry = !!slug && Object.prototype.hasOwnProperty.call(COUNTRY_OG_IMAGES, slug);
-  const imageUrl = hasCountry ? COUNTRY_OG_IMAGES[slug] : DEFAULT_OG_IMAGE;
+  const imageUrl = hasCountry ? COUNTRY_OG_IMAGES[slug] : undefined;
   const url = slug ? `${CANONICAL}?c=${encodeURIComponent(slug)}` : CANONICAL;
 
-  return {
+  return buildPageMetadata({
     title: TITLE,
     description: DESCRIPTION,
-    alternates: { canonical: CANONICAL },
-    openGraph: {
-      title: TITLE,
-      description: DESCRIPTION,
-      url,
-      siteName: "İlanlar Cebimde",
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: hasCountry ? `Ücretsiz ${slug.toUpperCase()} iş ilanları` : "Ücretsiz Yurtdışı İş İlanları" }],
-      locale: "tr_TR",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: TITLE,
-      description: DESCRIPTION,
-      images: [imageUrl],
-    },
-  };
+    path: "/ucretsiz-yurtdisi-is-ilanlari",
+    canonicalUrl: CANONICAL,
+    openGraphUrl: url,
+    imageUrl,
+    imageAlt: hasCountry ? `Ücretsiz ${slug} iş ilanları` : "Ücretsiz Yurtdışı İş İlanları",
+    imageWidth: hasCountry ? 1200 : 500,
+    imageHeight: hasCountry ? 630 : 500,
+  });
 }
 
 export default function UcretsizYurtdisiIsIlanlariPage() {

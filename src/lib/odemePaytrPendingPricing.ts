@@ -2,16 +2,16 @@
  * Ödeme sayfası paytr_pending oturumu → sepet adı ve tutarlar.
  * Tutarlar src/app/odeme/page.tsx ile senkron tutulmalıdır.
  */
-import { AMOUNT_YURTDISIIS_DISCOUNTED, YURTDISIIS_DISCOUNT_AMOUNT } from "@/lib/yurtdisiisCoupon";
+import { AMOUNT_YURTDISIIS_DISCOUNTED, CV_PACKAGE_BASE_PRICE, YURTDISIIS_DISCOUNT_AMOUNT } from "@/lib/yurtdisiisCoupon";
 import { LETTER_PANEL_AMOUNT_TRY, LETTER_PANEL_BASKET } from "@/lib/letterPanelUnlock";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
-const AMOUNT_CV_PACKAGE = 469;
-const AMOUNT_CV_PACKAGE_DISCOUNTED = 390;
-const AMOUNT_FULL_IYIUSTALAR = 420;
 const IYIUSTALAR_DISCOUNT_AMOUNT = 129;
 const CV79_DISCOUNT_AMOUNT = 79;
+const AMOUNT_CV_PACKAGE = CV_PACKAGE_BASE_PRICE;
+const AMOUNT_CV_PACKAGE_DISCOUNTED = AMOUNT_CV_PACKAGE - CV79_DISCOUNT_AMOUNT;
+const AMOUNT_FULL_IYIUSTALAR = 420;
 
 export const ODEME_BASKET_FULL = "Usta Başvuru Paketi";
 export const ODEME_BASKET_WEEKLY = "Haftalık Premium";

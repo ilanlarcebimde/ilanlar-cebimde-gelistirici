@@ -1,28 +1,20 @@
 import type { Metadata } from "next";
+import { SITE_ORIGIN } from "@/lib/og";
+import { buildPageMetadata } from "@/lib/seo/defaultMetadata";
 import { ContactPageClient } from "./ContactPageClient";
 
-const SITE_URL = "https://www.ilanlarcebimde.com";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "İletişim | İlanlar Cebimde",
   description:
     "İlanlar Cebimde iletişim kanalları: destek e-postaları ve WhatsApp hattı. Dilek, öneri, şikayet ve destek talepleriniz için bize ulaşın.",
-  alternates: {
-    canonical: `${SITE_URL}/iletisim`,
-  },
-  openGraph: {
-    title: "İletişim | İlanlar Cebimde",
-    description: "Destek, öneri ve şikayetleriniz için e-posta ve WhatsApp üzerinden bize ulaşın.",
-    type: "website",
-    url: `${SITE_URL}/iletisim`,
-  },
-};
+  path: "/iletisim",
+});
 
 const contactPointJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "İlanlar Cebimde",
-  url: SITE_URL,
+  url: SITE_ORIGIN,
   contactPoint: {
     "@type": "ContactPoint",
     email: "destek@ilanlarcebimde.com",

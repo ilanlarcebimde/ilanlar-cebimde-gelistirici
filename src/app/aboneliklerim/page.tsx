@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { buildPageMetadata } from "@/lib/seo/defaultMetadata";
 import { ChannelsLayout } from "@/components/kanallar/ChannelsLayout";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Kanal Paneli | İlanlar Cebimde",
   description: "Abone olduğunuz yurtdışı iş ilanı kanalları ve keşfet.",
-};
+  path: "/aboneliklerim",
+});
 
 export default function AboneliklerimPage() {
   return (

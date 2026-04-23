@@ -6,8 +6,14 @@
 
 export const SITE_ORIGIN = "https://www.ilanlarcebimde.com";
 
-/** 1200×630 OG fallback; logo.png değil, sosyal önizleme için uygun kapak. public/og/default-1200x630.jpg eklenmeli. */
-export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/og/default-1200x630.jpg`;
+/**
+ * Sosyal paylaşım varsayılan görseli (500×500, public Supabase; WhatsApp/LinkedIn/Twitter/FB).
+ * Blog veya `cover_image` olan sayfalarda `absoluteOgImageUrl` ile override edilir.
+ */
+export const DEFAULT_OG_IMAGE =
+  "https://ugvjqnhbkotvvljnseob.supabase.co/storage/v1/object/public/cv-photos/ilanlar%20cebimde%20logo3.png";
+
+export const DEFAULT_OG_IMAGE_SIZE = { width: 500, height: 500 } as const;
 
 /**
  * Relative veya absolute bir görsel URL'ini sosyal paylaşım için absolute URL'e çevirir.

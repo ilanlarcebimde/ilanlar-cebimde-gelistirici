@@ -1,11 +1,5 @@
-# OG fallback görseli
+# OG görseli (eski / isteğe bağlı yerel kopya)
 
-Bu klasöre **default-1200x630.jpg** dosyasını ekleyin.
+**Varsayılan sosyal paylaşım görseli** artık merkezi olarak Supabase’deki marka logosu (500×500) kullanılır; tanım: `src/lib/og.ts` içindeki `DEFAULT_OG_IMAGE`.
 
-- **Boyut:** 1200×630 px (sosyal ağların önerdiği oran)
-- **Format:** JPG veya PNG
-- **Kullanım:** Kapak görseli olmayan yazılar ve liste sayfası paylaşıldığında `og:image` olarak kullanılır.
-
-URL: `https://www.ilanlarcebimde.com/og/default-1200x630.jpg`
-
-Logo (logo.png) OG fallback olarak kullanılmamalı; bu dosya gerçek bir kapak görseli olmalıdır.
+İsterseniz bu klasöre **default-1200x630.jpg** kopyalayıp `npm run optimize:og` ile sıkıştırabilirsiniz; uygulama bu dosyayı **artık varsayılan `og:image` için kullanmaz** (yalnızca eski betik / arşiv için).

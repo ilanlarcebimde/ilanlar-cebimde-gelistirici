@@ -15,80 +15,128 @@ export type ListingPackageId = (typeof LISTING_PACKAGES)[number]["id"];
 export type TargetLocationType = "country" | "region";
 export type TargetRegionGroup = "europe" | "international";
 
-/** Tek kaynak: anahtarlar eski ve yeni depolarla uyumlu kalmalı (sunucu doğrulaması). */
-export const TARGET_COUNTRY_OPTIONS: {
+/** Tek kaynak: `id` depolama / API ile uyumlu; `key` = `id` (geriye dönük). */
+export type TargetCountryOption = {
+  id: string;
+  nameTr: string;
+  flagEmoji: string;
+  group: TargetRegionGroup;
+  type: TargetLocationType;
+  searchText: string;
+  iso2: string;
   key: string;
   name: string;
-  /** Bayrak (emoji) + arama yordamı */
   flag: string;
   locationType: TargetLocationType;
   region: TargetRegionGroup;
-  /** Araya: dubai, thailand, filipin … */
+};
+
+function targetCountryRow(input: {
+  id: string;
+  nameTr: string;
+  flagEmoji: string;
+  group: TargetRegionGroup;
+  type: TargetLocationType;
   searchText: string;
-}[] = [
-  { key: "austria", name: "Avusturya", flag: "🇦🇹", locationType: "country", region: "europe", searchText: "avusturya austria" },
-  { key: "belgium", name: "Belçika", flag: "🇧🇪", locationType: "country", region: "europe", searchText: "belcika belgium" },
-  { key: "bulgaria", name: "Bulgaristan", flag: "🇧🇬", locationType: "country", region: "europe", searchText: "bulgaristan" },
-  { key: "croatia", name: "Hırvatistan", flag: "🇭🇷", locationType: "country", region: "europe", searchText: "hirvatistan croatia" },
-  { key: "cyprus", name: "Kıbrıs", flag: "🇨🇾", locationType: "country", region: "europe", searchText: "kibris cyprus" },
-  { key: "czechia", name: "Çekya", flag: "🇨🇿", locationType: "country", region: "europe", searchText: "ceky czech" },
-  { key: "denmark", name: "Danimarka", flag: "🇩🇰", locationType: "country", region: "europe", searchText: "danimarka denmark" },
-  { key: "estonia", name: "Estonya", flag: "🇪🇪", locationType: "country", region: "europe", searchText: "estonya" },
-  { key: "finland", name: "Finlandiya", flag: "🇫🇮", locationType: "country", region: "europe", searchText: "finlandiya" },
-  { key: "france", name: "Fransa", flag: "🇫🇷", locationType: "country", region: "europe", searchText: "fransa france" },
-  { key: "germany", name: "Almanya", flag: "🇩🇪", locationType: "country", region: "europe", searchText: "almanya germany" },
-  { key: "greece", name: "Yunanistan", flag: "🇬🇷", locationType: "country", region: "europe", searchText: "yunanistan greece" },
-  { key: "hungary", name: "Macaristan", flag: "🇭🇺", locationType: "country", region: "europe", searchText: "macaristan hungary" },
-  { key: "iceland", name: "İzlanda", flag: "🇮🇸", locationType: "country", region: "europe", searchText: "izlanda iceland" },
-  { key: "ireland", name: "İrlanda", flag: "🇮🇪", locationType: "country", region: "europe", searchText: "irlanda ireland" },
-  { key: "italy", name: "İtalya", flag: "🇮🇹", locationType: "country", region: "europe", searchText: "italya italy" },
-  { key: "latvia", name: "Letonya", flag: "🇱🇻", locationType: "country", region: "europe", searchText: "letonya latvia" },
-  { key: "liechtenstein", name: "Lihtenştayn", flag: "🇱🇮", locationType: "country", region: "europe", searchText: "lihtenstayn" },
-  { key: "lithuania", name: "Litvanya", flag: "🇱🇹", locationType: "country", region: "europe", searchText: "litvanya" },
-  { key: "luxembourg", name: "Lüksemburg", flag: "🇱🇺", locationType: "country", region: "europe", searchText: "luksemburg" },
-  { key: "netherlands", name: "Hollanda", flag: "🇳🇱", locationType: "country", region: "europe", searchText: "hollanda netherlands" },
-  { key: "norway", name: "Norveç", flag: "🇳🇴", locationType: "country", region: "europe", searchText: "norvec norway" },
-  { key: "poland", name: "Polonya", flag: "🇵🇱", locationType: "country", region: "europe", searchText: "polonya poland" },
-  { key: "portugal", name: "Portekiz", flag: "🇵🇹", locationType: "country", region: "europe", searchText: "portekiz portugal" },
-  { key: "romania", name: "Romanya", flag: "🇷🇴", locationType: "country", region: "europe", searchText: "romanya romania" },
-  { key: "slovakia", name: "Slovakya", flag: "🇸🇰", locationType: "country", region: "europe", searchText: "slovakya" },
-  { key: "slovenia", name: "Slovenya", flag: "🇸🇮", locationType: "country", region: "europe", searchText: "slovenya" },
-  { key: "spain", name: "İspanya", flag: "🇪🇸", locationType: "country", region: "europe", searchText: "ispanya spain" },
-  { key: "sweden", name: "İsveç", flag: "🇸🇪", locationType: "country", region: "europe", searchText: "isvec sweden" },
-  { key: "switzerland", name: "İsviçre", flag: "🇨🇭", locationType: "country", region: "europe", searchText: "isvicre switzerland" },
-  { key: "uae", name: "Birleşik Arap Emirlikleri (Dubai / BAE)", flag: "🇦🇪", locationType: "region", region: "international", searchText: "bae dubai birl arap emirlikleri uae" },
-  { key: "qatar", name: "Katar", flag: "🇶🇦", locationType: "country", region: "international", searchText: "katar qatar" },
-  { key: "saudi_arabia", name: "Suudi Arabistan", flag: "🇸🇦", locationType: "country", region: "international", searchText: "suudi arabistan" },
-  { key: "bangkok", name: "Bangkok (Tayland)", flag: "🇹🇭", locationType: "region", region: "international", searchText: "bangkok tayland thailand" },
-  { key: "malaysia", name: "Malezya", flag: "🇲🇾", locationType: "country", region: "international", searchText: "malezya malaysia" },
-  { key: "indonesia", name: "Endonezya", flag: "🇮🇩", locationType: "country", region: "international", searchText: "endonezya indonesia" },
-  { key: "south_korea", name: "Güney Kore", flag: "🇰🇷", locationType: "country", region: "international", searchText: "guney kore korea" },
-  { key: "lebanon", name: "Lübnan", flag: "🇱🇧", locationType: "country", region: "international", searchText: "lubnan lebanon" },
-  { key: "manila", name: "Manila (Filipinler)", flag: "🇵🇭", locationType: "region", region: "international", searchText: "manila filipinler philippines" },
+  iso2: string;
+}): TargetCountryOption {
+  return {
+    ...input,
+    key: input.id,
+    name: input.nameTr,
+    flag: input.flagEmoji,
+    locationType: input.type,
+    region: input.group,
+  };
+}
+
+function dedupeTargetCountries(rows: TargetCountryOption[]): TargetCountryOption[] {
+  const seen = new Set<string>();
+  const out: TargetCountryOption[] = [];
+  for (const r of rows) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    out.push(r);
+  }
+  return out;
+}
+
+const TARGET_COUNTRY_OPTIONS_RAW: TargetCountryOption[] = [
+  targetCountryRow({ id: "austria", nameTr: "Avusturya", flagEmoji: "🇦🇹", type: "country", group: "europe", searchText: "avusturya austria", iso2: "AT" }),
+  targetCountryRow({ id: "belgium", nameTr: "Belçika", flagEmoji: "🇧🇪", type: "country", group: "europe", searchText: "belcika belgium", iso2: "BE" }),
+  targetCountryRow({ id: "bulgaria", nameTr: "Bulgaristan", flagEmoji: "🇧🇬", type: "country", group: "europe", searchText: "bulgaristan", iso2: "BG" }),
+  targetCountryRow({ id: "croatia", nameTr: "Hırvatistan", flagEmoji: "🇭🇷", type: "country", group: "europe", searchText: "hirvatistan croatia", iso2: "HR" }),
+  targetCountryRow({ id: "cyprus", nameTr: "Kıbrıs", flagEmoji: "🇨🇾", type: "country", group: "europe", searchText: "kibris cyprus", iso2: "CY" }),
+  targetCountryRow({ id: "czechia", nameTr: "Çekya", flagEmoji: "🇨🇿", type: "country", group: "europe", searchText: "ceky czech", iso2: "CZ" }),
+  targetCountryRow({ id: "denmark", nameTr: "Danimarka", flagEmoji: "🇩🇰", type: "country", group: "europe", searchText: "danimarka denmark", iso2: "DK" }),
+  targetCountryRow({ id: "estonia", nameTr: "Estonya", flagEmoji: "🇪🇪", type: "country", group: "europe", searchText: "estonya", iso2: "EE" }),
+  targetCountryRow({ id: "finland", nameTr: "Finlandiya", flagEmoji: "🇫🇮", type: "country", group: "europe", searchText: "finlandiya", iso2: "FI" }),
+  targetCountryRow({ id: "france", nameTr: "Fransa", flagEmoji: "🇫🇷", type: "country", group: "europe", searchText: "fransa france", iso2: "FR" }),
+  targetCountryRow({ id: "germany", nameTr: "Almanya", flagEmoji: "🇩🇪", type: "country", group: "europe", searchText: "almanya germany", iso2: "DE" }),
+  targetCountryRow({ id: "greece", nameTr: "Yunanistan", flagEmoji: "🇬🇷", type: "country", group: "europe", searchText: "yunanistan greece", iso2: "GR" }),
+  targetCountryRow({ id: "hungary", nameTr: "Macaristan", flagEmoji: "🇭🇺", type: "country", group: "europe", searchText: "macaristan hungary", iso2: "HU" }),
+  targetCountryRow({ id: "iceland", nameTr: "İzlanda", flagEmoji: "🇮🇸", type: "country", group: "europe", searchText: "izlanda iceland", iso2: "IS" }),
+  targetCountryRow({ id: "ireland", nameTr: "İrlanda", flagEmoji: "🇮🇪", type: "country", group: "europe", searchText: "irlanda ireland", iso2: "IE" }),
+  targetCountryRow({ id: "italy", nameTr: "İtalya", flagEmoji: "🇮🇹", type: "country", group: "europe", searchText: "italya italy", iso2: "IT" }),
+  targetCountryRow({ id: "latvia", nameTr: "Letonya", flagEmoji: "🇱🇻", type: "country", group: "europe", searchText: "letonya latvia", iso2: "LV" }),
+  targetCountryRow({ id: "liechtenstein", nameTr: "Lihtenştayn", flagEmoji: "🇱🇮", type: "country", group: "europe", searchText: "lihtenstayn", iso2: "LI" }),
+  targetCountryRow({ id: "lithuania", nameTr: "Litvanya", flagEmoji: "🇱🇹", type: "country", group: "europe", searchText: "litvanya", iso2: "LT" }),
+  targetCountryRow({ id: "luxembourg", nameTr: "Lüksemburg", flagEmoji: "🇱🇺", type: "country", group: "europe", searchText: "luksemburg", iso2: "LU" }),
+  targetCountryRow({ id: "netherlands", nameTr: "Hollanda", flagEmoji: "🇳🇱", type: "country", group: "europe", searchText: "hollanda netherlands", iso2: "NL" }),
+  targetCountryRow({ id: "norway", nameTr: "Norveç", flagEmoji: "🇳🇴", type: "country", group: "europe", searchText: "norvec norway", iso2: "NO" }),
+  targetCountryRow({ id: "poland", nameTr: "Polonya", flagEmoji: "🇵🇱", type: "country", group: "europe", searchText: "polonya poland", iso2: "PL" }),
+  targetCountryRow({ id: "portugal", nameTr: "Portekiz", flagEmoji: "🇵🇹", type: "country", group: "europe", searchText: "portekiz portugal", iso2: "PT" }),
+  targetCountryRow({ id: "romania", nameTr: "Romanya", flagEmoji: "🇷🇴", type: "country", group: "europe", searchText: "romanya romania", iso2: "RO" }),
+  targetCountryRow({ id: "slovakia", nameTr: "Slovakya", flagEmoji: "🇸🇰", type: "country", group: "europe", searchText: "slovakya", iso2: "SK" }),
+  targetCountryRow({ id: "slovenia", nameTr: "Slovenya", flagEmoji: "🇸🇮", type: "country", group: "europe", searchText: "slovenya", iso2: "SI" }),
+  targetCountryRow({ id: "spain", nameTr: "İspanya", flagEmoji: "🇪🇸", type: "country", group: "europe", searchText: "ispanya spain", iso2: "ES" }),
+  targetCountryRow({ id: "sweden", nameTr: "İsveç", flagEmoji: "🇸🇪", type: "country", group: "europe", searchText: "isvec sweden", iso2: "SE" }),
+  targetCountryRow({ id: "switzerland", nameTr: "İsviçre", flagEmoji: "🇨🇭", type: "country", group: "europe", searchText: "isvicre switzerland", iso2: "CH" }),
+  targetCountryRow({
+    id: "uae",
+    nameTr: "Birleşik Arap Emirlikleri (Dubai / BAE)",
+    flagEmoji: "🇦🇪",
+    type: "region",
+    group: "international",
+    searchText: "bae dubai birl arap emirlikleri uae",
+    iso2: "AE",
+  }),
+  targetCountryRow({ id: "qatar", nameTr: "Katar", flagEmoji: "🇶🇦", type: "country", group: "international", searchText: "katar qatar", iso2: "QA" }),
+  targetCountryRow({ id: "saudi_arabia", nameTr: "Suudi Arabistan", flagEmoji: "🇸🇦", type: "country", group: "international", searchText: "suudi arabistan", iso2: "SA" }),
+  targetCountryRow({ id: "bangkok", nameTr: "Bangkok (Tayland)", flagEmoji: "🇹🇭", type: "region", group: "international", searchText: "bangkok tayland thailand", iso2: "TH" }),
+  targetCountryRow({ id: "malaysia", nameTr: "Malezya", flagEmoji: "🇲🇾", type: "country", group: "international", searchText: "malezya malaysia", iso2: "MY" }),
+  targetCountryRow({ id: "indonesia", nameTr: "Endonezya", flagEmoji: "🇮🇩", type: "country", group: "international", searchText: "endonezya indonesia", iso2: "ID" }),
+  targetCountryRow({ id: "south_korea", nameTr: "Güney Kore", flagEmoji: "🇰🇷", type: "country", group: "international", searchText: "guney kore korea", iso2: "KR" }),
+  targetCountryRow({ id: "lebanon", nameTr: "Lübnan", flagEmoji: "🇱🇧", type: "country", group: "international", searchText: "lubnan lebanon", iso2: "LB" }),
+  targetCountryRow({ id: "manila", nameTr: "Manila (Filipinler)", flagEmoji: "🇵🇭", type: "region", group: "international", searchText: "manila filipinler philippines", iso2: "PH" }),
 ];
+
+/** Tek kaynak liste (id tekrarı yok). */
+export const TARGET_COUNTRY_OPTIONS: TargetCountryOption[] = dedupeTargetCountries(TARGET_COUNTRY_OPTIONS_RAW);
 
 /** Eski isim: pricing ve import uyumu */
 export const EU_COUNTRY_OPTIONS = TARGET_COUNTRY_OPTIONS;
 
-const TARGET_COUNTRY_KEY_SET = new Set(TARGET_COUNTRY_OPTIONS.map((c) => c.key));
+const TARGET_COUNTRY_KEY_SET = new Set(TARGET_COUNTRY_OPTIONS.map((c) => c.id));
 
 export function isAllowedCountryKey(key: string): boolean {
   return TARGET_COUNTRY_KEY_SET.has(key);
 }
 
 export function targetMetaByKey(key: string) {
-  return TARGET_COUNTRY_OPTIONS.find((c) => c.key === key);
+  return TARGET_COUNTRY_OPTIONS.find((c) => c.id === key || c.key === key);
 }
 
 /** Bayraksız kısa ad (fatura, JSON). */
 export function countryDisplayName(key: string): string {
-  return targetMetaByKey(key)?.name ?? key;
+  const t = targetMetaByKey(key);
+  return t?.nameTr ?? t?.name ?? key;
 }
 
 export function targetDisplayWithFlag(key: string): string {
   const t = targetMetaByKey(key);
   if (!t) return key;
-  return `${t.flag}\u00A0${t.name}`;
+  return `${t.flagEmoji}\u00A0${t.nameTr}`;
 }
 
 const normSearch = (s: string) =>
@@ -102,7 +150,7 @@ export function targetMatchesQuery(key: string, queryRaw: string): boolean {
   if (!t) return false;
   const q = normSearch(queryRaw.trim());
   if (!q) return true;
-  const bag = normSearch(`${t.name} ${t.key} ${t.searchText}`);
+  const bag = normSearch(`${t.nameTr} ${t.name} ${t.id} ${t.key} ${t.searchText}`);
   return bag.includes(q);
 }
 

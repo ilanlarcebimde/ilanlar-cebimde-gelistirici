@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSupabasePublic } from "@/lib/supabase/server";
-import { SITE_ORIGIN } from "@/lib/og";
+import { absoluteOgImageUrl, SITE_ORIGIN } from "@/lib/og";
 import { DuyuruDetailHero } from "@/components/duyuru-center/detail/DuyuruDetailHero";
 import { DuyuruMetaCards } from "@/components/duyuru-center/detail/DuyuruMetaCards";
 import { DuyuruCoverImage } from "@/components/duyuru-center/detail/DuyuruCoverImage";
@@ -68,7 +68,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = (post as { summary?: string | null; og_description?: string | null }).og_description || (post as { summary?: string | null }).summary || "";
   const canonical = (post as { canonical_url?: string | null }).canonical_url || `${SITE_ORIGIN}/yurtdisi-calisma-ve-vize-duyurulari/${slug}`;
   const ogTitle = (post as { og_title?: string | null }).og_title || title;
-  const ogImage = (post as { og_image?: string | null }).og_image || undefined;
+  const ogImage = (post as { og_image?: string | null }).og_image;
+  const hasCustomOg = !!(ogImage && String(ogImage).trim());
+  const imageUrl = absoluteOgImageUrl(ogImage);
+  const imgW = hasCustomOg ? 1200 : 500;
+  const imgH = hasCustomOg ? 630 : 500;
 
   return {
     title,
@@ -77,15 +81,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: ogTitle,
       description,
+      siteName: "İlanlar Cebimde",
+      locale: "tr_TR",
       url: canonical,
       type: "article",
-      images: ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: title }] : undefined,
+      images: [{ url: imageUrl, width: imgW, height: imgH, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title: ogTitle,
       description,
-      images: ogImage ? [ogImage] : undefined,
+      images: [imageUrl],
     },
   };
 }

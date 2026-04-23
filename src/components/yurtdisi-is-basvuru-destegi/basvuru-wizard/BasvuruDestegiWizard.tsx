@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { TargetCountryFlagOrIso } from "@/components/yurtdisi-is-basvuru-destegi/TargetCountryFlagSpan";
 import { supabase } from "@/lib/supabase";
 import type { IndividualBillingPayload } from "@/lib/billingIndividual";
 import {
@@ -32,6 +33,7 @@ import {
   professionLabelById,
   professionSearchableText,
   targetDisplayWithFlag,
+  targetMetaByKey,
   targetMatchesQuery,
   type DocCategoryKey,
 } from "@/lib/yurtdisiIsBasvuruDestegi/constants";
@@ -40,6 +42,11 @@ import { YURTDISI_BASVURU_BASKET, YURTDISI_BASVURU_PAYMENT_TYPE } from "@/lib/yu
 import { emptyBasvuruWizardState, type BasvuruWizardFormState, type LanguageRow } from "@/lib/yurtdisiIsBasvuruDestegi/wizardTypes";
 import { useBasvuruComputedPrice } from "./useBasvuruComputedPrice";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  ADMIN_BASVURU_FREE_UNLIMITED_COUPON,
+  isAdminBasvuruFreeUnlimitedCoupon,
+} from "@/lib/yurtdisiIsBasvuruDestegi/adminBasvuruTestCoupon";
 
 const STEPS = [
   { n: 1, label: "Hizmet" },
@@ -74,6 +81,7 @@ export type BasvuruDestegiWizardProps = {
 };
 
 export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProps) {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const titleId = useId();
   const [step, setStep] = useState(1);
@@ -87,6 +95,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
   const [payError, setPayError] = useState<string | null>(null);
   const [payIframe, setPayIframe] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [checkoutCoupon, setCheckoutCoupon] = useState("");
 
   const { price, pricingInput, ok: priceOk } = useBasvuruComputedPrice(form);
 
@@ -99,6 +108,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       setPayError(null);
       setPayIframe(null);
       setFieldErrors({});
+      setCheckoutCoupon("");
     }
   }, [open]);
 
@@ -264,6 +274,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
   const buildBilling = useCallback((): IndividualBillingPayload | null => {
     if (!price?.totalTry || !pricingInput) return null;
     const total = price.totalTry;
+    const adminFree = isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon);
     return {
       service_name: YURTDISI_BASVURU_BASKET,
       first_name: form.invoiceFirstName.trim(),
@@ -279,13 +290,20 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       invoice_note: form.invoiceNote.trim() || null,
       confirm_invoice_accuracy: true,
       confirm_terms: true,
-      pricing: {
-        gross_amount: total,
-        discount_amount: 0,
-        net_amount: total,
-      },
+      pricing: adminFree
+        ? {
+            gross_amount: total,
+            discount_amount: total,
+            net_amount: 0,
+            coupon_code: ADMIN_BASVURU_FREE_UNLIMITED_COUPON,
+          }
+        : {
+            gross_amount: total,
+            discount_amount: 0,
+            net_amount: total,
+          },
     };
-  }, [form, price?.totalTry, pricingInput]);
+  }, [form, price?.totalTry, pricingInput, checkoutCoupon]);
 
   const startPaytr = useCallback(async () => {
     setPayError(null);
@@ -318,6 +336,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       basket_description: YURTDISI_BASVURU_BASKET,
       payment_type: YURTDISI_BASVURU_PAYMENT_TYPE,
       user_id: sess.session.user.id,
+      coupon_code: checkoutCoupon.trim() || undefined,
       individual_billing: billing,
       yurtdisi_basvuru: {
         pricing: pricingInput,
@@ -333,14 +352,26 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       setPayError("Ödeme şu an geçici olarak durdurulmuş olabilir. Lütfen bir süre sonra yeniden deneyin.");
       return;
     }
-    const data = (await res.json().catch(() => ({}))) as { success?: boolean; iframe_url?: string; error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      iframe_url?: string | null;
+      completed_without_paytr?: boolean;
+      error?: string;
+    };
+    if (data.success && data.completed_without_paytr) {
+      setStep(10);
+      setPayIframe(null);
+      onClose();
+      router.replace(`${YURTDISI_BASVURU_CANONICAL_PATH}?odeme=ok`);
+      return;
+    }
     if (data.success && data.iframe_url) {
       setStep(10);
       setPayIframe(data.iframe_url);
     } else {
       setPayError(data.error || "Ödeme başlatılamadı.");
     }
-  }, [form, buildBilling, priceOk, pricingInput, YURTDISI_BASVURU_CANONICAL_PATH]);
+  }, [form, buildBilling, priceOk, pricingInput, checkoutCoupon, router, onClose, YURTDISI_BASVURU_CANONICAL_PATH]);
 
   if (!open) return null;
 
@@ -350,10 +381,10 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       profQuery.trim() === ""
   );
   const filteredEurope = TARGET_COUNTRY_OPTIONS.filter(
-    (c) => c.region === "europe" && targetMatchesQuery(c.key, countryQuery)
+    (c) => c.group === "europe" && targetMatchesQuery(c.id, countryQuery)
   );
   const filteredInternational = TARGET_COUNTRY_OPTIONS.filter(
-    (c) => c.region === "international" && targetMatchesQuery(c.key, countryQuery)
+    (c) => c.group === "international" && targetMatchesQuery(c.id, countryQuery)
   );
 
   const extraCountries = Math.max(0, form.countryKeys.length - 1);
@@ -638,22 +669,28 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                 </div>
                 {form.countryKeys.length > 0 && (
                   <ul className="mt-3 flex flex-wrap gap-2">
-                    {form.countryKeys.map((k) => (
-                      <li
-                        key={k}
-                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-100"
-                      >
-                        <span className="min-w-0 truncate">{targetDisplayWithFlag(k)}</span>
-                        <button
-                          type="button"
-                          className="ml-0.5 shrink-0 rounded p-0.5 hover:bg-white/10"
-                          onClick={() => toggleCountry(k)}
-                          aria-label="Kaldır"
+                    {form.countryKeys.map((k) => {
+                      const tMeta = targetMetaByKey(k);
+                      return (
+                        <li
+                          key={k}
+                          className="inline-flex max-w-full min-h-[32px] items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 py-1 pl-1.5 pr-2 text-xs text-amber-100 sm:py-1.5"
                         >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </li>
-                    ))}
+                          {tMeta ? (
+                            <TargetCountryFlagOrIso flagEmoji={tMeta.flagEmoji} iso2={tMeta.iso2} size="sm" />
+                          ) : null}
+                          <span className="min-w-0 max-w-[12rem] truncate sm:max-w-[16rem]">{tMeta?.nameTr ?? k}</span>
+                          <button
+                            type="button"
+                            className="ml-0.5 shrink-0 rounded p-0.5 hover:bg-white/10"
+                            onClick={() => toggleCountry(k)}
+                            aria-label="Kaldır"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
                 <div className="mt-4 max-h-[42vh] space-y-4 overflow-y-auto pr-0.5">
@@ -665,22 +702,18 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                           const on = form.countryKeys.includes(c.key);
                           return (
                             <button
-                              key={c.key}
+                              key={c.id}
                               type="button"
-                              onClick={() => toggleCountry(c.key)}
-                              className={`flex min-h-[44px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm ${
+                              onClick={() => toggleCountry(c.id)}
+                              className={`flex min-h-[44px] items-center gap-3 rounded-xl border px-2 py-2 text-left text-sm sm:px-3 ${
                                 on
                                   ? "border-amber-400/50 bg-amber-500/10 text-white ring-1 ring-amber-400/15"
                                   : "border-white/10 text-slate-200 hover:border-white/25"
                               }`}
                             >
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span className="text-lg leading-none" aria-hidden>
-                                  {c.flag}
-                                </span>
-                                <span className="min-w-0 leading-snug">{c.name}</span>
-                              </span>
-                              {on && <Check className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
+                              <TargetCountryFlagOrIso flagEmoji={c.flagEmoji} iso2={c.iso2} />
+                              <span className="min-w-0 flex-1 leading-snug">{c.nameTr}</span>
+                              {on && <Check className="ml-auto h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
                             </button>
                           );
                         })}
@@ -695,27 +728,23 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                           const on = form.countryKeys.includes(c.key);
                           return (
                             <button
-                              key={c.key}
+                              key={c.id}
                               type="button"
-                              onClick={() => toggleCountry(c.key)}
-                              className={`flex min-h-[44px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm ${
+                              onClick={() => toggleCountry(c.id)}
+                              className={`flex min-h-[44px] items-center gap-3 rounded-xl border px-2 py-2 text-left text-sm sm:px-3 ${
                                 on
                                   ? "border-amber-400/50 bg-amber-500/10 text-white ring-1 ring-amber-400/15"
                                   : "border-white/10 text-slate-200 hover:border-white/25"
                               }`}
                             >
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span className="text-lg leading-none" aria-hidden>
-                                  {c.flag}
-                                </span>
-                                <span className="min-w-0 leading-snug">
-                                  {c.name}
-                                  {c.locationType === "region" && (
-                                    <span className="ml-1.5 text-[10px] font-medium text-slate-500">(bölge odağı)</span>
-                                  )}
-                                </span>
+                              <TargetCountryFlagOrIso flagEmoji={c.flagEmoji} iso2={c.iso2} />
+                              <span className="min-w-0 flex-1 leading-snug">
+                                {c.nameTr}
+                                {c.type === "region" && (
+                                  <span className="ml-1.5 text-[10px] font-medium text-slate-500">(bölge odağı)</span>
+                                )}
                               </span>
-                              {on && <Check className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
+                              {on && <Check className="ml-auto h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
                             </button>
                           );
                         })}
@@ -1013,18 +1042,41 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
               )}
 
               {!payIframe && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPayError(null);
-                      void startPaytr();
-                    }}
-                    className="inline-flex min-h-[52px] min-w-[200px] items-center justify-center gap-2 rounded-2xl bg-amber-500 px-6 py-3 text-sm font-bold text-[#0f1a2c] shadow-lg shadow-amber-900/30"
-                  >
-                    <Shield className="h-4 w-4" />
-                    PAYTR ile ödemeye geç
-                  </button>
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <label htmlFor="basvuru-checkout-coupon" className="text-xs font-medium text-slate-400">
+                      Kupon kodu (opsiyonel)
+                    </label>
+                    <input
+                      id="basvuru-checkout-coupon"
+                      type="text"
+                      autoComplete="off"
+                      value={checkoutCoupon}
+                      onChange={(e) => setCheckoutCoupon(e.target.value)}
+                      placeholder="Test: ADMIN_FREE_UNLIMITED"
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a1220] px-3 py-2.5 text-sm text-white placeholder:text-slate-600"
+                    />
+                    {isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon) && (
+                      <p className="mt-2 text-xs leading-relaxed text-emerald-200/90">
+                        Bu kod ile PayTR atlanır; ödeme sunucuda anında tamamlanır (yalnızca geliştirme veya{" "}
+                        <code className="rounded bg-white/10 px-1">ALLOW_ADMIN_BASVURU_FREE_COUPON</code> açık
+                        ortamlarda).
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPayError(null);
+                        void startPaytr();
+                      }}
+                      className="inline-flex min-h-[52px] min-w-[200px] items-center justify-center gap-2 rounded-2xl bg-amber-500 px-6 py-3 text-sm font-bold text-[#0f1a2c] shadow-lg shadow-amber-900/30"
+                    >
+                      <Shield className="h-4 w-4" />
+                      {isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon) ? "Test ödemesini tamamla" : "PAYTR ile ödemeye geç"}
+                    </button>
+                  </div>
                 </div>
               )}
 

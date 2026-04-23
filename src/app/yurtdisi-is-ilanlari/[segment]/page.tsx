@@ -39,7 +39,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       const description = (post?.summary?.trim() || post?.title) ?? title;
       const slug = post?.slug ?? seg;
       const canonicalUrl = SITE_ORIGIN + BASE + "/" + slug;
+      const hasCustomCover = !!(post?.cover_image_url && String(post.cover_image_url).trim());
       const coverUrl = absoluteOgImageUrl(post?.cover_image_url);
+      const imgW = hasCustomCover ? 1200 : 500;
+      const imgH = hasCustomCover ? 630 : 500;
       return {
         title,
         description,
@@ -51,7 +54,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
           type: "article",
           url: canonicalUrl,
           siteName: "İlanlar Cebimde",
-          images: [{ url: coverUrl, width: 1200, height: 630, alt: post?.title ?? "İlanlar Cebimde" }],
+          images: [{ url: coverUrl, width: imgW, height: imgH, alt: post?.title ?? "İlanlar Cebimde" }],
           locale: "tr_TR",
         },
         twitter: {
@@ -65,7 +68,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 
     if (resolved.kind === "sector") {
       const title = resolved.seoPage?.title ?? (resolved.sectorSlug ?? "Sektör") + " | İlanlar Cebimde";
+      const hasCustom = !!(resolved.seoPage?.cover_image_url && String(resolved.seoPage.cover_image_url).trim());
       const ogImageUrl = absoluteOgImageUrl(resolved.seoPage?.cover_image_url);
+      const imgW = hasCustom ? 1200 : 500;
+      const imgH = hasCustom ? 630 : 500;
       return {
         title,
         description: resolved.seoPage?.meta_description ?? undefined,
@@ -74,8 +80,11 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
         openGraph: {
           title,
           description: resolved.seoPage?.meta_description ?? undefined,
+          siteName: "İlanlar Cebimde",
+          locale: "tr_TR",
+          type: "website",
           url: canonical,
-          images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
+          images: [{ url: ogImageUrl, width: imgW, height: imgH, alt: title }],
         },
         twitter: { card: "summary_large_image", title, description: resolved.seoPage?.meta_description ?? undefined, images: [ogImageUrl] },
       };
@@ -84,7 +93,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     const title =
       resolved.seoPage?.title ??
       (resolved.countrySlug ?? "Ülke") + " - " + (resolved.sectorSlug ?? "Sektör") + " | İlanlar Cebimde";
+    const hasCustom = !!(resolved.seoPage?.cover_image_url && String(resolved.seoPage.cover_image_url).trim());
     const ogImageUrl = absoluteOgImageUrl(resolved.seoPage?.cover_image_url);
+    const imgW = hasCustom ? 1200 : 500;
+    const imgH = hasCustom ? 630 : 500;
     return {
       title,
       description: resolved.seoPage?.meta_description ?? undefined,
@@ -93,8 +105,11 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       openGraph: {
         title,
         description: resolved.seoPage?.meta_description ?? undefined,
+        siteName: "İlanlar Cebimde",
+        locale: "tr_TR",
+        type: "website",
         url: canonical,
-        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
+        images: [{ url: ogImageUrl, width: imgW, height: imgH, alt: title }],
       },
       twitter: { card: "summary_large_image", title, description: resolved.seoPage?.meta_description ?? undefined, images: [ogImageUrl] },
     };

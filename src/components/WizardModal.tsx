@@ -53,7 +53,7 @@ export function WizardModal({
   selectedMethod: WizardMethod | null;
   onPaymentClick: (payload: { email: string; user_name?: string; method: "form" | "voice" | "chat"; country: string; job_area: string; job_branch: string; answers: Record<string, unknown>; photo_url: string | null; plan?: "weekly" | "cv_package" }) => void;
   userId?: string;
-  /** cv_package = Yurtdışı CV Paketi 469 TL */
+  /** cv_package = Yurtdışı CV Paketi 279 TL */
   productPlan?: "cv_package";
 }) {
   const mobileViewport = useMobileViewport(open, selectedMethod);

@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { safeParseJsonResponse } from "@/lib/safeJsonResponse";
 import {
   AMOUNT_YURTDISIIS_DISCOUNTED,
+  CV_PACKAGE_BASE_PRICE,
   isYurtdisiisCouponCode,
   isYurtdisiisCouponExpired,
   normalizeTrCouponCode,
@@ -38,14 +39,14 @@ import { ADMINSUPER2026_CODE } from "@/lib/adminsuper2026";
 
 const AMOUNT_FULL = 549;
 const AMOUNT_WEEKLY = 89;
-const AMOUNT_CV_PACKAGE = 469;
+const AMOUNT_CV_PACKAGE = CV_PACKAGE_BASE_PRICE;
 const BASKET_FULL = "Usta Başvuru Paketi";
 const BASKET_WEEKLY = "Haftalık Premium";
 const BASKET_CV_PACKAGE = "Yurtdışı CV Paketi";
 const FREE_COUPON_CODE = "ADMIN549";
 /** Haftalık premium kuponları (giriş gerekli; ADMIN89/99TLDENEME 7 gün, ICMERKEZI14 API’de e-postaya göre 14 gün) */
 const PREMIUM_COUPON_CODES = ["ADMIN89", "99TLDENEME", "ICMERKEZI14"];
-/** Yurtdışı CV Paketi 79 TL indirim (469 - 79 = 390 TL) */
+/** Yurtdışı CV Paketi 79 TL indirim (liste fiyatı - 79) */
 const CV_PACKAGE_DISCOUNT_CODE = "CV79";
 const CV_PACKAGE_DISCOUNT_AMOUNT = 79;
 const AMOUNT_CV_PACKAGE_DISCOUNTED = AMOUNT_CV_PACKAGE - CV_PACKAGE_DISCOUNT_AMOUNT;
@@ -482,7 +483,7 @@ export default function OdemePage() {
         setCouponMessage({ type: "error", text: "CV79 kuponu sadece Yurtdışı CV Paketi için geçerlidir." });
         return;
       }
-      setCouponMessage({ type: "success", text: "79 TL indirim uygulandı. Ödemeniz: 390 TL." });
+      setCouponMessage({ type: "success", text: `79 TL indirim uygulandı. Ödemeniz: ${AMOUNT_CV_PACKAGE_DISCOUNTED} TL.` });
       try {
         const full = JSON.parse(pending!) as Record<string, unknown>;
         sessionStorage.setItem("paytr_pending", JSON.stringify({ ...full, cv79_discount: true, yurtdisiis_discount: false }));
@@ -1040,10 +1041,10 @@ export default function OdemePage() {
               }
               if (data?.plan === "cv_package") {
                 const amount = data?.yurtdisiis_discount
-                  ? "340,00 TL"
+                  ? `${AMOUNT_YURTDISIIS_DISCOUNTED},00 TL`
                   : data?.cv79_discount
-                    ? "390,00 TL"
-                    : "469,00 TL";
+                    ? `${AMOUNT_CV_PACKAGE_DISCOUNTED},00 TL`
+                    : `${AMOUNT_CV_PACKAGE},00 TL`;
                 return <>Ödemeniz gereken tutar: <span className="text-slate-900">{amount}</span></>;
               }
               return <>Ödemeniz gereken tutar: <span className="text-slate-900">549,00 TL</span></>;

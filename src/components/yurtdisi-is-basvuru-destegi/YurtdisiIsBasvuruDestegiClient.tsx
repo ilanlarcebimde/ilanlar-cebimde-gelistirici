@@ -108,11 +108,11 @@ const HERO_TRUST = [
 export function YurtdisiIsBasvuruDestegiClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [modalOpen, setModalOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [paymentBanner, setPaymentBanner] = useState<"ok" | "fail" | null>(null);
 
-  const openModal = useCallback(() => setModalOpen(true), []);
-  const closeModal = useCallback(() => setModalOpen(false), []);
+  const openWizard = useCallback(() => setWizardOpen(true), []);
+  const closeWizard = useCallback(() => setWizardOpen(false), []);
 
   useEffect(() => {
     const odeme = searchParams.get("odeme");
@@ -171,7 +171,7 @@ export function YurtdisiIsBasvuruDestegiClient() {
               type="button"
               onClick={() => {
                 setPaymentBanner(null);
-                openModal();
+                openWizard();
               }}
               className="font-semibold text-amber-900 underline underline-offset-2"
             >
@@ -220,10 +220,10 @@ export function YurtdisiIsBasvuruDestegiClient() {
                 </button>
                 <button
                   type="button"
-                  onClick={openModal}
+                  onClick={openWizard}
                   className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-amber-400/30 bg-white/[0.04] px-6 py-3 text-[15px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/[0.08] sm:w-auto"
                 >
-                  Ön Bilgi Al
+                  Başvuru Alanını Aç
                 </button>
               </div>
               <ul className="mt-10 flex flex-wrap gap-2" aria-label="Güvence noktaları">
@@ -413,19 +413,28 @@ export function YurtdisiIsBasvuruDestegiClient() {
               Adım adım başvuru sihirbazı ile tercihlerinizi netleştirip güvenli ödeme altyapısı üzerinden süreci
               başlatabilirsiniz. Tüm aşamalar, mevcut hizmet kapsamı ile tutarlıdır.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center sm:gap-4">
-              <button
-                type="button"
-                onClick={openModal}
-                className="group inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-amber-500/90 px-6 py-3 text-[15px] font-semibold text-[#0f1a2c] shadow-lg shadow-black/20 transition hover:bg-amber-400 sm:w-auto"
-              >
-                Başvuru Alanını Aç
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
-              </button>
+            <div className="mt-8 flex flex-col gap-3 sm:mt-9">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => scrollToId("premium-basvuru-sureci")}
+                  className="group inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#0f1a2c] px-6 py-3 text-[15px] font-semibold text-white shadow-[0_8px_32px_rgba(0,0,0,0.25)] ring-1 ring-amber-400/30 transition hover:bg-[#152a3b] sm:w-auto"
+                >
+                  Başvuru Sürecini İncele
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={openWizard}
+                  className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-amber-400/30 bg-white/[0.04] px-6 py-3 text-[15px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/[0.08] sm:w-auto"
+                >
+                  Başvuru Alanını Aç
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => scrollToId("hizmet-kapsami")}
-                className="text-sm font-medium text-slate-200/90 underline decoration-white/20 underline-offset-[5px] transition hover:text-white"
+                className="self-start text-sm font-medium text-slate-200/90 underline decoration-white/20 underline-offset-[5px] transition hover:text-white"
               >
                 Hizmet kapsamını tekrar oku
               </button>
@@ -434,7 +443,7 @@ export function YurtdisiIsBasvuruDestegiClient() {
         </section>
       </div>
 
-      <BasvuruDestegiWizard open={modalOpen} onClose={closeModal} />
+      <BasvuruDestegiWizard open={wizardOpen} onClose={closeWizard} />
     </main>
   );
 }

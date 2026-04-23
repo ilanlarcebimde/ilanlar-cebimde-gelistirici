@@ -1482,7 +1482,7 @@ export function CvWizard({ onLeaveFirstStep }: CvWizardProps) {
                     <li>• İş başvuru mektubu</li>
                   </ul>
                   <p className="mt-3 text-sm text-slate-900">
-                    Toplam ücret: <span className="font-semibold text-sky-600">469 TL</span>
+                    Toplam ücret: <span className="font-semibold text-sky-600">279 TL</span>
                   </p>
                   <p className="mt-2 text-xs text-slate-500">
                     Formu tamamladıktan sonra ödeme adımına geçeceksiniz. Ekibimiz, bilgilerinizi kontrol ederek teknik
@@ -1499,7 +1499,7 @@ export function CvWizard({ onLeaveFirstStep }: CvWizardProps) {
             <div className="sticky top-24 space-y-4">
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl">
                 <h3 className="text-sm font-semibold text-slate-50">Sipariş Özeti</h3>
-                <p className="mt-2 text-3xl font-semibold text-sky-400">469 TL</p>
+                <p className="mt-2 text-3xl font-semibold text-sky-400">279 TL</p>
                 <ul className="mt-3 text-sm text-slate-200 space-y-1.5">
                   <li>✔ Türkçe CV hazırlanacak</li>
                   <li>✔ İngilizce CV hazırlanacak</li>
@@ -1557,7 +1557,7 @@ export function CvWizard({ onLeaveFirstStep }: CvWizardProps) {
           <div className="lg:hidden lg:col-span-4 space-y-4">
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl">
               <h3 className="text-sm font-semibold text-slate-50">Sipariş Özeti</h3>
-              <p className="mt-2 text-3xl font-semibold text-sky-400">469 TL</p>
+              <p className="mt-2 text-3xl font-semibold text-sky-400">279 TL</p>
               <ul className="mt-3 text-sm text-slate-200 space-y-1.5">
                 <li>✔ Türkçe CV hazırlanacak</li>
                 <li>✔ İngilizce CV hazırlanacak</li>

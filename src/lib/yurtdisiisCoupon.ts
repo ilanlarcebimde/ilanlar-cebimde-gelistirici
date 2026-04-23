@@ -5,7 +5,7 @@
 export const YURTDISIIS_COUPON_CODE = "YURTDİSİNDAİS";
 export const YURTDISIIS_DISCOUNT_AMOUNT = 129;
 /** Yurtdışı CV paketi liste fiyatı (kupon öncesi) — ödeme sayfası ile uyumlu */
-export const CV_PACKAGE_BASE_PRICE = 469;
+export const CV_PACKAGE_BASE_PRICE = 279;
 export const AMOUNT_YURTDISIIS_DISCOUNTED = CV_PACKAGE_BASE_PRICE - YURTDISIIS_DISCOUNT_AMOUNT;
 
 /** 31.03.2026 son gün (Türkiye saati) */

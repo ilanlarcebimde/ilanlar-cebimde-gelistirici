@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { AuthHashHandler } from "@/components/AuthHashHandler";
+import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_SIZE, SITE_ORIGIN } from "@/lib/og";
+import { DEFAULT_OG_LOCALE, SEO_SITE_NAME } from "@/lib/seo/defaultMetadata";
 
 const GA_ID = "G-NVM52S3EHT";
 
@@ -17,26 +19,45 @@ const N8N_CHAT_ENABLED = process.env.NEXT_PUBLIC_N8N_CHAT_ENABLED === "true";
  */
 const N8N_CHAT_STREAMING = process.env.NEXT_PUBLIC_N8N_CHAT_STREAMING === "true";
 
+const rootOgTitle =
+  "Yurtdışı İş İlanları ve Başvuru Merkezi | CV Hazırla, Başvuru Mektubu Oluştur, Hemen Başvur";
+const rootDescription =
+  "Yurtdışı iş ilanları, firma iletişim bilgileri, iş başvuru mektubu oluşturma, İngilizce CV hazırlama ve başvuru rehberi tek platformda. İlanlar Cebimde ile uluslararası kariyer fırsatlarına hızlı ve güvenilir erişim sağlayın.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.ilanlarcebimde.com"),
-  title:
-    "Yurtdışı İş İlanları ve Başvuru Merkezi | CV Hazırla, Başvuru Mektubu Oluştur, Hemen Başvur",
+  metadataBase: new URL(SITE_ORIGIN),
+  title: rootOgTitle,
   verification: {
     google: "X2phO_avup8oTuO-zNe9REuy7ZVfOXktMsaPJ2mOitA",
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [{ url: "/logo.png", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/logo.png", sizes: "180x180", type: "image/png" }],
   },
-  description:
-    "Yurtdışı iş ilanları, firma iletişim bilgileri, iş başvuru mektubu oluşturma, İngilizce CV hazırlama ve başvuru rehberi tek platformda. İlanlar Cebimde ile uluslararası kariyer fırsatlarına hızlı ve güvenilir erişim sağlayın.",
+  description: rootDescription,
   keywords:
     "yurtdışı iş ilanları, yurtdışı iş başvurusu, İngilizce CV hazırlama, başvuru mektubu oluşturma, yurtdışı kariyer, usta başvuru, ilan analizi, Almanya, Hollanda, inşaat, elektrik, seramik",
   openGraph: {
-    title:
-      "Yurtdışı İş İlanları ve Başvuru Merkezi | CV Hazırla, Başvuru Mektubu Oluştur, Hemen Başvur",
-    description:
-      "Yurtdışı iş ilanları, firma iletişim bilgileri, iş başvuru mektubu oluşturma, İngilizce CV hazırlama ve başvuru rehberi tek platformda. İlanlar Cebimde ile uluslararası kariyer fırsatlarına hızlı ve güvenilir erişim sağlayın.",
+    title: rootOgTitle,
+    description: rootDescription,
+    url: SITE_ORIGIN,
+    siteName: SEO_SITE_NAME,
+    locale: DEFAULT_OG_LOCALE,
+    type: "website",
+    images: [
+      {
+        url: DEFAULT_OG_IMAGE,
+        width: DEFAULT_OG_IMAGE_SIZE.width,
+        height: DEFAULT_OG_IMAGE_SIZE.height,
+        alt: SEO_SITE_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: rootOgTitle,
+    description: rootDescription,
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 

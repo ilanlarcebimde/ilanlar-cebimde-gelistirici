@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 
-const PRICE = 469;
+const PRICE = 279;
 
 type CvPackageHeroProps = {
   /** Üst şerit vb. ek ofset (px), varsayılan: yalnızca header */

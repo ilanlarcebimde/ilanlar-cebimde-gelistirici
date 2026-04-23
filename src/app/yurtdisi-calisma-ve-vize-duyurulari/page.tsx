@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import { getSupabasePublic } from "@/lib/supabase/server";
 import { DuyuruCenterClient } from "@/components/duyuru-center/DuyuruCenterClient";
 import { DuyuruCountry, DuyuruPost } from "@/components/duyuru-center/types";
+import { buildPageMetadata } from "@/lib/seo/defaultMetadata";
 
 // Yeni yayınlanan içeriklerin listede anında görünmesi için cache kapalı.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Yurtdışı Çalışma & Vize Duyuruları | İlanlar Cebimde",
   description:
     "Vize, pasaport, çalışma izni ve resmi kurum kaynaklı yurtdışı çalışma duyurularını ülke ve tür bazlı takip edin.",
-};
+  path: "/yurtdisi-calisma-ve-vize-duyurulari",
+});
 
 function toMs(value: string | null | undefined): number {
   if (!value) return Number.NaN;
