@@ -1065,11 +1065,10 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                     )}
                     {isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon) && !isAdminBasvuruFreeUnlimitedActive(checkoutCoupon) && (
                         <p className="mt-2 text-xs leading-relaxed text-amber-200/90">
-                          Bu test kuponu bu ortamda tanımlı değil; normal tutarla PayTR ödemesi yapılır. Açmak için
-                          sunucuda <code className="rounded bg-white/10 px-1">ALLOW_ADMIN_BASVURU_FREE_COUPON</code> ve
-                          production’da istemcinin 0₺ tutarı gönderebilmesi için{" "}
-                          <code className="rounded bg-white/10 px-1">NEXT_PUBLIC_ALLOW_ADMIN_BASVURU_FREE_COUPON</code>{" "}
-                          (ör. <code className="rounded bg-white/10 px-1">true</code>) ayarlayın.
+                          Bu kupon bu build’de kapalı: tutar 0 değil, normal PayTR akışı kullanılır. Açmak için ortam değişkeni{" "}
+                          <code className="rounded bg-white/10 px-1">NEXT_PUBLIC_ALLOW_ADMIN_BASVURU_FREE_COUPON=true</code> (Next.js bu
+                          değeri sunucu ve istemcide aynen okur), ardından sunucu/yeniden derleme. Canlıda: Vercel/ sunucu paneline ekleyip
+                          yeni dağıtım.
                         </p>
                       )}
                   </div>

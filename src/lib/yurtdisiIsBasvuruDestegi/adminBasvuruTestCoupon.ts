@@ -14,15 +14,16 @@ function envFlagOn(value: string | undefined): boolean {
 }
 
 /**
- * Sunucu: `ALLOW_ADMIN_BASVURU_FREE_COUPON` veya (aynı değer genelde) `NEXT_PUBLIC_…`
- * Tarayıcı: sadece `NEXT_PUBLIC_…` build anında inline olur — production’da test kuponu
- * için en az bu değişkeni da ayarlayın, yoksa 0 tutar + PayTR reddi oluşur.
+ * `next dev` (NODE_ENV=development): açık — ek env gerekmez.
+ * `next start` / Vercel (production build): açık olması için
+ * - **Asgari (hem API hem istemcide 0₺)**: `NEXT_PUBLIC_ALLOW_ADMIN_BASVURU_FREE_COUPON` (true/1) — Next sunucu route’u da aynı değişkeni okur.
+ * - İsteğe bağlı yalnız sunucu: `ALLOW_ADMIN_BASVURU_FREE_COUPON` (yalnız public olmadan API’de yetki; istemcide 0₺ hâlâ public bayrak gerekir)
  */
 export function isAdminBasvuruFreeUnlimitedCouponEnabled(): boolean {
   if (process.env.NODE_ENV !== "production") return true;
-  const allowServer = envFlagOn(process.env.ALLOW_ADMIN_BASVURU_FREE_COUPON);
-  const allowPublic = envFlagOn(process.env.NEXT_PUBLIC_ALLOW_ADMIN_BASVURU_FREE_COUPON);
-  return allowServer || allowPublic;
+  if (envFlagOn(process.env.NEXT_PUBLIC_ALLOW_ADMIN_BASVURU_FREE_COUPON)) return true;
+  if (envFlagOn(process.env.ALLOW_ADMIN_BASVURU_FREE_COUPON)) return true;
+  return false;
 }
 
 /** Kupon metni + bu ortamda 0₺/PayTR atla yolunun açık olması. */
