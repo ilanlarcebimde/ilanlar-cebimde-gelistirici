@@ -81,7 +81,7 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   discounted: "İndirimli",
   standard: "Standart",
   letter_panel_unlock: "İş başvuru mektubu paneli",
-  yurtdisi_is_basvuru_destegi: "Yurtdışı iş başvuru desteği",
+  yurtdisi_is_basvuru_destegi: "Yurtdışı İş Başvuru Danışmanlığı",
 };
 
 function formatDate(iso: string) {
@@ -301,11 +301,11 @@ export default function PanelPage() {
       kind: "payment" as const,
       title:
         pay.payment_type === YURTDISI_BASVURU_PAYMENT_TYPE
-          ? "Yurtdışı Başvuru Desteği — satın alım"
+          ? "Yurtdışı İş Başvuru Danışmanlığı — satın alım"
           : `Ödeme ${pay.status === "success" ? "başarılı" : pay.status === "fail" ? "başarısız" : "işlemde"}`,
       detail:
         pay.payment_type === YURTDISI_BASVURU_PAYMENT_TYPE
-          ? `${pay.amount} ${pay.currency} · Ayrıntılı kart üstte “Yurtdışı İş Başvuru Desteği” bölümünde`
+          ? `${pay.amount} ${pay.currency} · Ayrıntılı kart üstte “Yurtdışı İş Başvuru Danışmanlığı” bölümünde`
           : `${pay.amount} ${pay.currency} · ${PAYMENT_TYPE_LABELS[pay.payment_type ?? "standard"] ?? "Standart"}${pay.coupon_code ? ` · Kupon: ${pay.coupon_code}` : ""}`,
       tone:
         pay.status === "success"
@@ -520,11 +520,11 @@ export default function PanelPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Yurtdışı İş Başvuru Desteği</h2>
-                  <p className="mt-0.5 text-xs font-medium text-slate-500">Satın alım kartınız</p>
+                  <h2 className="text-lg font-semibold text-slate-900">Yurtdışı İş Başvuru Danışmanlığı</h2>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">Hizmet tipi, ödeme ve başvuru özeti</p>
                 </div>
                 <Link
-                  href="/yurtdisi-is-basvuru-destegi"
+                  href="/yurtdisi-is-basvuru-danismanligi"
                   className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
                 >
                   Hizmet sayfası →
@@ -683,7 +683,7 @@ export default function PanelPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Diğer ödemelerim</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Yurtdışı İş Başvuru Desteği <span className="font-medium">başarılı</span> ödemeleri yukarıdaki
+                Yurtdışı İş Başvuru Danışmanlığı <span className="font-medium">başarılı</span> ödemeleri yukarıdaki
                 hizmet kartlarındadır. Burada yalnızca diğer ürünler veya yarım kalan / başarısız yurtdışı denemeleri
                 listelenir.
               </p>
@@ -691,7 +691,7 @@ export default function PanelPage() {
                 <div className="py-6 text-center">
                   <p className="font-medium text-slate-700">Gösterilecek başka ödeme satırı yok</p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Sadece Yurtdışı Başvuru Desteği aldıysanız özet yukarıdadır; diğer işlemleriniz eklendikçe burada
+                    Sadece Yurtdışı İş Başvuru Danışmanlığı aldıysanız özet yukarıdadır; diğer işlemleriniz eklendikçe burada
                     görünür.
                   </p>
                 </div>

@@ -1,8 +1,9 @@
-/** Malta listede yok; ilk ülke taban fiyata dahil, sonraki her ülke +89 TL */
+/** Malta listede yok; ilk hedef taban fiyata dahil, sonraki her hedef +89 TL */
 export const YURTDISI_BASVURU_BASE_TRY = 199;
 export const YURTDISI_BASVURU_EXTRA_COUNTRY_TRY = 89;
 
 export const LISTING_PACKAGES = [
+  { id: 1, addTry: 0, label: "1 adet iş ilanı" },
   { id: 3, addTry: 49, label: "3 adet iş ilanı" },
   { id: 6, addTry: 79, label: "6 adet iş ilanı" },
   { id: 9, addTry: 99, label: "9 adet iş ilanı" },
@@ -11,85 +12,139 @@ export const LISTING_PACKAGES = [
 
 export type ListingPackageId = (typeof LISTING_PACKAGES)[number]["id"];
 
-/** İngilizce anahtar → görünen ad (Malta hariç) */
-export const EU_COUNTRY_OPTIONS: { key: string; name: string }[] = [
-  { key: "austria", name: "Austria" },
-  { key: "belgium", name: "Belgium" },
-  { key: "bulgaria", name: "Bulgaria" },
-  { key: "croatia", name: "Croatia" },
-  { key: "cyprus", name: "Cyprus" },
-  { key: "czechia", name: "Czechia" },
-  { key: "denmark", name: "Denmark" },
-  { key: "estonia", name: "Estonia" },
-  { key: "finland", name: "Finland" },
-  { key: "france", name: "France" },
-  { key: "germany", name: "Germany" },
-  { key: "greece", name: "Greece" },
-  { key: "hungary", name: "Hungary" },
-  { key: "iceland", name: "Iceland" },
-  { key: "ireland", name: "Ireland" },
-  { key: "italy", name: "Italy" },
-  { key: "latvia", name: "Latvia" },
-  { key: "liechtenstein", name: "Liechtenstein" },
-  { key: "lithuania", name: "Lithuania" },
-  { key: "luxembourg", name: "Luxembourg" },
-  { key: "netherlands", name: "Netherlands" },
-  { key: "norway", name: "Norway" },
-  { key: "poland", name: "Poland" },
-  { key: "portugal", name: "Portugal" },
-  { key: "romania", name: "Romania" },
-  { key: "slovakia", name: "Slovakia" },
-  { key: "slovenia", name: "Slovenia" },
-  { key: "spain", name: "Spain" },
-  { key: "sweden", name: "Sweden" },
-  { key: "switzerland", name: "Switzerland" },
+export type TargetLocationType = "country" | "region";
+export type TargetRegionGroup = "europe" | "international";
+
+/** Tek kaynak: anahtarlar eski ve yeni depolarla uyumlu kalmalı (sunucu doğrulaması). */
+export const TARGET_COUNTRY_OPTIONS: {
+  key: string;
+  name: string;
+  /** Bayrak (emoji) + arama yordamı */
+  flag: string;
+  locationType: TargetLocationType;
+  region: TargetRegionGroup;
+  /** Araya: dubai, thailand, filipin … */
+  searchText: string;
+}[] = [
+  { key: "austria", name: "Avusturya", flag: "🇦🇹", locationType: "country", region: "europe", searchText: "avusturya austria" },
+  { key: "belgium", name: "Belçika", flag: "🇧🇪", locationType: "country", region: "europe", searchText: "belcika belgium" },
+  { key: "bulgaria", name: "Bulgaristan", flag: "🇧🇬", locationType: "country", region: "europe", searchText: "bulgaristan" },
+  { key: "croatia", name: "Hırvatistan", flag: "🇭🇷", locationType: "country", region: "europe", searchText: "hirvatistan croatia" },
+  { key: "cyprus", name: "Kıbrıs", flag: "🇨🇾", locationType: "country", region: "europe", searchText: "kibris cyprus" },
+  { key: "czechia", name: "Çekya", flag: "🇨🇿", locationType: "country", region: "europe", searchText: "ceky czech" },
+  { key: "denmark", name: "Danimarka", flag: "🇩🇰", locationType: "country", region: "europe", searchText: "danimarka denmark" },
+  { key: "estonia", name: "Estonya", flag: "🇪🇪", locationType: "country", region: "europe", searchText: "estonya" },
+  { key: "finland", name: "Finlandiya", flag: "🇫🇮", locationType: "country", region: "europe", searchText: "finlandiya" },
+  { key: "france", name: "Fransa", flag: "🇫🇷", locationType: "country", region: "europe", searchText: "fransa france" },
+  { key: "germany", name: "Almanya", flag: "🇩🇪", locationType: "country", region: "europe", searchText: "almanya germany" },
+  { key: "greece", name: "Yunanistan", flag: "🇬🇷", locationType: "country", region: "europe", searchText: "yunanistan greece" },
+  { key: "hungary", name: "Macaristan", flag: "🇭🇺", locationType: "country", region: "europe", searchText: "macaristan hungary" },
+  { key: "iceland", name: "İzlanda", flag: "🇮🇸", locationType: "country", region: "europe", searchText: "izlanda iceland" },
+  { key: "ireland", name: "İrlanda", flag: "🇮🇪", locationType: "country", region: "europe", searchText: "irlanda ireland" },
+  { key: "italy", name: "İtalya", flag: "🇮🇹", locationType: "country", region: "europe", searchText: "italya italy" },
+  { key: "latvia", name: "Letonya", flag: "🇱🇻", locationType: "country", region: "europe", searchText: "letonya latvia" },
+  { key: "liechtenstein", name: "Lihtenştayn", flag: "🇱🇮", locationType: "country", region: "europe", searchText: "lihtenstayn" },
+  { key: "lithuania", name: "Litvanya", flag: "🇱🇹", locationType: "country", region: "europe", searchText: "litvanya" },
+  { key: "luxembourg", name: "Lüksemburg", flag: "🇱🇺", locationType: "country", region: "europe", searchText: "luksemburg" },
+  { key: "netherlands", name: "Hollanda", flag: "🇳🇱", locationType: "country", region: "europe", searchText: "hollanda netherlands" },
+  { key: "norway", name: "Norveç", flag: "🇳🇴", locationType: "country", region: "europe", searchText: "norvec norway" },
+  { key: "poland", name: "Polonya", flag: "🇵🇱", locationType: "country", region: "europe", searchText: "polonya poland" },
+  { key: "portugal", name: "Portekiz", flag: "🇵🇹", locationType: "country", region: "europe", searchText: "portekiz portugal" },
+  { key: "romania", name: "Romanya", flag: "🇷🇴", locationType: "country", region: "europe", searchText: "romanya romania" },
+  { key: "slovakia", name: "Slovakya", flag: "🇸🇰", locationType: "country", region: "europe", searchText: "slovakya" },
+  { key: "slovenia", name: "Slovenya", flag: "🇸🇮", locationType: "country", region: "europe", searchText: "slovenya" },
+  { key: "spain", name: "İspanya", flag: "🇪🇸", locationType: "country", region: "europe", searchText: "ispanya spain" },
+  { key: "sweden", name: "İsveç", flag: "🇸🇪", locationType: "country", region: "europe", searchText: "isvec sweden" },
+  { key: "switzerland", name: "İsviçre", flag: "🇨🇭", locationType: "country", region: "europe", searchText: "isvicre switzerland" },
+  { key: "uae", name: "Birleşik Arap Emirlikleri (Dubai / BAE)", flag: "🇦🇪", locationType: "region", region: "international", searchText: "bae dubai birl arap emirlikleri uae" },
+  { key: "qatar", name: "Katar", flag: "🇶🇦", locationType: "country", region: "international", searchText: "katar qatar" },
+  { key: "saudi_arabia", name: "Suudi Arabistan", flag: "🇸🇦", locationType: "country", region: "international", searchText: "suudi arabistan" },
+  { key: "bangkok", name: "Bangkok (Tayland)", flag: "🇹🇭", locationType: "region", region: "international", searchText: "bangkok tayland thailand" },
+  { key: "malaysia", name: "Malezya", flag: "🇲🇾", locationType: "country", region: "international", searchText: "malezya malaysia" },
+  { key: "indonesia", name: "Endonezya", flag: "🇮🇩", locationType: "country", region: "international", searchText: "endonezya indonesia" },
+  { key: "south_korea", name: "Güney Kore", flag: "🇰🇷", locationType: "country", region: "international", searchText: "guney kore korea" },
+  { key: "lebanon", name: "Lübnan", flag: "🇱🇧", locationType: "country", region: "international", searchText: "lubnan lebanon" },
+  { key: "manila", name: "Manila (Filipinler)", flag: "🇵🇭", locationType: "region", region: "international", searchText: "manila filipinler philippines" },
 ];
 
-const EU_COUNTRY_KEY_SET = new Set(EU_COUNTRY_OPTIONS.map((c) => c.key));
+/** Eski isim: pricing ve import uyumu */
+export const EU_COUNTRY_OPTIONS = TARGET_COUNTRY_OPTIONS;
+
+const TARGET_COUNTRY_KEY_SET = new Set(TARGET_COUNTRY_OPTIONS.map((c) => c.key));
 
 export function isAllowedCountryKey(key: string): boolean {
-  return EU_COUNTRY_KEY_SET.has(key);
+  return TARGET_COUNTRY_KEY_SET.has(key);
 }
 
+export function targetMetaByKey(key: string) {
+  return TARGET_COUNTRY_OPTIONS.find((c) => c.key === key);
+}
+
+/** Bayraksız kısa ad (fatura, JSON). */
 export function countryDisplayName(key: string): string {
-  return EU_COUNTRY_OPTIONS.find((c) => c.key === key)?.name ?? key;
+  return targetMetaByKey(key)?.name ?? key;
+}
+
+export function targetDisplayWithFlag(key: string): string {
+  const t = targetMetaByKey(key);
+  if (!t) return key;
+  return `${t.flag}\u00A0${t.name}`;
+}
+
+const normSearch = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+export function targetMatchesQuery(key: string, queryRaw: string): boolean {
+  const t = targetMetaByKey(key);
+  if (!t) return false;
+  const q = normSearch(queryRaw.trim());
+  if (!q) return true;
+  const bag = normSearch(`${t.name} ${t.key} ${t.searchText}`);
+  return bag.includes(q);
 }
 
 /**
- * Tek seçim — yüksek talep + ayrıntılı meslek listesi (tümü aynı mantıkla tekil id).
- * id stabil kalmalı (sunucu doğrulaması).
+ * Meslek: `demand` = TALEP / yüksek talep rozeti; `standard` = klasik tekil satır.
+ * id'ler değiştirilmemeli (sunucu doğrulaması).
  */
-export const PROFESSION_OPTIONS: { id: string; label: string; group: "demand" | "standard" }[] = [
-  { id: "demand-warehouse", label: "Depo, lojistik ve mal kabul (yüksek talep)", group: "demand" },
-  { id: "demand-hospitality", label: "Otel, catering ve konaklama hizmetleri (yüksek talep)", group: "demand" },
-  { id: "demand-construction", label: "İnşaat ve yapı yardımcı personeli (yüksek talep)", group: "demand" },
-  { id: "demand-fab", label: "Üretim hattı ve fabrika operatörlüğü (yüksek talep)", group: "demand" },
-  { id: "demand-horeca", label: "Gastronomi, mutfak ve servis (yüksek talep)", group: "demand" },
-  { id: "demand-clean", label: "Tesis, ofis ve endüstriyel temizlik (yüksek talep)", group: "demand" },
-  { id: "demand-health", label: "Bakım, destek ve sağlık tesislerinde yardımcı personel (yüksek talep)", group: "demand" },
-  { id: "demand-hvac", label: "Bakım / teknik altyapı destek rolleri (yüksek talep)", group: "demand" },
-  { id: "m1", label: "Tarım ve sanayi makineleri: mekanik ve tamircileri", group: "standard" },
-  { id: "m2", label: "Ağır kamyon ve tır şoförleri", group: "standard" },
-  { id: "m3", label: "Bina ve ilgili elektrikçiler", group: "standard" },
-  { id: "m4", label: "Motorlu taşıt tamircileri ve onarıcıları", group: "standard" },
-  { id: "m5", label: "Başka yerde sınıflandırılmamış imalat işçileri", group: "standard" },
-  { id: "m6", label: "Metal işleme: makine takımı ayarlayıcıları ve operatörleri", group: "standard" },
-  { id: "m7", label: "Ofis, otel ve diğer işletmelerde temizlikçiler ve yardımcılar", group: "standard" },
-  { id: "m8", label: "Aşçılar", group: "standard" },
-  { id: "m9", label: "Tesisatçılar ve boru montajcıları", group: "standard" },
-  { id: "m10", label: "Garsonlar", group: "standard" },
-  { id: "m11", label: "Marangozlar ve doğramacılar", group: "standard" },
-  { id: "m12", label: "Konaklama ve yiyecek hizmeti faaliyetleri", group: "standard" },
-  { id: "m13", label: "Tarım, ormancılık ve balıkçılık", group: "standard" },
-  { id: "m14", label: "Sanat, eğlence ve dinlenme sektörü rolleri", group: "standard" },
-  { id: "m15", label: "İnşaat", group: "standard" },
-  { id: "m16", label: "Elektrik, gaz, buhar ve klima temini", group: "standard" },
-  { id: "m17", label: "Üretim", group: "standard" },
-  { id: "m18", label: "Madencilik ve taş ocağı işletmeciliği", group: "standard" },
-  { id: "m19", label: "Ulaşım", group: "standard" },
-  { id: "m20", label: "Su temini; kanalizasyon, atık yönetimi ve iyileştirme", group: "standard" },
-  { id: "m21", label: "Motorlu taşıt ve motosiklet tamiri", group: "standard" },
-  { id: "m22", label: "Berber", group: "standard" },
+export type ProfessionOption =
+  | { id: string; group: "standard"; label: string }
+  | { id: string; group: "demand"; main: string };
+
+export const PROFESSION_OPTIONS: ProfessionOption[] = [
+  { id: "demand-warehouse", group: "demand", main: "Depo, lojistik ve mal kabul" },
+  { id: "demand-hospitality", group: "demand", main: "Otel, catering ve konaklama hizmetleri" },
+  { id: "demand-construction", group: "demand", main: "İnşaat ve yapı yardımcı personeli" },
+  { id: "demand-fab", group: "demand", main: "Üretim hattı ve fabrika operatörlüğü" },
+  { id: "demand-horeca", group: "demand", main: "Gastronomi, mutfak ve servis" },
+  { id: "demand-clean", group: "demand", main: "Tesis, ofis ve endüstriyel temizlik" },
+  { id: "demand-health", group: "demand", main: "Bakım, destek ve sağlık tesislerinde yardımcı personel" },
+  { id: "demand-hvac", group: "demand", main: "Bakım / teknik altyapı destek rolleri" },
+  { id: "m1", group: "standard", label: "Tarım ve sanayi makineleri: mekanik ve tamircileri" },
+  { id: "m2", group: "standard", label: "Ağır kamyon ve tır şoförleri" },
+  { id: "m3", group: "standard", label: "Bina ve ilgili elektrikçiler" },
+  { id: "m4", group: "standard", label: "Motorlu taşıt tamircileri ve onarıcıları" },
+  { id: "m5", group: "standard", label: "Başka yerde sınıflandırılmamış imalat işçileri" },
+  { id: "m6", group: "standard", label: "Metal işleme: makine takımı ayarlayıcıları ve operatörleri" },
+  { id: "m7", group: "standard", label: "Ofis, otel ve diğer işletmelerde temizlikçiler ve yardımcılar" },
+  { id: "m8", group: "standard", label: "Aşçılar" },
+  { id: "m9", group: "standard", label: "Tesisatçılar ve boru montajcıları" },
+  { id: "m10", group: "standard", label: "Garsonlar" },
+  { id: "m11", group: "standard", label: "Marangozlar ve doğramacılar" },
+  { id: "m12", group: "standard", label: "Konaklama ve yiyecek hizmeti faaliyetleri" },
+  { id: "m13", group: "standard", label: "Tarım, ormancılık ve balıkçılık" },
+  { id: "m14", group: "standard", label: "Sanat, eğlence ve dinlenme sektörü rolleri" },
+  { id: "m15", group: "standard", label: "İnşaat" },
+  { id: "m16", group: "standard", label: "Elektrik, gaz, buhar ve klima temini" },
+  { id: "m17", group: "standard", label: "Üretim" },
+  { id: "m18", group: "standard", label: "Madencilik ve taş ocağı işletmeciliği" },
+  { id: "m19", group: "standard", label: "Ulaşım" },
+  { id: "m20", group: "standard", label: "Su temini; kanalizasyon, atık yönetimi ve iyileştirme" },
+  { id: "m21", group: "standard", label: "Motorlu taşıt ve motosiklet tamiri" },
+  { id: "m22", group: "standard", label: "Berber" },
 ];
 
 const PROFESSION_ID_SET = new Set(PROFESSION_OPTIONS.map((p) => p.id));
@@ -99,7 +154,14 @@ export function isValidProfessionId(id: string | null | undefined): boolean {
 }
 
 export function professionLabelById(id: string): string {
-  return PROFESSION_OPTIONS.find((p) => p.id === id)?.label ?? id;
+  const p = PROFESSION_OPTIONS.find((x) => x.id === id);
+  if (!p) return id;
+  return p.group === "demand" ? `${p.main} (yüksek talep)` : p.label;
+}
+
+export function professionSearchableText(p: ProfessionOption): string {
+  if (p.group === "demand") return `${p.main} yüksek talep`;
+  return p.label;
 }
 
 export const DOC_CATEGORY_KEYS = [
@@ -141,6 +203,32 @@ export const LEGAL_CONSENT_KEYS = [
 ] as const;
 
 export type LegalConsentKey = (typeof LEGAL_CONSENT_KEYS)[number];
+
+export const LEGAL_CONSENT_GROUPS: {
+  id: string;
+  title: string;
+  lead: string;
+  keys: readonly LegalConsentKey[];
+}[] = [
+  {
+    id: "scope",
+    title: "Hizmetin kapsamı",
+    lead: "Hizmetin niteliği, sonuç beklentisi ve ödeme sınırları.",
+    keys: ["service_is_process", "no_outcome_promise", "payment_scope"],
+  },
+  {
+    id: "process",
+    title: "Süreç ve sorumluluk",
+    lead: "İşveren, mülakat, iletişim ve resmî mercilerle ilgili sınırlar.",
+    keys: ["employer_decision", "interview_on_candidate", "post_process_on_candidate", "visa_authority"],
+  },
+  {
+    id: "data",
+    title: "Veri ve bilgilendirme",
+    lead: "Bilgi doğruluğu, belgeler, paylaşım ve aydınlatma onayları.",
+    keys: ["info_accuracy", "docs_job_application", "screenshots_info", "distance_and_kvkk"],
+  },
+] as const;
 
 /** Sözleşme adımı: kısa başlık + açık metin */
 export const LEGAL_CONSENT_COPY: Record<LegalConsentKey, { title: string; body: string }> = {

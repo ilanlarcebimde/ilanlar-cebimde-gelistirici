@@ -2,6 +2,6 @@
 export const YURTDISI_BASVURU_PAYMENT_TYPE = "yurtdisi_is_basvuru_destegi" as const;
 
 /** `basket_description` + `IndividualBillingPayload.service_name` — birebir aynı olmalı */
-export const YURTDISI_BASVURU_BASKET = "Yurtdışı İş Başvuru Desteği";
+export const YURTDISI_BASVURU_BASKET = "Yurtdışı İş Başvuru Danışmanlığı";
 
-export const YURTDISI_BASVURU_WIZARD_VERSION = 1 as const;
+export const YURTDISI_BASVURU_WIZARD_VERSION = 2 as const;

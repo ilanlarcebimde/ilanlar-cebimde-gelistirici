@@ -149,8 +149,8 @@ export function MobileMenuSheet({
                 onClick={onClose}
               />
               <MobileMenuItem
-                href="/yurtdisi-is-basvuru-destegi"
-                label="Yurtdışı İş Başvuru Desteği"
+                href="/yurtdisi-is-basvuru-danismanligi"
+                label="Yurtdışı İş Başvuru Danışmanlığı"
                 icon={LifeBuoy}
                 onClick={onClose}
               />

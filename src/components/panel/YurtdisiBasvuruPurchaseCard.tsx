@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Briefcase, CreditCard, Globe2, ListOrdered, Sparkles, ArrowUpRight } from "lucide-react";
-import { countryDisplayName, LISTING_PACKAGES } from "@/lib/yurtdisiIsBasvuruDestegi/constants";
+import { LISTING_PACKAGES, targetDisplayWithFlag } from "@/lib/yurtdisiIsBasvuruDestegi/constants";
 
 export type YurtdisiPanelApplicationRow = {
   id: string;
@@ -63,9 +63,9 @@ function readSnapshot(row: YurtdisiPanelApplicationRow): {
   const keys = Array.isArray(snap?.pricing?.country_keys) ? snap.pricing!.country_keys! : [];
   const countryLabels =
     keys.length > 0
-      ? keys.map((k) => (typeof k === "string" ? countryDisplayName(k) : String(k)))
+      ? keys.map((k) => (typeof k === "string" ? targetDisplayWithFlag(k) : String(k)))
       : row.country_count != null && row.country_count > 0
-        ? [`${row.country_count} hedef ülke`]
+        ? [`${row.country_count} hedef (ülke / bölge)`]
         : [];
   const lpId = snap?.pricing?.listing_package_id ?? row.listing_package_id;
   const listingLabel =
@@ -120,12 +120,14 @@ export function YurtdisiBasvuruPurchaseCard({ row }: { row: YurtdisiPanelApplica
               <Sparkles className="h-3.5 w-3.5 text-amber-300" aria-hidden />
               Premium satın alım
             </p>
-            <h3 className="mt-0.5 font-serif text-base font-semibold text-[#FEFDFB] sm:text-lg">Yurtdışı İş Başvuru Desteği</h3>
+            <h3 className="mt-0.5 font-serif text-base font-semibold text-[#FEFDFB] sm:text-lg">Yurtdışı İş Başvuru Danışmanlığı</h3>
+            <p className="mt-0.5 text-[11px] font-medium text-amber-100/80">Hizmet tipi: Yurtdışı işe başvuru danışmanlığı</p>
             {customerName && <p className="mt-0.5 text-xs text-slate-300/95">Başvuru: {customerName}</p>}
           </div>
           <Link
-            href="/yurtdisi-is-basvuru-destegi"
+            href="/yurtdisi-is-basvuru-danismanligi"
             className="group inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-400/25 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-amber-100 transition hover:border-amber-400/50 hover:text-white"
+            title="Yurtdışı İş Başvuru Danışmanlığı sayfası"
           >
             Hizmet
             <ArrowUpRight className="h-3.5 w-3.5 opacity-80 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -159,19 +161,19 @@ export function YurtdisiBasvuruPurchaseCard({ row }: { row: YurtdisiPanelApplica
       </div>
 
       <div className="border-t border-[#0f1a2c]/6 bg-[#F6F1E8]/50 px-4 py-3.5 sm:px-5 sm:py-4">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Başvuru özeti</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Satın alım özeti</p>
         <dl className="mt-2.5 space-y-2.5 text-sm text-slate-800">
           <div className="flex gap-2.5 sm:items-start">
-            <dt className="flex w-32 shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500">
+            <dt className="flex w-36 shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500">
               <Briefcase className="h-3.5 w-3.5 text-amber-800/80" aria-hidden />
-              Meslek / alan
+              Seçilen meslek
             </dt>
             <dd className="min-w-0 flex-1 text-sm font-medium leading-snug text-[#0f1a2c]">{profession}</dd>
           </div>
           <div className="flex gap-2.5 sm:items-start">
-            <dt className="flex w-32 shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500">
+            <dt className="flex w-36 shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500">
               <Globe2 className="h-3.5 w-3.5 text-amber-800/80" aria-hidden />
-              Hedef ülkeler
+              Hedef (ülke / bölge)
             </dt>
             <dd className="min-w-0 flex-1">
               {countryLabels.length > 0 ? (

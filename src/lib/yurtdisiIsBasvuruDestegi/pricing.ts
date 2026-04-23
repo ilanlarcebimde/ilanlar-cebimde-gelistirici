@@ -43,18 +43,22 @@ export function computeBasvuruDestegiPrice(input: BasvuruPricingInput): Computed
   }
 
   const lineItems: PriceLine[] = [
-    { code: "base", label: "Başvuru ve süreç yönetimi (taban)", amountTry: baseTry },
+    { code: "base", label: "Temel hizmet (danışmanlık)", amountTry: baseTry },
   ];
   if (extra > 0) {
     lineItems.push({
       code: "extra_countries",
-      label: `Ek hedef ülke (${extra} × ${YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL)`,
+      label: `Ek hedef: ${extra} × ${YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL (ülke / bölge)`,
       amountTry: extraCountryChargeTry,
     });
   }
+  const listingLabel =
+    pkg.addTry === 0
+      ? `İlan paketi: ${pkg.label} (ücretsiz)`
+      : `İlan paketi: ${pkg.label} (+${pkg.addTry} TL)`;
   lineItems.push({
     code: "listing_package",
-    label: `İş ilanı paketi: ${pkg.label}`,
+    label: listingLabel,
     amountTry: pkg.addTry,
   });
 

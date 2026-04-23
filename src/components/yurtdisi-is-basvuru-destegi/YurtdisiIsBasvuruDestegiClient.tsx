@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { BasvuruDestegiWizard } from "./basvuru-wizard/BasvuruDestegiWizard";
 import { PremiumOnboardingProcessSlider } from "./PremiumOnboardingProcessSlider";
+import { YURTDISI_BASVURU_CANONICAL_PATH } from "@/lib/yurtdisiIsBasvuruDestegi/paths";
 
 const STEPS = [
   {
@@ -117,10 +118,10 @@ export function YurtdisiIsBasvuruDestegiClient() {
     const odeme = searchParams.get("odeme");
     if (odeme === "ok") {
       setPaymentBanner("ok");
-      router.replace("/yurtdisi-is-basvuru-destegi", { scroll: false });
+      router.replace(YURTDISI_BASVURU_CANONICAL_PATH, { scroll: false });
     } else if (odeme === "fail") {
       setPaymentBanner("fail");
-      router.replace("/yurtdisi-is-basvuru-destegi", { scroll: false });
+      router.replace(YURTDISI_BASVURU_CANONICAL_PATH, { scroll: false });
     }
   }, [searchParams, router]);
 
@@ -192,9 +193,14 @@ export function YurtdisiIsBasvuruDestegiClient() {
         <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-12 lg:items-stretch lg:gap-14">
             <div className="relative z-10 lg:col-span-7">
-              <p className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-white/[0.04] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90 backdrop-blur-sm sm:text-xs">
-                <ClipboardList className="h-3.5 w-3.5" aria-hidden />
-                Başvuru &amp; süreç yönetimi
+              <p className="inline-flex max-w-full flex-col items-start gap-1 rounded-full border border-amber-400/25 bg-white/[0.04] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200/90 backdrop-blur-sm sm:text-xs sm:tracking-[0.18em]">
+                <span className="inline-flex items-center gap-2">
+                  <ClipboardList className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="leading-tight">Yurtdışı İş Başvuru Danışmanlığı</span>
+                </span>
+                <span className="pl-0 text-[10px] font-medium normal-case tracking-normal text-amber-100/80 sm:pl-7 sm:text-[11px]">
+                  Başvuru ve süreç yönetimi
+                </span>
               </p>
               <h1 className="mt-6 font-serif text-balance text-[1.7rem] font-semibold leading-[1.15] tracking-tight text-[#FEFDFB] sm:text-4xl md:text-[2.5rem] md:leading-[1.1]">
                 Yurtdışındaki işverenlere ulaşmak artık daha profesyonel

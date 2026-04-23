@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function YurtdisiIsBasvuruDestegiPage() {
+export default function YurtdisiIsBasvuruDanismanligiPage() {
   return (
     <Suspense
       fallback={

@@ -19,18 +19,23 @@ import type { IndividualBillingPayload } from "@/lib/billingIndividual";
 import {
   DOC_CATEGORY_KEYS,
   DOC_CATEGORY_LABELS,
-  EU_COUNTRY_OPTIONS,
   LANGUAGE_LEVELS,
   LEGAL_CONSENT_COPY,
+  LEGAL_CONSENT_GROUPS,
   LEGAL_CONSENT_KEYS,
   LISTING_PACKAGES,
   PROFESSION_OPTIONS,
+  TARGET_COUNTRY_OPTIONS,
   YURTDISI_BASVURU_BASE_TRY,
   YURTDISI_BASVURU_EXTRA_COUNTRY_TRY,
-  countryDisplayName,
   isAllowedCountryKey,
+  professionLabelById,
+  professionSearchableText,
+  targetDisplayWithFlag,
+  targetMatchesQuery,
   type DocCategoryKey,
 } from "@/lib/yurtdisiIsBasvuruDestegi/constants";
+import { YURTDISI_BASVURU_CANONICAL_PATH } from "@/lib/yurtdisiIsBasvuruDestegi/paths";
 import { YURTDISI_BASVURU_BASKET, YURTDISI_BASVURU_PAYMENT_TYPE } from "@/lib/yurtdisiIsBasvuruDestegi/paytr";
 import { emptyBasvuruWizardState, type BasvuruWizardFormState, type LanguageRow } from "@/lib/yurtdisiIsBasvuruDestegi/wizardTypes";
 import { useBasvuruComputedPrice } from "./useBasvuruComputedPrice";
@@ -40,7 +45,7 @@ const STEPS = [
   { n: 1, label: "Hizmet" },
   { n: 2, label: "Bilgiler" },
   { n: 3, label: "Meslek" },
-  { n: 4, label: "Ülkeler" },
+  { n: 4, label: "Hedef" },
   { n: 5, label: "İlan paketi" },
   { n: 6, label: "Belgeler" },
   { n: 7, label: "Mülakat" },
@@ -134,7 +139,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       if (!form.professionId) err.profession = "Meslek veya alan seçimi zorunludur.";
     }
     if (s === 4) {
-      if (form.countryKeys.length === 0) err.countries = "En az bir hedef ülke seçin.";
+      if (form.countryKeys.length === 0) err.countries = "En az bir hedef ülke veya bölge seçin.";
     }
     if (s === 5) {
       if (!form.listingPackageId) err.listing = "Bir ilan paketi seçin.";
@@ -146,7 +151,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
     if (s === 8) {
       for (const k of LEGAL_CONSENT_KEYS) {
         if (!form.legal[k]) {
-          err.legal = "Tüm maddeleri onaylamanız gerekir.";
+          err.legal = "Tüm hizmet şartı ve bilgilendirme maddelerini onaylamanız gerekir.";
           break;
         }
       }
@@ -308,8 +313,8 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
       user_name: `${form.invoiceFirstName} ${form.invoiceLastName}`.trim() || "Müşteri",
       user_address: form.invoiceAddress.trim() || "Adres girilmedi",
       user_phone: onlyDigits(form.invoicePhone) || "5550000000",
-      merchant_ok_url: `${siteUrl}/yurtdisi-is-basvuru-destegi?odeme=ok`,
-      merchant_fail_url: `${siteUrl}/yurtdisi-is-basvuru-destegi?odeme=fail`,
+      merchant_ok_url: `${siteUrl}${YURTDISI_BASVURU_CANONICAL_PATH}?odeme=ok`,
+      merchant_fail_url: `${siteUrl}${YURTDISI_BASVURU_CANONICAL_PATH}?odeme=fail`,
       basket_description: YURTDISI_BASVURU_BASKET,
       payment_type: YURTDISI_BASVURU_PAYMENT_TYPE,
       user_id: sess.session.user.id,
@@ -335,18 +340,20 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
     } else {
       setPayError(data.error || "Ödeme başlatılamadı.");
     }
-  }, [form, buildBilling, priceOk, pricingInput]);
+  }, [form, buildBilling, priceOk, pricingInput, YURTDISI_BASVURU_CANONICAL_PATH]);
 
   if (!open) return null;
 
   const filteredProfessions = PROFESSION_OPTIONS.filter(
     (p) =>
-      p.label.toLocaleLowerCase("tr-TR").includes(profQuery.toLocaleLowerCase("tr-TR")) || profQuery.trim() === ""
+      professionSearchableText(p).toLocaleLowerCase("tr-TR").includes(profQuery.toLocaleLowerCase("tr-TR")) ||
+      profQuery.trim() === ""
   );
-  const filteredCountries = EU_COUNTRY_OPTIONS.filter(
-    (c) =>
-      c.name.toLowerCase().includes(countryQuery.toLowerCase()) ||
-      c.key.toLowerCase().includes(countryQuery.toLowerCase())
+  const filteredEurope = TARGET_COUNTRY_OPTIONS.filter(
+    (c) => c.region === "europe" && targetMatchesQuery(c.key, countryQuery)
+  );
+  const filteredInternational = TARGET_COUNTRY_OPTIONS.filter(
+    (c) => c.region === "international" && targetMatchesQuery(c.key, countryQuery)
   );
 
   const extraCountries = Math.max(0, form.countryKeys.length - 1);
@@ -362,7 +369,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-start sm:gap-4">
             <h2 id={titleId} className="font-serif text-base font-semibold text-[#FEFDFB] sm:text-lg">
-              Yurtdışı İş Başvuru Desteği
+              Yurtdışı İş Başvuru Danışmanlığı
             </h2>
             <button
               type="button"
@@ -390,7 +397,40 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
             </div>
           </div>
         </div>
-        <nav className="mx-auto mt-4 flex max-w-5xl gap-1 overflow-x-auto pb-1.5 pt-0.5 scrollbar-thin" aria-label="Adımlar">
+        {priceOk && price && step >= 2 && (
+          <div className="mx-auto mt-3 max-w-5xl rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 sm:px-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/75">Fiyat dökümü</p>
+            <ul className="mt-2 space-y-1.5 text-[11px] text-slate-200 sm:text-xs">
+              <li className="flex justify-between gap-3">
+                <span className="text-slate-400">Temel hizmet</span>
+                <span className="shrink-0 font-medium tabular-nums text-white">{formatTry(price.baseTry)}</span>
+              </li>
+              {price.extraCountriesCount > 0 && (
+                <li className="flex justify-between gap-3">
+                  <span className="text-slate-400">
+                    Ek hedef ({price.extraCountriesCount} × {YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL)
+                  </span>
+                  <span className="shrink-0 font-medium tabular-nums text-amber-200/90">{formatTry(price.extraCountryChargeTry)}</span>
+                </li>
+              )}
+              <li className="flex justify-between gap-3">
+                <span className="text-slate-400">
+                  İlan paketi · {price.listingPackage.label}
+                  {price.listingPackage.addTry === 0 ? " (ücretsiz)" : ""}
+                </span>
+                <span className="shrink-0 font-medium tabular-nums text-amber-200/90">{formatTry(price.listingPackage.addTry)}</span>
+              </li>
+              <li className="flex justify-between gap-2 border-t border-white/10 pt-2 text-sm font-semibold text-white">
+                <span>Toplam</span>
+                <span className="tabular-nums text-amber-300">{formatTry(price.totalTry)}</span>
+              </li>
+            </ul>
+          </div>
+        )}
+        <nav
+          className="mx-auto mt-4 flex max-w-5xl snap-x snap-mandatory gap-1.5 overflow-x-auto pb-1.5 pt-0.5 scrollbar-thin"
+          aria-label="Adımlar"
+        >
           {STEPS.map((s) => {
             const active = s.n === step;
             const done = s.n < step;
@@ -401,9 +441,9 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                 onClick={() => {
                   if (s.n < step) setStep(s.n);
                 }}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition sm:px-3 sm:text-xs ${
+                className={`flex snap-start shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition sm:px-3 sm:text-xs ${
                   active
-                    ? "border-amber-400/50 bg-amber-500/15 text-amber-100"
+                    ? "border-amber-400/50 bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/25"
                     : done
                       ? "border-white/10 bg-white/5 text-slate-300"
                       : "border-transparent text-slate-500"
@@ -538,8 +578,10 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                     return (
                       <label
                         key={p.id}
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-sm leading-snug transition ${
-                          selected ? "border-amber-400/50 bg-amber-500/10" : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-sm leading-relaxed transition ${
+                          selected
+                            ? "border-amber-400/50 bg-amber-500/10 ring-1 ring-amber-400/20"
+                            : "border-white/10 bg-white/[0.02] hover:border-white/20"
                         }`}
                       >
                         <input
@@ -548,13 +590,23 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                           checked={selected}
                           onChange={() => setForm((f) => ({ ...f, professionId: p.id }))}
                         />
-                        <span className="text-slate-100">
-                          {p.group === "demand" && (
-                            <span className="mr-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-200/80">
-                              Talep
+                        <span className="min-w-0 flex-1 text-slate-100">
+                          {p.group === "demand" ? (
+                            <span className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-2">
+                              <span className="inline-flex w-fit items-center gap-1.5">
+                                <span className="shrink-0 rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.2em] text-amber-200/95">
+                                  TALEP
+                                </span>
+                                <span className="text-slate-500" aria-hidden>
+                                  •
+                                </span>
+                                <span className="text-[15px] font-medium text-white">{p.main}</span>
+                              </span>
+                              <span className="text-xs font-medium text-amber-200/80">(yüksek talep)</span>
                             </span>
+                          ) : (
+                            <span>{p.label}</span>
                           )}
-                          {p.label}
                         </span>
                         {selected && <CheckCircle2 className="ml-auto h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
                       </label>
@@ -569,17 +621,17 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
             <div>
               {fieldErrors.countries && <ErrorBanner text={fieldErrors.countries} />}
               <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 sm:p-6">
-                <h3 className="font-serif text-lg font-semibold text-white">Hedef ülkeler</h3>
+                <h3 className="font-serif text-lg font-semibold text-white">Hedef ülke / bölge</h3>
                 <p className="mt-1 text-sm text-slate-400">
-                  Birden fazla seçebilirsiniz. <strong className="text-amber-200/90">İlk ülke</strong> taban fiyata dahildir. Her ek
-                  ülke <strong>+{YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL</strong>.
+                  Birden fazla seçebilirsiniz. <strong className="text-amber-200/90">İlk hedef</strong> temel hizmete dahildir. Her ek
+                  ülke veya bölge <strong>+{YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL</strong>.
                 </p>
-                <p className="mt-2 text-xs text-slate-500">Malta hariç Avrupa listesi.</p>
+                <p className="mt-2 text-xs text-slate-500">Avrupa: Malta hariç liste. Ayrıca seçilebilir uluslararası hedefler.</p>
                 <div className="relative mt-4">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                   <input
                     className="w-full rounded-2xl border border-white/10 bg-[#0a1220] py-3 pl-10 pr-4 text-sm text-white"
-                    placeholder="Ülke ara..."
+                    placeholder="Ülke veya bölge ara…"
                     value={countryQuery}
                     onChange={(e) => setCountryQuery(e.target.value)}
                   />
@@ -589,12 +641,12 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                     {form.countryKeys.map((k) => (
                       <li
                         key={k}
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-100"
+                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-100"
                       >
-                        {countryDisplayName(k)}
+                        <span className="min-w-0 truncate">{targetDisplayWithFlag(k)}</span>
                         <button
                           type="button"
-                          className="ml-0.5 rounded p-0.5 hover:bg-white/10"
+                          className="ml-0.5 shrink-0 rounded p-0.5 hover:bg-white/10"
                           onClick={() => toggleCountry(k)}
                           aria-label="Kaldır"
                         >
@@ -604,26 +656,75 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                     ))}
                   </ul>
                 )}
-                <div className="mt-4 max-h-[40vh] grid grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
-                  {filteredCountries.map((c) => {
-                    const on = form.countryKeys.includes(c.key);
-                    return (
-                      <button
-                        key={c.key}
-                        type="button"
-                        onClick={() => toggleCountry(c.key)}
-                        className={`flex min-h-[44px] items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
-                          on ? "border-amber-400/50 bg-amber-500/10 text-white" : "border-white/10 text-slate-200 hover:border-white/25"
-                        }`}
-                      >
-                        {c.name}
-                        {on && <Check className="h-4 w-4 text-amber-300" aria-hidden />}
-                      </button>
-                    );
-                  })}
+                <div className="mt-4 max-h-[42vh] space-y-4 overflow-y-auto pr-0.5">
+                  {filteredEurope.length > 0 && (
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Avrupa</h4>
+                      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                        {filteredEurope.map((c) => {
+                          const on = form.countryKeys.includes(c.key);
+                          return (
+                            <button
+                              key={c.key}
+                              type="button"
+                              onClick={() => toggleCountry(c.key)}
+                              className={`flex min-h-[44px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm ${
+                                on
+                                  ? "border-amber-400/50 bg-amber-500/10 text-white ring-1 ring-amber-400/15"
+                                  : "border-white/10 text-slate-200 hover:border-white/25"
+                              }`}
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="text-lg leading-none" aria-hidden>
+                                  {c.flag}
+                                </span>
+                                <span className="min-w-0 leading-snug">{c.name}</span>
+                              </span>
+                              {on && <Check className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {filteredInternational.length > 0 && (
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Diğer hedefler</h4>
+                      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                        {filteredInternational.map((c) => {
+                          const on = form.countryKeys.includes(c.key);
+                          return (
+                            <button
+                              key={c.key}
+                              type="button"
+                              onClick={() => toggleCountry(c.key)}
+                              className={`flex min-h-[44px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm ${
+                                on
+                                  ? "border-amber-400/50 bg-amber-500/10 text-white ring-1 ring-amber-400/15"
+                                  : "border-white/10 text-slate-200 hover:border-white/25"
+                              }`}
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="text-lg leading-none" aria-hidden>
+                                  {c.flag}
+                                </span>
+                                <span className="min-w-0 leading-snug">
+                                  {c.name}
+                                  {c.locationType === "region" && (
+                                    <span className="ml-1.5 text-[10px] font-medium text-slate-500">(bölge odağı)</span>
+                                  )}
+                                </span>
+                              </span>
+                              {on && <Check className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <p className="mt-4 text-center text-sm text-amber-100/80">
-                  Seçilen: {form.countryKeys.length} ülke · İlk ülke dahil · Ek: {extraCountries} × {YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL
+                  Seçilen: {form.countryKeys.length} hedef · İlk hedef dahil · Ek: {extraCountries} × {YURTDISI_BASVURU_EXTRA_COUNTRY_TRY} TL
                 </p>
               </div>
             </div>
@@ -644,11 +745,15 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                         selected
                           ? "border-amber-400/50 bg-amber-500/10 ring-1 ring-amber-400/30"
                           : "border-white/10 bg-white/[0.04] hover:border-amber-500/20"
-                      }`}
+                      } ${p.id === 1 ? "sm:col-span-2" : ""}`}
                     >
-                      <p className="text-xs font-bold uppercase tracking-widest text-amber-200/80">İlan sayısı</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-amber-200/80">İlan paketi</p>
                       <p className="mt-1 font-serif text-lg font-semibold text-white">{p.label}</p>
-                      <p className="mt-2 text-sm text-amber-200/90">+{p.addTry} TL</p>
+                      {p.addTry === 0 ? (
+                        <p className="mt-2 text-sm font-semibold text-emerald-300/95">Ücretsiz</p>
+                      ) : (
+                        <p className="mt-2 text-sm text-amber-200/90">+{p.addTry} TL</p>
+                      )}
                     </button>
                   );
                 })}
@@ -666,7 +771,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                 <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 text-center">
                   <p className="text-sm text-slate-200">Belge yüklemek ve ödemeyi tamamlamak için giriş yapın.</p>
                   <Link
-                    href={`/giris?next=${encodeURIComponent("/yurtdisi-is-basvuru-destegi")}`}
+                    href={`/giris?next=${encodeURIComponent(YURTDISI_BASVURU_CANONICAL_PATH)}`}
                     className="mt-4 inline-flex items-center justify-center rounded-2xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-[#0f1a2c]"
                   >
                     Girişe git
@@ -674,66 +779,89 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                 </div>
               ) : (
                 <>
-                  <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-r from-amber-500/10 to-transparent p-4">
-                    <p className="text-sm text-slate-200">
+                  <div className="mb-5 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-[#0a1220] to-[#0a1220] p-4 shadow-[0_0_24px_rgba(245,158,11,0.08)] sm:p-5">
+                    <p className="text-sm font-medium leading-relaxed text-amber-50/95 sm:text-[15px]">
                       Belgeleriniz yalnızca yetkili operasyon alanına yüklenir; herkese açık alanda paylaşılmaz.
                     </p>
                     <a
                       href="https://www.ilanlarcebimde.com/yurtdisi-cv-paketi"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-amber-300/95 hover:text-amber-200"
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-amber-300/95 hover:text-amber-200"
                     >
                       CV&apos;niz hazır değilse profesyonel CV oluşturma alanına geçin
                       <ChevronRight className="h-4 w-4" />
                     </a>
                   </div>
                   <div className="space-y-3">
-                    {DOC_CATEGORY_KEYS.map((cat) => (
-                      <div
-                        key={cat}
-                        className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 min-h-[10rem] sm:min-h-[8.5rem]"
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onDrop={(e) => onFileDrop(e, cat)}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-white">
-                            {DOC_CATEGORY_LABELS[cat]}
-                            {cat === "cv" && <span className="text-rose-300"> *</span>}
-                          </p>
-                          <label className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-xl border border-white/15 bg-[#0a1220] px-3 py-2 text-xs font-medium text-amber-100 hover:border-amber-500/30">
-                            {uploading === cat ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                            {uploading === cat ? "Yükleniyor…" : "Seç veya sürükle-bırak"}
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept=".pdf,.doc,.docx,image/*"
-                              onChange={(e) => onUpload(cat, e.target.files)}
-                            />
-                          </label>
+                    {DOC_CATEGORY_KEYS.map((cat) => {
+                      const hasFile = form.filesByCategory[cat].length > 0;
+                      return (
+                        <div
+                          key={cat}
+                          className={`min-h-[10rem] rounded-2xl border p-4 transition-colors sm:min-h-[8.5rem] ${
+                            hasFile
+                              ? "border-emerald-500/45 bg-emerald-950/25 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_20px_rgba(16,185,129,0.08)]"
+                              : "border-dashed border-white/15 bg-white/[0.03]"
+                          }`}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onDrop={(e) => onFileDrop(e, cat)}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <p className="text-sm font-medium text-white">
+                                {DOC_CATEGORY_LABELS[cat]}
+                                {cat === "cv" && <span className="text-rose-300"> *</span>}
+                              </p>
+                              {hasFile && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200">
+                                  <CheckCircle2 className="h-3 w-3" aria-hidden />
+                                  Yüklendi
+                                </span>
+                              )}
+                            </div>
+                            <label
+                              className={`inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${
+                                hasFile
+                                  ? "border-emerald-500/30 bg-[#0a1220] text-emerald-100 hover:border-emerald-400/40"
+                                  : "border-white/15 bg-[#0a1220] text-amber-100 hover:border-amber-500/30"
+                              }`}
+                            >
+                              {uploading === cat ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                              {uploading === cat ? "Yükleniyor…" : "Seç veya sürükle-bırak"}
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept=".pdf,.doc,.docx,image/*"
+                                onChange={(e) => onUpload(cat, e.target.files)}
+                              />
+                            </label>
+                          </div>
+                          <p className="mt-2 text-[11px] text-slate-500">PDF, Word veya görsel — kartın üzerine bırakabilirsiniz.</p>
+                          {form.filesByCategory[cat].length > 0 && (
+                            <ul className="mt-2 space-y-1.5 text-xs text-slate-300">
+                              {form.filesByCategory[cat].map((f) => (
+                                <li key={f.path} className="flex min-w-0 items-center justify-between gap-2">
+                                  <span className="min-w-0 max-w-full truncate" title={f.originalName}>
+                                    {f.originalName}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="shrink-0 text-rose-300 hover:underline"
+                                    onClick={() => removeFile(cat, f.path)}
+                                  >
+                                    Kaldır
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
-                        <p className="mt-2 text-[11px] text-slate-500">PDF, Word veya görsel — kartın üzerine bırakabilirsiniz.</p>
-                        {form.filesByCategory[cat].length > 0 && (
-                          <ul className="mt-2 space-y-1 text-xs text-slate-400">
-                            {form.filesByCategory[cat].map((f) => (
-                              <li key={f.path} className="flex items-center justify-between gap-2">
-                                <span className="truncate">{f.originalName}</span>
-                                <button
-                                  type="button"
-                                  className="shrink-0 text-rose-300 hover:underline"
-                                  onClick={() => removeFile(cat, f.path)}
-                                >
-                                  Kaldır
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -745,35 +873,51 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
           {step === 8 && (
             <div>
               {fieldErrors.legal && <ErrorBanner text={fieldErrors.legal} />}
-              <div className="space-y-2">
-                {LEGAL_CONSENT_KEYS.map((k) => {
-                  const c = LEGAL_CONSENT_COPY[k];
-                  return (
-                    <div
-                      key={k}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
-                    >
-                      <label className="flex items-start gap-2 text-sm font-medium text-white">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 h-4 w-4 shrink-0"
-                          checked={form.legal[k]}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, legal: { ...f.legal, [k]: e.target.checked } }))
-                          }
-                        />
-                        <span className="flex-1">
-                          {c.title}
-                          <span className="ml-1 text-xs font-normal text-slate-500">(okudum, kabul ediyorum)</span>
-                        </span>
-                      </label>
-                      <details className="mt-2 pl-6 text-xs text-slate-500">
-                        <summary className="cursor-pointer list-none text-amber-200/80 hover:text-amber-100">Metni aç / kapa</summary>
-                        <p className="mt-1 leading-relaxed text-slate-400">{c.body}</p>
-                      </details>
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-slate-200">
+                <p>
+                  Devam etmek için hizmet şartları ve bilgilendirme metinlerini onaylamanız gerekir. Aşağıdaki bölümler arasında
+                  düzenlendi; her madde ayrı onay ister.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {LEGAL_CONSENT_GROUPS.map((g) => (
+                  <details
+                    key={g.id}
+                    className="group rounded-2xl border border-white/10 bg-white/[0.03] open:border-amber-500/20 open:bg-amber-500/[0.04]"
+                  >
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 text-left [&::-webkit-details-marker]:hidden">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{g.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{g.lead}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-amber-200/60 transition group-open:rotate-90" aria-hidden />
+                    </summary>
+                    <div className="space-y-3 border-t border-white/10 px-3 pb-4 pt-1 sm:px-4">
+                      {g.keys.map((k) => {
+                        const c = LEGAL_CONSENT_COPY[k];
+                        return (
+                          <div key={k} className="rounded-xl border border-white/5 bg-[#0a1220]/80 p-3">
+                            <label className="flex items-start gap-2.5 text-sm text-white">
+                              <input
+                                type="checkbox"
+                                className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-[#0a1220]"
+                                checked={form.legal[k]}
+                                onChange={(e) =>
+                                  setForm((f) => ({ ...f, legal: { ...f.legal, [k]: e.target.checked } }))
+                                }
+                              />
+                              <span>
+                                <span className="font-medium">{c.title}</span>
+                                <span className="ml-1 text-xs text-slate-500">(okudum, kabul ediyorum)</span>
+                              </span>
+                            </label>
+                            <p className="mt-2 pl-0 text-xs leading-relaxed text-slate-500 sm:pl-6">{c.body}</p>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </details>
+                ))}
               </div>
             </div>
           )}
@@ -849,8 +993,8 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                 <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-5">
                   <h3 className="font-serif text-lg font-semibold text-white">Ödeme özeti</h3>
                   <ul className="mt-3 space-y-1.5 text-sm text-slate-300">
-                    <li>• Meslek: {PROFESSION_OPTIONS.find((p) => p.id === form.professionId)?.label}</li>
-                    <li>• Ülkeler: {form.countryKeys.map((k) => countryDisplayName(k)).join(", ")}</li>
+                    <li>• Meslek: {form.professionId ? professionLabelById(form.professionId) : "—"}</li>
+                    <li>• Hedefler: {form.countryKeys.map((k) => targetDisplayWithFlag(k)).join(" · ")}</li>
                     <li>• İlan paketi: {price.listingPackage.label}</li>
                   </ul>
                   <ul className="mt-4 space-y-1 border-t border-white/10 pt-3 text-sm">
@@ -984,19 +1128,29 @@ function Step7Interview({ onBack, onNext }: { onBack: () => void; onNext: () => 
   return (
     <div className="space-y-4">
       <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-indigo-500/10 to-transparent p-5 sm:p-6">
-        <h3 className="font-serif text-lg font-semibold text-white">Mülakat olursa dil konusunda ne yapılabilir?</h3>
-        <p className="mt-2 text-sm text-slate-300">
-          Aşağıdakiler rehber niteliğindedir; her adayın tercih ve sınırları farklıdır. Bu hizmet mülakat performansı veya
-          çevirinizi sizin yerinize yürütme iddiası taşımaz.
+        <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">Mülakat olursa dil desteğini nasıl çözebilirsiniz?</h3>
+        <p className="mt-3 text-sm leading-relaxed text-slate-300/95">
+          Mülakat ve iletişim performansı size aittir. Aşağıdaki seçenekler yalnızca yardımcı rehber niteliğindedir.
         </p>
-        <ul className="mt-4 space-y-2.5 text-sm text-slate-200/90">
-          <li>• Anlık çeviri destekli telefon uygulamaları ile sınırlı cümle alıştırması</li>
-          <li>• Görüntülü görüşmelerde ayrı cihaz veya ekran üstü yardımcı çeviri araçları (risksiz tercihler)</li>
-          <li>• Gerekirse bağımsız profesyonel tercüman desteği (sizin tarafınızdan temin; ücreti size ait)</li>
-          <li>• Armut, sahibinden.com gibi pazarlıklı platformlarda serbest tercüman aranması (doğrulamayı siz yapın)</li>
-          <li>• Aynı dili bilen eş, dost, tanıdık ağından sınırlı, etik sınırlar içi yardımcı destek</li>
+        <ul className="mt-5 space-y-3 text-sm text-slate-200/90">
+          <li className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" />
+            <span>Anlık çeviri uygulamaları ile hazırlık</span>
+          </li>
+          <li className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" />
+            <span>Ayrı cihazda yardımcı çeviri kullanımı</span>
+          </li>
+          <li className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" />
+            <span>Bağımsız profesyonel tercüman desteği</span>
+          </li>
+          <li className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" />
+            <span>Tanıdık / eş–dost veya serbest tercüman desteği</span>
+          </li>
         </ul>
-        <p className="mt-3 text-xs text-slate-500">Bu bölüm taahhüt değil; olası yolları açık ve ölçülü biçimde özetler.</p>
+        <p className="mt-4 text-xs text-slate-500">Bu bölüm taahhüt değil, yalnızca yardımcı seçenek özetidir.</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6">
         <button

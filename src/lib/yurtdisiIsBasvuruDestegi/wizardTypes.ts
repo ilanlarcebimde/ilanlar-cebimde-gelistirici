@@ -50,7 +50,7 @@ export function emptyBasvuruWizardState(): BasvuruWizardFormState {
     languages: [],
   professionId: null,
   countryKeys: [],
-  listingPackageId: 3,
+  listingPackageId: 1,
     filesByCategory: {
       cv: [],
       diploma: [],

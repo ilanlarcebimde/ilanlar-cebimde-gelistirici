@@ -155,10 +155,10 @@ export function Header({
               Yurtdışı İş Başvuru Merkezi
             </Link>
             <Link
-              href="/yurtdisi-is-basvuru-destegi"
+              href="/yurtdisi-is-basvuru-danismanligi"
               className="rounded-lg px-2 py-2 text-[13px] lg:px-3 lg:text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
-              Yurtdışı İş Başvuru Desteği
+              Yurtdışı İş Başvuru Danışmanlığı
             </Link>
             <Link
               href={FEED_PATH}
