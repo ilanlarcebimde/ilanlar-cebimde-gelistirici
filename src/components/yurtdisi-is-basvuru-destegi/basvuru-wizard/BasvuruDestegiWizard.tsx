@@ -45,6 +45,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ADMIN_BASVURU_FREE_UNLIMITED_COUPON,
+  isAdminBasvuruFreeUnlimitedActive,
   isAdminBasvuruFreeUnlimitedCoupon,
 } from "@/lib/yurtdisiIsBasvuruDestegi/adminBasvuruTestCoupon";
 
@@ -274,7 +275,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
   const buildBilling = useCallback((): IndividualBillingPayload | null => {
     if (!price?.totalTry || !pricingInput) return null;
     const total = price.totalTry;
-    const adminFree = isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon);
+    const adminFree = isAdminBasvuruFreeUnlimitedActive(checkoutCoupon);
     return {
       service_name: YURTDISI_BASVURU_BASKET,
       first_name: form.invoiceFirstName.trim(),
@@ -1053,16 +1054,24 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                       autoComplete="off"
                       value={checkoutCoupon}
                       onChange={(e) => setCheckoutCoupon(e.target.value)}
-                      placeholder="Test: ADMIN_FREE_UNLIMITED"
+                      placeholder="Tanımlı kupon kodunuzu giriniz"
                       className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a1220] px-3 py-2.5 text-sm text-white placeholder:text-slate-600"
                     />
-                    {isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon) && (
+                    {isAdminBasvuruFreeUnlimitedActive(checkoutCoupon) && (
                       <p className="mt-2 text-xs leading-relaxed text-emerald-200/90">
-                        Bu kod ile PayTR atlanır; ödeme sunucuda anında tamamlanır (yalnızca geliştirme veya{" "}
-                        <code className="rounded bg-white/10 px-1">ALLOW_ADMIN_BASVURU_FREE_COUPON</code> açık
-                        ortamlarda).
+                        Bu kod ile PayTR atlanır; ödeme sunucuda anında tamamlanır (yalnızca geliştirme veya
+                        sunucu/ortam değişkeni açıkken).
                       </p>
                     )}
+                    {isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon) && !isAdminBasvuruFreeUnlimitedActive(checkoutCoupon) && (
+                        <p className="mt-2 text-xs leading-relaxed text-amber-200/90">
+                          Bu test kuponu bu ortamda tanımlı değil; normal tutarla PayTR ödemesi yapılır. Açmak için
+                          sunucuda <code className="rounded bg-white/10 px-1">ALLOW_ADMIN_BASVURU_FREE_COUPON</code> ve
+                          production’da istemcinin 0₺ tutarı gönderebilmesi için{" "}
+                          <code className="rounded bg-white/10 px-1">NEXT_PUBLIC_ALLOW_ADMIN_BASVURU_FREE_COUPON</code>{" "}
+                          (ör. <code className="rounded bg-white/10 px-1">true</code>) ayarlayın.
+                        </p>
+                      )}
                   </div>
                   <div className="flex justify-center">
                     <button
@@ -1074,7 +1083,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                       className="inline-flex min-h-[52px] min-w-[200px] items-center justify-center gap-2 rounded-2xl bg-amber-500 px-6 py-3 text-sm font-bold text-[#0f1a2c] shadow-lg shadow-amber-900/30"
                     >
                       <Shield className="h-4 w-4" />
-                      {isAdminBasvuruFreeUnlimitedCoupon(checkoutCoupon) ? "Test ödemesini tamamla" : "PAYTR ile ödemeye geç"}
+                      {isAdminBasvuruFreeUnlimitedActive(checkoutCoupon) ? "Test ödemesini tamamla" : "PAYTR ile ödemeye geç"}
                     </button>
                   </div>
                 </div>
