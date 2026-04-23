@@ -698,7 +698,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                   {filteredEurope.length > 0 && (
                     <div>
                       <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Avrupa</h4>
-                      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                      <div className="mt-2 grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2">
                         {filteredEurope.map((c) => {
                           const on = form.countryKeys.includes(c.key);
                           return (
@@ -706,7 +706,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                               key={c.id}
                               type="button"
                               onClick={() => toggleCountry(c.id)}
-                              className={`flex min-h-[44px] items-center gap-3 rounded-xl border px-2 py-2 text-left text-sm sm:px-3 ${
+                              className={`flex min-h-[44px] w-full min-w-0 items-center gap-3 overflow-visible rounded-xl border px-2 py-2 text-left text-sm sm:px-3 ${
                                 on
                                   ? "border-amber-400/50 bg-amber-500/10 text-white ring-1 ring-amber-400/15"
                                   : "border-white/10 text-slate-200 hover:border-white/25"
@@ -724,7 +724,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                   {filteredInternational.length > 0 && (
                     <div>
                       <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Diğer hedefler</h4>
-                      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                      <div className="mt-2 grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2">
                         {filteredInternational.map((c) => {
                           const on = form.countryKeys.includes(c.key);
                           return (
@@ -732,7 +732,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                               key={c.id}
                               type="button"
                               onClick={() => toggleCountry(c.id)}
-                              className={`flex min-h-[44px] items-center gap-3 rounded-xl border px-2 py-2 text-left text-sm sm:px-3 ${
+                              className={`flex min-h-[44px] w-full min-w-0 items-center gap-3 overflow-visible rounded-xl border px-2 py-2 text-left text-sm sm:px-3 ${
                                 on
                                   ? "border-amber-400/50 bg-amber-500/10 text-white ring-1 ring-amber-400/15"
                                   : "border-white/10 text-slate-200 hover:border-white/25"

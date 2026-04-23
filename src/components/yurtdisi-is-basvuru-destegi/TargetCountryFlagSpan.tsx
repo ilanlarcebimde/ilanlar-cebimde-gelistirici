@@ -1,6 +1,8 @@
 "use client";
 
-/** Emoji bayrakların Windows / macOS / Android’da renkli çizilmesi için font yığını */
+import type { CSSProperties } from "react";
+
+/** Emoji yığını; asıl sınıf: globals.css `.target-country-flag-emoji` (rlig/calt + masaüstü) */
 export const TARGET_COUNTRY_FLAG_EMOJI_FONT =
   '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", system-ui, sans-serif';
 
@@ -21,12 +23,14 @@ export function TargetCountryFlagSpan({ flagEmoji, iso2, size = "md" }: TargetCo
     <span
       aria-hidden
       title={iso2}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-white/10 ${box}`}
+      className={`target-country-flag-emoji inline-flex shrink-0 items-center justify-center overflow-visible rounded-full bg-white/10 ${box}`}
       style={{
         fontFamily: TARGET_COUNTRY_FLAG_EMOJI_FONT,
+        fontFeatureSettings: "normal",
+        fontVariantEmoji: "emoji",
+        isolation: "isolate",
         opacity: 1,
-        color: "inherit",
-      }}
+      } satisfies CSSProperties}
     >
       {flagEmoji}
     </span>
@@ -45,7 +49,7 @@ export function TargetCountryFlagOrIso({ flagEmoji, iso2, size = "md" }: TargetC
     return (
       <span
         aria-hidden
-        className={`inline-flex shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 font-semibold uppercase leading-none tracking-tight text-amber-100 ${box}`}
+        className={`inline-flex shrink-0 items-center justify-center overflow-visible rounded-full border border-white/20 bg-white/5 font-semibold uppercase leading-none tracking-tight text-amber-100 ${box}`}
       >
         {iso2}
       </span>
