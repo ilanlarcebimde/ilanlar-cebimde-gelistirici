@@ -678,7 +678,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                           className="inline-flex max-w-full min-h-[32px] items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 py-1 pl-1.5 pr-2 text-xs text-amber-100 sm:py-1.5"
                         >
                           {tMeta ? (
-                            <TargetCountryFlagOrIso flagEmoji={tMeta.flagEmoji} iso2={tMeta.iso2} size="sm" />
+                            <TargetCountryFlagOrIso iso2={tMeta.iso2} size="sm" />
                           ) : null}
                           <span className="min-w-0 max-w-[12rem] truncate sm:max-w-[16rem]">{tMeta?.nameTr ?? k}</span>
                           <button
@@ -712,7 +712,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                                   : "border-white/10 text-slate-200 hover:border-white/25"
                               }`}
                             >
-                              <TargetCountryFlagOrIso flagEmoji={c.flagEmoji} iso2={c.iso2} />
+                              <TargetCountryFlagOrIso iso2={c.iso2} />
                               <span className="min-w-0 flex-1 leading-snug">{c.nameTr}</span>
                               {on && <Check className="ml-auto h-4 w-4 shrink-0 text-amber-300" aria-hidden />}
                             </button>
@@ -738,7 +738,7 @@ export function BasvuruDestegiWizard({ open, onClose }: BasvuruDestegiWizardProp
                                   : "border-white/10 text-slate-200 hover:border-white/25"
                               }`}
                             >
-                              <TargetCountryFlagOrIso flagEmoji={c.flagEmoji} iso2={c.iso2} />
+                              <TargetCountryFlagOrIso iso2={c.iso2} />
                               <span className="min-w-0 flex-1 leading-snug">
                                 {c.nameTr}
                                 {c.type === "region" && (

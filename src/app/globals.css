@@ -24,26 +24,6 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/**
- * Yurtdışı başvuru sihirbazı ülke bayrak emojileri: body’deki rlig/calt bayrak
- * dizilerini (özellikle Windows masaüstü Chrome) bozabiliyor; 2 sütun grid’de de
- * min–width etkileşimi olur. Sınıf ile ligature’ları sıfırla + renk emojisini zorunlu kıl.
- */
-@layer components {
-  .target-country-flag-emoji {
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", system-ui, sans-serif;
-    font-feature-settings: normal;
-    -webkit-font-feature-settings: normal;
-    color: #fefdfb;
-    -webkit-text-fill-color: #fefdfb;
-  }
-  @supports (font-variant-emoji: emoji) {
-    .target-country-flag-emoji {
-      font-variant-emoji: emoji;
-    }
-  }
-}
-
 /* Marquee track */
 .marquee-track {
   animation: marquee 40s linear infinite;
